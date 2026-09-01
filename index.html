@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,340 +8,358 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260901_3">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
 
-  <!-- LOGIN GATE MODAL -->
-  <section id="login-gate" class="login-overlay">
-    <div class="login-card">
-      <img src="assets/logo_sphexn.png" alt="Sphexn Logo" class="login-logo">
-      <h2 class="login-title">SPHEXN <span class="badge badge-amber">Nest Studio</span></h2>
-      <p class="login-desc">Deterministic Governance, Continuous Verification & Structural Armor</p>
-      <div class="login-instructions">
-        Connect your <strong>GitHub Personal Access Token (PAT)</strong> to access the console and synchronize with your <code>.sphexn-storage</code> vault.
-      </div>
-      <div class="form-group mt-16 text-left">
-        <label for="token-input">GitHub Token (PAT):</label>
-        <input type="password" id="token-input" class="form-input" placeholder="ghp_... (requires repo scope)" autocomplete="off">
-      </div>
-      <button id="btn-connect" class="btn btn-primary btn-block mt-16">Connect Vault</button>
-      <div id="login-error" class="login-error hidden"></div>
-      <div class="login-footer">
-        <span class="pulse-dot"></span>
-        <span>Terra Ecosystem • $0 Infrastructure • Zero Data Leak</span>
+  <div id="app" style="width: 100vw; height: 100vh; overflow: hidden; background: #070b12; position: relative;">
+    
+    <!-- LOGIN GATE OVERLAY (Shown when unauthenticated) -->
+    <div id="login-gate" class="login-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at 50% 35%, rgba(37, 99, 235, 0.22) 0%, #070b12 70%); display: flex; align-items: center; justify-content: center; z-index: 99999; padding: 20px; box-sizing: border-box;">
+      <div class="login-card" style="width: 450px; max-width: 92vw; padding: 36px 30px; text-align: center; border-radius: 16px; background: rgba(16, 24, 38, 0.95); border: 1px solid rgba(37, 99, 235, 0.4); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(37, 99, 235, 0.25); backdrop-filter: blur(20px); box-sizing: border-box;">
+        
+        <div style="width: 76px; height: 76px; margin: 0 auto 16px auto; border-radius: 14px; background: rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.5); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(37, 99, 235, 0.35);">
+          <img src="assets/logo_sphexn.png" alt="Sphexn Logo" class="login-logo" width="48" height="48" style="width: 48px !important; height: 48px !important; max-width: 48px; max-height: 48px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.8));">
+        </div>
+
+        <h2 style="font-size: 1.45rem; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; letter-spacing: -0.5px;">
+          SPHEXN <span class="badge" style="background: #f59e0b; color: #000; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; font-weight: 700; vertical-align: middle; text-transform: uppercase;">Nest Studio</span>
+        </h2>
+        <p style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 18px; line-height: 1.4;">
+          Suite de Gobernanza Determinista, Verificación Continua & Armadura Estructural
+        </p>
+
+        <div style="background: rgba(11, 17, 26, 0.8); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 18px; text-align: left; font-size: 0.78rem; color: #cbd5e1; line-height: 1.45;">
+          Introduce tu <strong>GitHub Personal Access Token (PAT)</strong> con permisos <code>repo</code> y <code>workflow</code> para sincronizar con tu bóveda <code>.sphexn-storage</code>.
+        </div>
+
+        <div class="form-group" style="text-align: left; margin-bottom: 16px;">
+          <label style="font-size: 0.78rem; font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 6px;">GitHub Personal Access Token (PAT):</label>
+          <input type="password" id="token-input" class="form-input" style="width: 100%; padding: 11px 14px; background: #0b111a; border: 1px solid rgba(37, 99, 235, 0.35); border-radius: 8px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; outline: none; box-sizing: border-box;" placeholder="ghp_..." autocomplete="off">
+          <span style="font-size: 0.72rem; color: #64748b; display: block; margin-top: 5px;">El token se almacena exclusivamente en tu sesión local de navegador.</span>
+        </div>
+
+        <button id="btn-connect" class="btn btn-primary btn-block" style="width: 100%; padding: 12px; font-size: 0.92rem; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
+          🔑 Conectar Bóveda y Desbloquear Consola
+        </button>
+
+        <div id="login-error" style="color: #ef4444; font-size: 0.82rem; margin-top: 12px; display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); padding: 8px 12px; border-radius: 6px;"></div>
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; font-size: 0.74rem; color: #64748b;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+          <span>Terra Ecosystem • $0 Infrastructure • Zero Data Leak</span>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- MAIN CONSOLE APP -->
-  <div class="app-layout hidden" id="app-layout">
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="brand">
-        <img src="assets/logo_sphexn.png" alt="Sphexn Logo" class="brand-logo">
-        <div class="brand-info">
-          <span class="brand-title">SPHEXN</span>
-          <span class="brand-subtitle">NEST STUDIO</span>
-        </div>
-      </div>
-
-      <!-- AUTHENTICATED USER BADGE -->
-      <div class="user-profile-card">
-        <img src="" alt="Avatar" id="user-avatar" class="user-avatar">
-        <div class="user-info">
-          <span class="user-name" id="user-display">@user</span>
-          <span class="user-role text-green">Connected Vault</span>
-        </div>
-        <button class="btn btn-ghost btn-xs btn-disconnect" id="btn-disconnect" title="Disconnect and return to login">
-          🚪
-        </button>
-      </div>
-
-      <nav class="nav-menu">
-        <div class="nav-section-title">CONTROL TOWER</div>
-        <button class="nav-item active" data-tab="dashboard">
-          <span class="nav-icon">📊</span>
-          <span class="nav-label">Dashboard</span>
-        </button>
-
-        <div class="nav-section-title">THE 6 SPECIES</div>
-        <button class="nav-item" data-tab="lucae">
-          <span class="nav-icon">🔍</span>
-          <span class="nav-label">Lucae</span>
-          <span class="nav-badge">AST</span>
-        </button>
-        <button class="nav-item" data-tab="praedator">
-          <span class="nav-icon">🦅</span>
-          <span class="nav-label">Praedator</span>
-          <span class="nav-badge">PR</span>
-        </button>
-        <button class="nav-item" data-tab="micans">
-          <span class="nav-icon">📝</span>
-          <span class="nav-label">Micans</span>
-          <span class="nav-badge">Docs</span>
-        </button>
-        <button class="nav-item" data-tab="nudus">
-          <span class="nav-icon">🩹</span>
-          <span class="nav-label">Nudus</span>
-          <span class="nav-badge">Heal</span>
-        </button>
-        <button class="nav-item" data-tab="rex">
-          <span class="nav-icon">👑</span>
-          <span class="nav-label">Rex</span>
-          <span class="nav-badge">DevOps</span>
-        </button>
-        <button class="nav-item" data-tab="obscurus">
-          <span class="nav-icon">🛡️</span>
-          <span class="nav-label">Obscurus</span>
-          <span class="nav-badge">Filter</span>
-        </button>
-
-        <div class="nav-section-title">INFRASTRUCTURE & BYOAI</div>
-        <button class="nav-item" data-tab="vault">
-          <span class="nav-icon">📦</span>
-          <span class="nav-label">Storage Vault</span>
-        </button>
-        <button class="nav-item" data-tab="providers">
-          <span class="nav-icon">🧠</span>
-          <span class="nav-label">BYOAI Providers</span>
-          <span class="nav-badge" style="color:#10b981; background:rgba(16,185,129,0.15)">Usage</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="ecosystem-tag">
-          <span class="pulse-dot"></span>
-          <span>Terra Ecosystem ($0 Compute)</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- MAIN CONTENT AREA -->
-    <main class="main-viewport">
-      <!-- HEADER BAR -->
-      <header class="topbar">
-        <div class="topbar-left">
-          <h1 id="page-title">Dashboard Overview</h1>
-          <span class="page-caption" id="page-caption">Deterministic Governance, Continuous Verification & Structural Armor</span>
-        </div>
-        <div class="topbar-right">
-          <div class="status-pill" id="vault-status">
-            <span class="dot green"></span>
-            <span>Vault: .sphexn-storage</span>
+    <!-- PROTECTED MAIN CONSOLE (Shown ONLY when authenticated) -->
+    <div class="app-layout" id="app-layout" style="display: none; height: 100vh; width: 100vw;">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="assets/logo_sphexn.png" alt="Sphexn Logo" class="brand-logo" width="36" height="36" style="width: 36px !important; height: 36px !important; object-fit: contain;">
+          <div class="brand-info">
+            <span class="brand-title">SPHEXN</span>
+            <span class="brand-subtitle">NEST STUDIO</span>
           </div>
-          <div class="status-pill" id="ai-status">
-            <span class="dot blue"></span>
-            <span id="active-providers-count">Phantom AI: Standby</span>
+        </div>
+
+        <!-- AUTHENTICATED USER PROFILE BADGE -->
+        <div class="user-profile-card">
+          <img src="assets/logo_sphexn.png" alt="Avatar" id="user-avatar" class="user-avatar">
+          <div class="user-info">
+            <span class="user-name" id="user-display">@user</span>
+            <span class="user-role text-green">Connected Vault</span>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-topbar-disconnect">
-            Desconectar
+          <button class="btn btn-ghost btn-xs btn-disconnect" id="btn-disconnect" title="Desconectar sesión">
+            🚪
           </button>
         </div>
-      </header>
 
-      <!-- TAB CONTENTS -->
-      <div class="content-scroll">
-        <!-- 1. DASHBOARD TAB -->
-        <section id="tab-dashboard" class="tab-pane active">
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-title">Architectural Health</span>
-                <span class="kpi-icon">🛡️</span>
-              </div>
-              <div class="kpi-value" id="kpi-health">--/100</div>
-              <div class="kpi-meta">Calculated by Sphexn Lucae</div>
-            </div>
+        <nav class="nav-menu">
+          <div class="nav-section-title">CONTROL TOWER</div>
+          <button class="nav-item active" data-tab="dashboard">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Dashboard</span>
+          </button>
 
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-title">PRs Audited</span>
-                <span class="kpi-icon">🦅</span>
-              </div>
-              <div class="kpi-value" id="kpi-audited">0</div>
-              <div class="kpi-meta">Zero credential leaks allowed</div>
-            </div>
+          <div class="nav-section-title">THE 6 SPECIES</div>
+          <button class="nav-item" data-tab="lucae">
+            <span class="nav-icon">🔍</span>
+            <span class="nav-label">Lucae</span>
+            <span class="nav-badge">AST</span>
+          </button>
+          <button class="nav-item" data-tab="praedator">
+            <span class="nav-icon">🦅</span>
+            <span class="nav-label">Praedator</span>
+            <span class="nav-badge">PR</span>
+          </button>
+          <button class="nav-item" data-tab="micans">
+            <span class="nav-icon">📝</span>
+            <span class="nav-label">Micans</span>
+            <span class="nav-badge">Docs</span>
+          </button>
+          <button class="nav-item" data-tab="nudus">
+            <span class="nav-icon">🩹</span>
+            <span class="nav-label">Nudus</span>
+            <span class="nav-badge">Heal</span>
+          </button>
+          <button class="nav-item" data-tab="rex">
+            <span class="nav-icon">👑</span>
+            <span class="nav-label">Rex</span>
+            <span class="nav-badge">DevOps</span>
+          </button>
+          <button class="nav-item" data-tab="obscurus">
+            <span class="nav-icon">🛡️</span>
+            <span class="nav-label">Obscurus</span>
+            <span class="nav-badge">Filter</span>
+          </button>
 
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-title">Self-Healed Tests</span>
-                <span class="kpi-icon">🩹</span>
-              </div>
-              <div class="kpi-value" id="kpi-healed">0</div>
-              <div class="kpi-meta">Closed-loop SEARCH/REPLACE</div>
-            </div>
+          <div class="nav-section-title">INFRASTRUCTURE & BYOAI</div>
+          <button class="nav-item" data-tab="vault">
+            <span class="nav-icon">📦</span>
+            <span class="nav-label">Storage Vault</span>
+          </button>
+          <button class="nav-item" data-tab="providers">
+            <span class="nav-icon">🧠</span>
+            <span class="nav-label">BYOAI Providers</span>
+            <span class="nav-badge" style="color:#10b981; background:rgba(16,185,129,0.15)">Usage</span>
+          </button>
+        </nav>
 
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span class="kpi-title">Active Species</span>
-                <span class="kpi-icon">⚡</span>
-              </div>
-              <div class="kpi-value">6 / 6</div>
-              <div class="kpi-meta">100% Deterministic Modularity</div>
-            </div>
+        <div class="sidebar-footer">
+          <div class="ecosystem-tag">
+            <span class="pulse-dot"></span>
+            <span>Terra Ecosystem ($0 Compute)</span>
           </div>
+        </div>
+      </aside>
 
-          <div class="card mt-24">
-            <div class="card-header">
-              <h2>Quick Species Dispatcher</h2>
-              <span class="badge badge-amber">Autonomous</span>
-            </div>
-            <div class="species-grid">
-              <div class="species-trigger-card" onclick="switchTab('lucae')">
-                <div class="st-icon">🔍</div>
-                <h3>Sphexn Lucae</h3>
-                <p>Run AST complexity & generate interactive Mermaid architecture diagram.</p>
-                <button class="btn btn-primary btn-sm">Launch Lucae →</button>
-              </div>
-              <div class="species-trigger-card" onclick="switchTab('praedator')">
-                <div class="st-icon">🦅</div>
-                <h3>Sphexn Praedator</h3>
-                <p>Audit PR git diff for breaking changes, secrets & security flags.</p>
-                <button class="btn btn-primary btn-sm">Launch Praedator →</button>
-              </div>
-              <div class="species-trigger-card" onclick="switchTab('nudus')">
-                <div class="st-icon">🩹</div>
-                <h3>Sphexn Nudus</h3>
-                <p>Execute test suite with 1-5x closed-loop auto-healing patches.</p>
-                <button class="btn btn-primary btn-sm">Launch Nudus →</button>
-              </div>
-              <div class="species-trigger-card" onclick="switchTab('rex')">
-                <div class="st-icon">👑</div>
-                <h3>Sphexn Rex</h3>
-                <p>Orchestrate declarative Markdown tasks from sphexn_rex.md.</p>
-                <button class="btn btn-primary btn-sm">Launch Rex →</button>
-              </div>
-            </div>
+      <!-- MAIN CONTENT AREA -->
+      <main class="main-viewport">
+        <!-- HEADER BAR -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 id="page-title">Dashboard Overview</h1>
+            <span class="page-caption" id="page-caption">Deterministic Governance, Continuous Verification & Structural Armor</span>
           </div>
-
-          <div class="card mt-24">
-            <div class="card-header">
-              <h2>Recent Audit Ledger (.sphexn-storage)</h2>
-              <button class="btn btn-secondary btn-sm" onclick="loadAudits()">Refresh Ledger</button>
+          <div class="topbar-right">
+            <div class="status-pill" id="vault-status">
+              <span class="dot green"></span>
+              <span>Vault: .sphexn-storage</span>
             </div>
-            <div class="table-wrapper">
-              <table class="data-table" id="table-recent-audits">
-                <thead>
-                  <tr>
-                    <th>Species</th>
-                    <th>Timestamp</th>
-                    <th>Summary</th>
-                    <th>Score / Verdict</th>
-                  </tr>
-                </thead>
-                <tbody id="audits-tbody">
-                  <tr>
-                    <td colspan="4" class="text-center text-muted">No audits recorded yet. Run a species to populate the ledger.</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="status-pill" id="ai-status">
+              <span class="dot blue"></span>
+              <span id="active-providers-count">Phantom AI: Standby</span>
             </div>
+            <button class="btn btn-secondary btn-sm" id="btn-topbar-disconnect">
+              Desconectar
+            </button>
           </div>
-        </section>
+        </header>
 
-        <!-- 2. LUCAE TAB -->
-        <section id="tab-lucae" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Lucae — Architectural & Complexity Synthesizer</h2>
-                <p class="text-muted">100% Deterministic AST Analysis & Modular Mermaid Graph Generation</p>
+        <!-- TAB CONTENTS -->
+        <div class="content-scroll">
+          <!-- 1. DASHBOARD TAB -->
+          <section id="tab-dashboard" class="tab-pane active">
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-header">
+                  <span class="kpi-title">Architectural Health</span>
+                  <span class="kpi-icon">🛡️</span>
+                </div>
+                <div class="kpi-value" id="kpi-health">--/100</div>
+                <div class="kpi-meta">Calculated by Sphexn Lucae</div>
               </div>
-              <button class="btn btn-primary" id="btn-run-lucae">Run Architecture Analysis</button>
-            </div>
-            <div id="lucae-results-container" class="mt-16">
-              <div class="placeholder-box">
-                <span class="large-icon">🔍</span>
-                <p>Click <strong>"Run Architecture Analysis"</strong> to scan the codebase, detect God Files, and generate the Mermaid dependency graph.</p>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <!-- 3. PRAEDATOR TAB -->
-        <section id="tab-praedator" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Praedator — Pull Request & Git Diff Auditor</h2>
-                <p class="text-muted">Surgical review of code changes, breaking change detection & credential leak prevention</p>
+              <div class="kpi-card">
+                <div class="kpi-header">
+                  <span class="kpi-title">PRs Audited</span>
+                  <span class="kpi-icon">🦅</span>
+                </div>
+                <div class="kpi-value" id="kpi-audited">0</div>
+                <div class="kpi-meta">Zero credential leaks allowed</div>
               </div>
-              <button class="btn btn-primary" id="btn-run-praedator">Audit Current Diff</button>
-            </div>
-            <div class="form-group mt-16">
-              <label for="praedator-diff-input">Manual Git Diff (Optional Override):</label>
-              <textarea id="praedator-diff-input" class="code-textarea" rows="6" placeholder="Paste a git diff here or leave blank to automatically inspect current git changes..."></textarea>
-            </div>
-            <div id="praedator-results" class="mt-16"></div>
-          </div>
-        </section>
 
-        <!-- 4. MICANS TAB -->
-        <section id="tab-micans" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Micans — Documentation Synchronizer</h2>
-                <p class="text-muted">Detects code-to-docs discrepancies and applies non-destructive surgical section patches</p>
+              <div class="kpi-card">
+                <div class="kpi-header">
+                  <span class="kpi-title">Self-Healed Tests</span>
+                  <span class="kpi-icon">🩹</span>
+                </div>
+                <div class="kpi-value" id="kpi-healed">0</div>
+                <div class="kpi-meta">Closed-loop SEARCH/REPLACE</div>
               </div>
-              <div class="btn-group">
-                <button class="btn btn-secondary" id="btn-micans-dryrun">Scan Discrepancies (Dry-Run)</button>
-                <button class="btn btn-primary" id="btn-micans-apply">Apply & Commit Sync</button>
-              </div>
-            </div>
-            <div id="micans-results" class="mt-16">
-              <div class="placeholder-box">
-                <span class="large-icon">📝</span>
-                <p>Click <strong>Scan Discrepancies</strong> to compare code exports against <code>README.md</code>.</p>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <!-- 5. NUDUS TAB -->
-        <section id="tab-nudus" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Nudus — Closed-Loop Test Self-Healing Engine</h2>
-                <p class="text-muted">Runs test suite, isolates failure stack traces and iterates surgical SEARCH/REPLACE patches</p>
-              </div>
-              <button class="btn btn-primary" id="btn-run-nudus">Execute & Auto-Heal</button>
-            </div>
-            <div class="form-row mt-16">
-              <div class="form-group col-8">
-                <label for="nudus-cmd">Test Command:</label>
-                <input type="text" id="nudus-cmd" class="form-input" value="npm test" placeholder="e.g. npm test, pytest, cargo test">
-              </div>
-              <div class="form-group col-4">
-                <label for="nudus-retries">Max Closed-Loop Retries:</label>
-                <select id="nudus-retries" class="form-input">
-                  <option value="1">1 Attempt</option>
-                  <option value="2">2 Attempts</option>
-                  <option value="3" selected>3 Attempts (Recommended)</option>
-                  <option value="5">5 Attempts</option>
-                </select>
+              <div class="kpi-card">
+                <div class="kpi-header">
+                  <span class="kpi-title">Active Species</span>
+                  <span class="kpi-icon">⚡</span>
+                </div>
+                <div class="kpi-value">6 / 6</div>
+                <div class="kpi-meta">100% Deterministic Modularity</div>
               </div>
             </div>
-            <div id="nudus-results" class="mt-16"></div>
-          </div>
-        </section>
 
-        <!-- 6. REX TAB -->
-        <section id="tab-rex" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Rex — Declarative Markdown DevOps Platform</h2>
-                <p class="text-muted">Executes tasks sequentially from <code>sphexn_rex.md</code> with step summaries and self-healing</p>
+            <div class="card mt-24">
+              <div class="card-header">
+                <h2>Quick Species Dispatcher</h2>
+                <span class="badge badge-amber">Autonomous</span>
               </div>
-              <button class="btn btn-primary" id="btn-run-rex">Orchestrate Plan</button>
+              <div class="species-grid">
+                <div class="species-trigger-card" onclick="switchTab('lucae')">
+                  <div class="st-icon">🔍</div>
+                  <h3>Sphexn Lucae</h3>
+                  <p>Run AST complexity & generate interactive Mermaid architecture diagram.</p>
+                  <button class="btn btn-primary btn-sm">Launch Lucae →</button>
+                </div>
+                <div class="species-trigger-card" onclick="switchTab('praedator')">
+                  <div class="st-icon">🦅</div>
+                  <h3>Sphexn Praedator</h3>
+                  <p>Audit PR git diff for breaking changes, secrets & security flags.</p>
+                  <button class="btn btn-primary btn-sm">Launch Praedator →</button>
+                </div>
+                <div class="species-trigger-card" onclick="switchTab('nudus')">
+                  <div class="st-icon">🩹</div>
+                  <h3>Sphexn Nudus</h3>
+                  <p>Execute test suite with 1-5x closed-loop auto-healing patches.</p>
+                  <button class="btn btn-primary btn-sm">Launch Nudus →</button>
+                </div>
+                <div class="species-trigger-card" onclick="switchTab('rex')">
+                  <div class="st-icon">👑</div>
+                  <h3>Sphexn Rex</h3>
+                  <p>Orchestrate declarative Markdown tasks from sphexn_rex.md.</p>
+                  <button class="btn btn-primary btn-sm">Launch Rex →</button>
+                </div>
+              </div>
             </div>
-            <div class="form-group mt-16">
-              <label for="rex-plan-content">DevOps Plan Definition (<code>sphexn_rex.md</code>):</label>
-              <textarea id="rex-plan-content" class="code-textarea" rows="8"># Sphexn Rex — DevOps Execution Plan
+
+            <div class="card mt-24">
+              <div class="card-header">
+                <h2>Recent Audit Ledger (.sphexn-storage)</h2>
+                <button class="btn btn-secondary btn-sm" onclick="loadAudits()">Refresh Ledger</button>
+              </div>
+              <div class="table-wrapper">
+                <table class="data-table" id="table-recent-audits">
+                  <thead>
+                    <tr>
+                      <th>Species</th>
+                      <th>Timestamp</th>
+                      <th>Summary</th>
+                      <th>Score / Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audits-tbody">
+                    <tr>
+                      <td colspan="4" class="text-center text-muted">No audits recorded yet. Run a species to populate the ledger.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 2. LUCAE TAB -->
+          <section id="tab-lucae" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Lucae — Architectural & Complexity Synthesizer</h2>
+                  <p class="text-muted">100% Deterministic AST Analysis & Modular Mermaid Graph Generation</p>
+                </div>
+                <button class="btn btn-primary" id="btn-run-lucae">Run Architecture Analysis</button>
+              </div>
+              <div id="lucae-results-container" class="mt-16">
+                <div class="placeholder-box">
+                  <span class="large-icon">🔍</span>
+                  <p>Click <strong>"Run Architecture Analysis"</strong> to scan the codebase, detect God Files, and generate the Mermaid dependency graph.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 3. PRAEDATOR TAB -->
+          <section id="tab-praedator" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Praedator — Pull Request & Git Diff Auditor</h2>
+                  <p class="text-muted">Surgical review of code changes, breaking change detection & credential leak prevention</p>
+                </div>
+                <button class="btn btn-primary" id="btn-run-praedator">Audit Current Diff</button>
+              </div>
+              <div class="form-group mt-16">
+                <label for="praedator-diff-input">Manual Git Diff (Optional Override):</label>
+                <textarea id="praedator-diff-input" class="code-textarea" rows="6" placeholder="Paste a git diff here or leave blank to automatically inspect current git changes..."></textarea>
+              </div>
+              <div id="praedator-results" class="mt-16"></div>
+            </div>
+          </section>
+
+          <!-- 4. MICANS TAB -->
+          <section id="tab-micans" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Micans — Documentation Synchronizer</h2>
+                  <p class="text-muted">Detects code-to-docs discrepancies and applies non-destructive surgical section patches</p>
+                </div>
+                <div class="btn-group">
+                  <button class="btn btn-secondary" id="btn-micans-dryrun">Scan Discrepancies (Dry-Run)</button>
+                  <button class="btn btn-primary" id="btn-micans-apply">Apply & Commit Sync</button>
+                </div>
+              </div>
+              <div id="micans-results" class="mt-16">
+                <div class="placeholder-box">
+                  <span class="large-icon">📝</span>
+                  <p>Click <strong>Scan Discrepancies</strong> to compare code exports against <code>README.md</code>.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5. NUDUS TAB -->
+          <section id="tab-nudus" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Nudus — Closed-Loop Test Self-Healing Engine</h2>
+                  <p class="text-muted">Runs test suite, isolates failure stack traces and iterates surgical SEARCH/REPLACE patches</p>
+                </div>
+                <button class="btn btn-primary" id="btn-run-nudus">Execute & Auto-Heal</button>
+              </div>
+              <div class="form-row mt-16">
+                <div class="form-group col-8">
+                  <label for="nudus-cmd">Test Command:</label>
+                  <input type="text" id="nudus-cmd" class="form-input" value="npm test" placeholder="e.g. npm test, pytest, cargo test">
+                </div>
+                <div class="form-group col-4">
+                  <label for="nudus-retries">Max Closed-Loop Retries:</label>
+                  <select id="nudus-retries" class="form-input">
+                    <option value="1">1 Attempt</option>
+                    <option value="2">2 Attempts</option>
+                    <option value="3" selected>3 Attempts (Recommended)</option>
+                    <option value="5">5 Attempts</option>
+                  </select>
+                </div>
+              </div>
+              <div id="nudus-results" class="mt-16"></div>
+            </div>
+          </section>
+
+          <!-- 6. REX TAB -->
+          <section id="tab-rex" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Rex — Declarative Markdown DevOps Platform</h2>
+                  <p class="text-muted">Executes tasks sequentially from <code>sphexn_rex.md</code> with step summaries and self-healing</p>
+                </div>
+                <button class="btn btn-primary" id="btn-run-rex">Orchestrate Plan</button>
+              </div>
+              <div class="form-group mt-16">
+                <label for="rex-plan-content">DevOps Plan Definition (<code>sphexn_rex.md</code>):</label>
+                <textarea id="rex-plan-content" class="code-textarea" rows="8"># Sphexn Rex — DevOps Execution Plan
 
 ## task: validate-build - Compile Project
 Verify that the project compiles cleanly:
@@ -352,173 +370,174 @@ Run health assessment:
 `node bin/sphexn.js lucae`
 continue-on-error: true
 </textarea>
+              </div>
+              <div id="rex-results" class="mt-16"></div>
             </div>
-            <div id="rex-results" class="mt-16"></div>
-          </div>
-        </section>
+          </section>
 
-        <!-- 7. OBSCURUS TAB -->
-        <section id="tab-obscurus" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Obscurus — LLM Output & Hallucination Filter</h2>
-                <p class="text-muted">Strict deterministic syntax compilation, symbol sanity checker and confidence scoring</p>
+          <!-- 7. OBSCURUS TAB -->
+          <section id="tab-obscurus" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Obscurus — LLM Output & Hallucination Filter</h2>
+                  <p class="text-muted">Strict deterministic syntax compilation, symbol sanity checker and confidence scoring</p>
+                </div>
+                <button class="btn btn-primary" id="btn-run-obscurus">Validate Code Output</button>
               </div>
-              <button class="btn btn-primary" id="btn-run-obscurus">Validate Code Output</button>
+              <div class="form-group mt-16">
+                <label for="obscurus-input">AI-Generated Code / JSON to Validate:</label>
+                <textarea id="obscurus-input" class="code-textarea" rows="8" placeholder="Paste code generated by any LLM to check for syntax errors, missing packages, or hallucinated APIs..."></textarea>
+              </div>
+              <div id="obscurus-results" class="mt-16"></div>
             </div>
-            <div class="form-group mt-16">
-              <label for="obscurus-input">AI-Generated Code / JSON to Validate:</label>
-              <textarea id="obscurus-input" class="code-textarea" rows="8" placeholder="Paste code generated by any LLM to check for syntax errors, missing packages, or hallucinated APIs..."></textarea>
-            </div>
-            <div id="obscurus-results" class="mt-16"></div>
-          </div>
-        </section>
+          </section>
 
-        <!-- 8. VAULT TAB -->
-        <section id="tab-vault" class="tab-pane">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Sphexn Storage Vault (.sphexn-storage)</h2>
-                <p class="text-muted">Decentralized, immutable audit trail at $0 cost via GitHub REST API</p>
+          <!-- 8. VAULT TAB -->
+          <section id="tab-vault" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Sphexn Storage Vault (.sphexn-storage)</h2>
+                  <p class="text-muted">Decentralized, immutable audit trail at $0 cost via GitHub REST API</p>
+                </div>
+                <button class="btn btn-secondary" onclick="loadAudits()">Refresh</button>
               </div>
-              <button class="btn btn-secondary" onclick="loadAudits()">Refresh</button>
+              <div class="vault-stats-grid mt-16">
+                <div class="vault-stat-card">
+                  <span class="vault-stat-label">Target Vault Repo</span>
+                  <span class="vault-stat-value" id="vault-repo-label">.sphexn-storage</span>
+                </div>
+                <div class="vault-stat-card">
+                  <span class="vault-stat-label">Total Audits Stored</span>
+                  <span class="vault-stat-value" id="vault-count-label">0</span>
+                </div>
+                <div class="vault-stat-card">
+                  <span class="vault-stat-label">Audit Engine Status</span>
+                  <span class="vault-stat-value text-green">ONLINE (Ephemeral)</span>
+                </div>
+              </div>
+              <div class="table-wrapper mt-24">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Species</th>
+                      <th>Date</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vault-tbody">
+                    <tr>
+                      <td colspan="4" class="text-center text-muted">Loading vault records...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="vault-stats-grid mt-16">
-              <div class="vault-stat-card">
-                <span class="vault-stat-label">Target Vault Repo</span>
-                <span class="vault-stat-value" id="vault-repo-label">.sphexn-storage</span>
-              </div>
-              <div class="vault-stat-card">
-                <span class="vault-stat-label">Total Audits Stored</span>
-                <span class="vault-stat-value" id="vault-count-label">0</span>
-              </div>
-              <div class="vault-stat-card">
-                <span class="vault-stat-label">Audit Engine Status</span>
-                <span class="vault-stat-value text-green">ONLINE (Ephemeral)</span>
-              </div>
-            </div>
-            <div class="table-wrapper mt-24">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Species</th>
-                    <th>Date</th>
-                    <th>Summary</th>
-                  </tr>
-                </thead>
-                <tbody id="vault-tbody">
-                  <tr>
-                    <td colspan="4" class="text-center text-muted">Loading vault records...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- 9. BYOAI PROVIDERS & USAGE TELEMETRY (Merged Configuration & Spending) -->
-        <section id="tab-providers" class="tab-pane">
-          <!-- SECTION A: REAL-TIME TELEMETRY & SPENDING STATS -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2>Phantom Intelligence — Real-Time Usage & Spending Telemetry</h2>
-                <p class="text-muted">Track API calls, token burn rate and real-time expenditure across active providers</p>
+          <!-- 9. BYOAI PROVIDERS & USAGE TELEMETRY (Merged Configuration & Spending) -->
+          <section id="tab-providers" class="tab-pane">
+            <!-- SECTION A: REAL-TIME TELEMETRY & SPENDING STATS -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2>Phantom Intelligence — Real-Time Usage & Spending Telemetry</h2>
+                  <p class="text-muted">Track API calls, token burn rate and real-time expenditure across active providers</p>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="loadProviders()">Refresh Live Stats</button>
               </div>
-              <button class="btn btn-secondary btn-sm" onclick="loadProviders()">Refresh Live Stats</button>
-            </div>
-            <div class="kpi-grid mt-16">
-              <div class="kpi-card">
-                <div class="kpi-header"><span class="kpi-title">Total AI Calls</span><span>📞</span></div>
-                <div class="kpi-value" id="telemetry-calls">0</div>
-                <div class="kpi-meta">Across all species</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-header"><span class="kpi-title">Tokens Consumed</span><span>⚡</span></div>
-                <div class="kpi-value" id="telemetry-tokens">0</div>
-                <div class="kpi-meta">Prompt & completion tokens</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-header"><span class="kpi-title">Estimated Cost</span><span>💰</span></div>
-                <div class="kpi-value text-green" id="telemetry-cost">$0.00</div>
-                <div class="kpi-meta">Free tiers & Terra native ($0)</div>
-              </div>
-              <div class="kpi-card">
-                <div class="kpi-header"><span class="kpi-title">Cache Hit Rate</span><span>🧠</span></div>
-                <div class="kpi-value text-green" id="telemetry-cache">100%</div>
-                <div class="kpi-meta">Tokens saved by .sphexn-storage</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION B: ACTIVE PROVIDER STATUS CARDS -->
-          <div class="card mt-24">
-            <div class="card-header">
-              <h2>Configured Provider Fleet & Quotas</h2>
-              <span class="badge badge-blue" id="providers-status-summary">Detecting...</span>
-            </div>
-            <div class="providers-grid mt-16" id="providers-container">
-              <!-- Rendered dynamically -->
-            </div>
-          </div>
-
-          <!-- SECTION C: CONFIGURE & ADD API KEYS (Directly inside BYOAI Providers) -->
-          <div class="card mt-24">
-            <div class="card-header">
-              <div>
-                <h2>Configure & Add BYOAI Provider Keys</h2>
-                <p class="text-muted">Keys are stored strictly in client-side secure storage. Zero server-side persistence.</p>
-              </div>
-              <span class="badge badge-amber">BYOAI Engine</span>
-            </div>
-
-            <div class="form-row mt-16">
-              <div class="form-group col-8">
-                <label for="cfg-hiven-key">Hiven Agent Swarm API Key (Terra Native):</label>
-                <input type="password" id="cfg-hiven-key" class="form-input" placeholder="hiven_api_...">
-              </div>
-              <div class="form-group col-4">
-                <label for="cfg-gemini-key">Google Gemini API Key (Free Tier):</label>
-                <input type="password" id="cfg-gemini-key" class="form-input" placeholder="AIzaSy...">
+              <div class="kpi-grid mt-16">
+                <div class="kpi-card">
+                  <div class="kpi-header"><span class="kpi-title">Total AI Calls</span><span>📞</span></div>
+                  <div class="kpi-value" id="telemetry-calls">0</div>
+                  <div class="kpi-meta">Across all species</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-header"><span class="kpi-title">Tokens Consumed</span><span>⚡</span></div>
+                  <div class="kpi-value" id="telemetry-tokens">0</div>
+                  <div class="kpi-meta">Prompt & completion tokens</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-header"><span class="kpi-title">Estimated Cost</span><span>💰</span></div>
+                  <div class="kpi-value text-green" id="telemetry-cost">$0.00</div>
+                  <div class="kpi-meta">Free tiers & Terra native ($0)</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-header"><span class="kpi-title">Cache Hit Rate</span><span>🧠</span></div>
+                  <div class="kpi-value text-green" id="telemetry-cache">100%</div>
+                  <div class="kpi-meta">Tokens saved by .sphexn-storage</div>
+                </div>
               </div>
             </div>
 
-            <div class="form-row mt-16">
-              <div class="form-group col-8">
-                <label for="cfg-groq-key">Groq API Key (High-Speed Llama 3.3):</label>
-                <input type="password" id="cfg-groq-key" class="form-input" placeholder="gsk_...">
+            <!-- SECTION B: ACTIVE PROVIDER STATUS CARDS -->
+            <div class="card mt-24">
+              <div class="card-header">
+                <h2>Configured Provider Fleet & Quotas</h2>
+                <span class="badge badge-blue" id="providers-status-summary">Detecting...</span>
               </div>
-              <div class="form-group col-4">
-                <label for="cfg-gh-models">GitHub Models Token (Free Beta):</label>
-                <input type="password" id="cfg-gh-models" class="form-input" placeholder="ghp_... or gho_...">
-              </div>
-            </div>
-
-            <div class="form-row mt-16">
-              <div class="form-group col-8">
-                <label for="cfg-openrouter-key">OpenRouter API Key:</label>
-                <input type="password" id="cfg-openrouter-key" class="form-input" placeholder="sk-or-v1-...">
-              </div>
-              <div class="form-group col-4">
-                <label for="cfg-cohere-key">Cohere API Key:</label>
-                <input type="password" id="cfg-cohere-key" class="form-input" placeholder="co_...">
+              <div class="providers-grid mt-16" id="providers-container">
+                <!-- Rendered dynamically -->
               </div>
             </div>
 
-            <div class="btn-group mt-24">
-              <button class="btn btn-primary" id="btn-save-providers">Save Provider Keys</button>
-              <button class="btn btn-danger" id="btn-clear-providers">Clear All Keys</button>
-            </div>
-          </div>
-        </section>
+            <!-- SECTION C: CONFIGURE & ADD API KEYS -->
+            <div class="card mt-24">
+              <div class="card-header">
+                <div>
+                  <h2>Configure & Add BYOAI Provider Keys</h2>
+                  <p class="text-muted">Keys are stored strictly in client-side secure storage. Zero server-side persistence.</p>
+                </div>
+                <span class="badge badge-amber">BYOAI Engine</span>
+              </div>
 
-      </div>
-    </main>
+              <div class="form-row mt-16">
+                <div class="form-group col-8">
+                  <label for="cfg-hiven-key">Hiven Agent Swarm API Key (Terra Native):</label>
+                  <input type="password" id="cfg-hiven-key" class="form-input" placeholder="hiven_api_...">
+                </div>
+                <div class="form-group col-4">
+                  <label for="cfg-gemini-key">Google Gemini API Key (Free Tier):</label>
+                  <input type="password" id="cfg-gemini-key" class="form-input" placeholder="AIzaSy...">
+                </div>
+              </div>
+
+              <div class="form-row mt-16">
+                <div class="form-group col-8">
+                  <label for="cfg-groq-key">Groq API Key (High-Speed Llama 3.3):</label>
+                  <input type="password" id="cfg-groq-key" class="form-input" placeholder="gsk_...">
+                </div>
+                <div class="form-group col-4">
+                  <label for="cfg-gh-models">GitHub Models Token (Free Beta):</label>
+                  <input type="password" id="cfg-gh-models" class="form-input" placeholder="ghp_... or gho_...">
+                </div>
+              </div>
+
+              <div class="form-row mt-16">
+                <div class="form-group col-8">
+                  <label for="cfg-openrouter-key">OpenRouter API Key:</label>
+                  <input type="password" id="cfg-openrouter-key" class="form-input" placeholder="sk-or-v1-...">
+                </div>
+                <div class="form-group col-4">
+                  <label for="cfg-cohere-key">Cohere API Key:</label>
+                  <input type="password" id="cfg-cohere-key" class="form-input" placeholder="co_...">
+                </div>
+              </div>
+
+              <div class="btn-group mt-24">
+                <button class="btn btn-primary" id="btn-save-providers">Save Provider Keys</button>
+                <button class="btn btn-danger" id="btn-clear-providers">Clear All Keys</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260901_3"></script>
 </body>
 </html>

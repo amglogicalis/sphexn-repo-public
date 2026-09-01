@@ -82,17 +82,17 @@ function showLogin() {
   const tokenInput = document.getElementById('token-input');
   const loginError = document.getElementById('login-error');
 
-  if (loginGate) loginGate.classList.remove('hidden');
-  if (appLayout) appLayout.classList.add('hidden');
+  if (loginGate) loginGate.style.display = 'flex';
+  if (appLayout) appLayout.style.display = 'none';
   if (tokenInput) tokenInput.value = '';
-  if (loginError) loginError.classList.add('hidden');
+  if (loginError) loginError.style.display = 'none';
 }
 
 function showAuthError(msg) {
   const errDiv = document.getElementById('login-error');
   if (errDiv) {
     errDiv.textContent = msg;
-    errDiv.classList.remove('hidden');
+    errDiv.style.display = 'block';
   }
 }
 
@@ -108,7 +108,7 @@ async function authenticate(token) {
     btnConnect.disabled = true;
     btnConnect.textContent = 'Connecting to Vault...';
   }
-  if (loginError) loginError.classList.add('hidden');
+  if (loginError) loginError.style.display = 'none';
 
   try {
     const res = await fetch('https://api.github.com/user', {
@@ -135,8 +135,8 @@ async function authenticate(token) {
     }
 
     // Switch view
-    if (loginGate) loginGate.classList.add('hidden');
-    if (appLayout) appLayout.classList.remove('hidden');
+    if (loginGate) loginGate.style.display = 'none';
+    if (appLayout) appLayout.style.display = 'flex';
 
     // Load initial data
     loadProviders();
