@@ -493,19 +493,38 @@ continue-on-error: true
                   </div>
                 </div>
 
-                <!-- OPTIONAL CUSTOM OPENAI-COMPATIBLE ENDPOINT TOGGLE -->
-                <div class="mt-12" style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
-                  <button type="button" class="btn btn-secondary btn-xs" id="btn-toggle-custom-openai" style="font-size: 0.76rem;">
-                    ⚙️ ¿Usas un endpoint Custom OpenAI-Compatible? (Click para configurar Base URL / Modelo)
-                  </button>
-                  <div id="custom-openai-fields" class="form-row mt-8" style="display: none;">
-                    <div class="form-group col-6">
-                      <label for="custom-openai-url">Custom Base URL (opcional):</label>
-                      <input type="text" id="custom-openai-url" class="form-input" placeholder="https://api.deepseek.com/v1 o https://api.openai.com/v1">
+                <!-- OPTIONAL CUSTOM OPENAI-COMPATIBLE DRAWER PANEL -->
+                <div class="custom-openai-card mt-16" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(37, 99, 235, 0.28); border-radius: 12px; padding: 14px 18px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;" id="btn-toggle-custom-openai">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(37,99,235,0.15); border: 1px solid rgba(37,99,235,0.35); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+                        🔌
+                      </div>
+                      <div>
+                        <div style="font-size: 0.88rem; font-weight: 600; color: #f1f5f9; display: flex; align-items: center; gap: 8px;">
+                          ¿Usas un endpoint Custom OpenAI-Compatible?
+                          <span class="badge badge-blue" style="font-size: 0.65rem; padding: 2px 6px;">OPCIONAL</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">Conecta DeepSeek, Together, vLLM, LM Studio, Ollama o proxies compatibles con el API de OpenAI.</div>
+                      </div>
                     </div>
-                    <div class="form-group col-6">
-                      <label for="custom-openai-model">Modelo Destino (opcional):</label>
-                      <input type="text" id="custom-openai-model" class="form-input" placeholder="ej: gpt-4o, deepseek-chat, llama-3...">
+                    <button type="button" class="btn btn-secondary btn-xs" id="custom-openai-toggle-btn" style="pointer-events: none; font-size: 0.74rem;">
+                      Configurar ▼
+                    </button>
+                  </div>
+
+                  <div id="custom-openai-fields" style="display: none; margin-top: 14px; border-top: 1px dashed rgba(255, 255, 255, 0.08); padding-top: 14px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label for="custom-openai-url" style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px;">Custom Base URL (opcional):</label>
+                        <input type="text" id="custom-openai-url" class="form-input" style="width: 100%; box-sizing: border-box;" placeholder="https://api.deepseek.com/v1 o http://localhost:1234/v1">
+                        <span style="font-size: 0.7rem; color: #64748b; margin-top: 4px; display: block;">Ruta base donde reside el endpoint <code>/chat/completions</code> o <code>/models</code>.</span>
+                      </div>
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label for="custom-openai-model" style="font-size: 0.78rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px;">Modelo Destino (opcional):</label>
+                        <input type="text" id="custom-openai-model" class="form-input" style="width: 100%; box-sizing: border-box;" placeholder="deepseek-chat, gpt-4o, llama-3-8b, etc.">
+                        <span style="font-size: 0.7rem; color: #64748b; margin-top: 4px; display: block;">Identificador de modelo que se registrará para la rotación del pool.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -562,7 +581,7 @@ continue-on-error: true
                 <div class="form-row mt-12">
                   <div class="form-group col-5" id="terra-param-extra-group">
                     <label for="terra-param-extra" id="lbl-terra-param-extra">Ruta / Modelo de Inferencia:</label>
-                    <input type="text" id="terra-param-extra" class="form-input" placeholder="termes-default" value="termes-default">
+                    <input type="text" id="terra-param-extra" class="form-input" placeholder="ej: termes-default (opcional)">
                   </div>
                   <div class="form-group col-4">
                     <label for="terra-token-input" id="lbl-terra-token">Auth Secret / Token (opcional):</label>
@@ -607,6 +626,35 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260901_8"></script>
+  <!-- UNIVERSAL CUSTOM POPUP / MODAL (Follows Sphexn Web Console Aesthetic) -->
+  <div id="custom-modal-overlay" class="custom-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(4, 7, 13, 0.85); backdrop-filter: blur(14px); z-index: 999999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; opacity: 0; transition: opacity 0.2s ease;">
+    <div id="custom-modal-card" class="custom-modal-card" style="width: 450px; max-width: 94vw; background: rgba(16, 24, 38, 0.98); border: 1px solid rgba(37, 99, 235, 0.4); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.9), 0 0 35px rgba(37, 99, 235, 0.25); padding: 24px; box-sizing: border-box; transform: scale(0.96); transition: transform 0.2s ease;">
+      
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+        <div id="custom-modal-icon-box" style="width: 42px; height: 42px; border-radius: 10px; background: rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #60a5fa; flex-shrink: 0;">
+          💬
+        </div>
+        <div>
+          <h3 id="custom-modal-title" style="margin: 0; font-size: 1.08rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.3px;">Confirmación</h3>
+          <span id="custom-modal-badge" class="badge badge-blue" style="font-size: 0.68rem; margin-top: 3px;">SPHEXN ECOSYSTEM</span>
+        </div>
+      </div>
+
+      <p id="custom-modal-message" style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.55; margin: 0 0 16px 0; word-break: break-word;"></p>
+
+      <div id="custom-modal-input-group" style="display: none; margin-bottom: 18px;">
+        <label id="custom-modal-input-label" style="font-size: 0.76rem; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 6px;">Valor:</label>
+        <input type="text" id="custom-modal-input" class="form-input" style="width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 0.86rem;" placeholder="">
+      </div>
+
+      <div id="custom-modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+        <button type="button" class="btn btn-secondary" id="custom-modal-btn-cancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="custom-modal-btn-confirm">Aceptar</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="app.js?v=20260901_9"></script>
 </body>
 </html>

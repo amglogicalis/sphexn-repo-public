@@ -18,6 +18,115 @@ const telemetry = {
   }
 };
 
+// ─── SPHEXN CUSTOM MODAL DIALOG SYSTEM (MATCHES CONSOLE AESTHETIC) ───────────
+
+function showCustomModal({ title, message, badge = 'SPHEXN ECOSYSTEM', icon = '💬', iconColor = '#60a5fa', isPrompt = false, defaultValue = '', inputLabel = 'Valor:', inputPlaceholder = '', confirmText = 'Aceptar', cancelText = 'Cancelar', isDanger = false }) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('custom-modal-overlay');
+    const card = document.getElementById('custom-modal-card');
+    const titleEl = document.getElementById('custom-modal-title');
+    const badgeEl = document.getElementById('custom-modal-badge');
+    const iconBox = document.getElementById('custom-modal-icon-box');
+    const msgEl = document.getElementById('custom-modal-message');
+    const inputGroup = document.getElementById('custom-modal-input-group');
+    const inputLabelEl = document.getElementById('custom-modal-input-label');
+    const inputEl = document.getElementById('custom-modal-input');
+    const btnCancel = document.getElementById('custom-modal-btn-cancel');
+    const btnConfirm = document.getElementById('custom-modal-btn-confirm');
+
+    if (!overlay) {
+      if (isPrompt) resolve(prompt(message, defaultValue));
+      else if (cancelText) resolve(confirm(message));
+      else { alert(message); resolve(true); }
+      return;
+    }
+
+    titleEl.textContent = title || 'Aviso';
+    badgeEl.textContent = badge;
+    iconBox.textContent = icon;
+    iconBox.style.color = iconColor;
+    msgEl.textContent = message || '';
+
+    if (isPrompt) {
+      inputGroup.style.display = 'block';
+      inputLabelEl.textContent = inputLabel;
+      inputEl.value = defaultValue || '';
+      inputEl.placeholder = inputPlaceholder || '';
+      btnCancel.style.display = 'inline-block';
+      btnCancel.textContent = cancelText;
+      btnConfirm.textContent = confirmText;
+      btnConfirm.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+    } else if (cancelText) {
+      inputGroup.style.display = 'none';
+      btnCancel.style.display = 'inline-block';
+      btnCancel.textContent = cancelText;
+      btnConfirm.textContent = confirmText;
+      btnConfirm.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+    } else {
+      inputGroup.style.display = 'none';
+      btnCancel.style.display = 'none';
+      btnConfirm.textContent = confirmText || 'Entendido';
+      btnConfirm.className = 'btn btn-primary';
+    }
+
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      if (card) card.style.transform = 'scale(1)';
+      if (isPrompt && inputEl) {
+        inputEl.focus();
+        inputEl.select();
+      }
+    });
+
+    const cleanup = () => {
+      overlay.style.opacity = '0';
+      if (card) card.style.transform = 'scale(0.96)';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+      }, 200);
+      btnConfirm.onclick = null;
+      btnCancel.onclick = null;
+      if (inputEl) inputEl.onkeydown = null;
+    };
+
+    btnConfirm.onclick = () => {
+      const val = isPrompt ? inputEl.value : true;
+      cleanup();
+      resolve(val);
+    };
+
+    btnCancel.onclick = () => {
+      cleanup();
+      resolve(isPrompt ? null : false);
+    };
+
+    if (isPrompt && inputEl) {
+      inputEl.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btnConfirm.click();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          btnCancel.click();
+        }
+      };
+    }
+  });
+}
+
+window.sphexnAlert = (message, title = 'Notificación', icon = 'ℹ️') => {
+  return showCustomModal({ title, message, icon, cancelText: null });
+};
+
+window.sphexnConfirm = (message, title = '¿Estás seguro?', isDanger = false, confirmText = 'Confirmar') => {
+  return showCustomModal({ title, message, icon: isDanger ? '⚠️' : '❓', iconColor: isDanger ? '#ef4444' : '#60a5fa', isDanger, confirmText, cancelText: 'Cancelar' });
+};
+
+window.sphexnPrompt = (message, defaultValue = '', title = 'Editar Valor', inputLabel = 'Nuevo valor:', placeholder = '') => {
+  return showCustomModal({ title, message, icon: '✏️', isPrompt: true, defaultValue, inputLabel, inputPlaceholder: placeholder, confirmText: 'Guardar', cancelText: 'Cancelar' });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initNavigation();
@@ -487,7 +596,14 @@ async function loadTerraProvidersUI() {
 }
 
 window.handleDeleteTerraProvider = async (id) => {
-  if (!confirm('¿Eliminar este Terra Provider?')) return;
+  const confirmed = await sphexnConfirm(
+    '¿Estás seguro de que deseas eliminar este Terra Provider? Se desconectará de la red de inferencia.',
+    'Eliminar Terra Provider',
+    true,
+    'Eliminar'
+  );
+  if (!confirmed) return;
+
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
     await fetch('/api/terra-providers', {
       method: 'DELETE',
@@ -564,13 +680,17 @@ function initProviderKeys() {
   // Custom OpenAI-Compatible toggle
   const btnToggleOpenAI = document.getElementById('btn-toggle-custom-openai');
   const customOpenAIFields = document.getElementById('custom-openai-fields');
+  const customOpenAIToggleBtn = document.getElementById('custom-openai-toggle-btn');
   const customOpenAIUrl = document.getElementById('custom-openai-url');
   const customOpenAIModel = document.getElementById('custom-openai-model');
 
   if (btnToggleOpenAI && customOpenAIFields) {
     btnToggleOpenAI.addEventListener('click', () => {
       const isHidden = customOpenAIFields.style.display === 'none';
-      customOpenAIFields.style.display = isHidden ? 'flex' : 'none';
+      customOpenAIFields.style.display = isHidden ? 'block' : 'none';
+      if (customOpenAIToggleBtn) {
+        customOpenAIToggleBtn.textContent = isHidden ? 'Ocultar Configuración ▲' : 'Configurar ▼';
+      }
     });
   }
 
@@ -581,21 +701,21 @@ function initProviderKeys() {
       if (lblTerraUrl) lblTerraUrl.textContent = 'Base URL de Instancia Termes:';
       if (terraUrl) terraUrl.placeholder = 'https://mi-termes.up.railway.app/v1 o http://127.0.0.1:7420/v1';
       if (lblTerraParam) lblTerraParam.textContent = 'Ruta / Modelo de Inferencia:';
-      if (terraParam) { terraParam.placeholder = 'termes-default'; terraParam.value = 'termes-default'; }
+      if (terraParam) { terraParam.placeholder = 'ej: termes-default (opcional)'; terraParam.value = ''; }
       if (lblTerraToken) lblTerraToken.textContent = 'Auth Secret / Token (opcional):';
       if (terraToken) terraToken.placeholder = 'X-Termes-Key o Bearer si requiere auth...';
     } else if (type === 'mantx') {
       if (lblTerraUrl) lblTerraUrl.textContent = 'Gateway URL de Mantx (AKG / Nimphys):';
       if (terraUrl) terraUrl.placeholder = 'https://mi-mantx.up.railway.app/v1 o http://127.0.0.1:7450/v1';
       if (lblTerraParam) lblTerraParam.textContent = 'Modelo Destino Nimphys / Pool:';
-      if (terraParam) { terraParam.placeholder = 'nimphys-3b o mantx-akg-default'; terraParam.value = 'nimphys-3b'; }
+      if (terraParam) { terraParam.placeholder = 'ej: nimphys-3b o mantx-akg-default (opcional)'; terraParam.value = ''; }
       if (lblTerraToken) lblTerraToken.textContent = 'AKG Master Token (opcional):';
       if (terraToken) terraToken.placeholder = 'Bearer token si el gateway está protegido...';
     } else if (type === 'hiven') {
       if (lblTerraUrl) lblTerraUrl.textContent = 'URL de Nodo / Cluster Hiven:';
       if (terraUrl) terraUrl.placeholder = 'https://mi-hiven.up.railway.app/v1 o http://127.0.0.1:7460/v1';
       if (lblTerraParam) lblTerraParam.textContent = 'Swarm Cell ID / Hive ID:';
-      if (terraParam) { terraParam.placeholder = 'hive_core_alpha'; terraParam.value = 'hive_core_alpha'; }
+      if (terraParam) { terraParam.placeholder = 'ej: hive_core_alpha (opcional)'; terraParam.value = ''; }
       if (lblTerraToken) lblTerraToken.textContent = 'Swarm Secret Token (opcional):';
       if (terraToken) terraToken.placeholder = 'Token de enjambre si está protegido...';
     }
@@ -827,7 +947,7 @@ function initProviderKeys() {
             body: JSON.stringify({ keys: [] })
           });
           const result = await res.json();
-          alert(`✔ Claves importadas con éxito: ${result.added} añadidas, ${result.errors} omitidas.`);
+          await sphexnAlert(`Claves importadas con éxito: ${result.added} añadidas, ${result.errors} omitidas.`, 'Importación de Claves Reales', '🎉');
         } else {
           // In static mode, prompt user with file picker
           const input = document.createElement('input');
@@ -862,7 +982,7 @@ function initProviderKeys() {
               added++;
             }
             localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
-            alert(`✔ Se importaron ${added} claves reales correctamente a tus Pools.`);
+            await sphexnAlert(`Se importaron ${added} claves reales correctamente a tus Pools.`, 'Importación Completada', '🔑');
             loadKeyPools();
             loadProviders();
           };
@@ -871,7 +991,7 @@ function initProviderKeys() {
         loadKeyPools();
         loadProviders();
       } catch (err) {
-        alert(`Error al importar: ${err.message}`);
+        await sphexnAlert(`Error al importar: ${err.message}`, 'Error de Importación', '⚠️');
       } finally {
         btnImport.disabled = false;
         btnImport.textContent = '📂 Importar Claves Reales';
@@ -881,11 +1001,11 @@ function initProviderKeys() {
 
   // Refresh buttons
   if (btnRefreshPools) btnRefreshPools.addEventListener('click', loadKeyPools);
-  if (btnRefreshTelemetry) btnRefreshTelemetry.addEventListener('click', () => { loadKeyPools(); loadProviders(); loadSymbiontsUI(); });
+  if (btnRefreshTelemetry) btnRefreshTelemetry.addEventListener('click', () => { loadKeyPools(); loadProviders(); loadTerraProvidersUI(); });
 
-  // Load initial pool inventory & symbionts
+  // Load initial pool inventory & terra providers
   loadKeyPools();
-  loadSymbiontsUI();
+  loadTerraProvidersUI();
 }
 
 async function loadKeyPools() {
@@ -1020,7 +1140,13 @@ async function loadKeyPools() {
 }
 
 window.handleEditKeyName = async (id, provider, currentName) => {
-  const newName = prompt('Introduce el nuevo alias para esta clave:', currentName);
+  const newName = await sphexnPrompt(
+    'Introduce el nuevo alias para identificar esta clave en el pool:',
+    currentName,
+    'Editar Alias de la Clave',
+    'Alias / Nombre:',
+    'ej: Groq Producción 1...'
+  );
   if (newName === null || newName.trim() === '') return;
   await handleUpdateKeyAlias(id, newName.trim());
   loadKeyPools();
@@ -1052,7 +1178,13 @@ window.handleUpdateKeyAlias = async (id, newName) => {
 };
 
 window.handleDeleteKey = async (id, provider) => {
-  if (!confirm('¿Eliminar esta clave del pool de ' + provider.toUpperCase() + '?')) return;
+  const confirmed = await sphexnConfirm(
+    `¿Deseas eliminar esta clave del pool de ${provider.toUpperCase()}? Se excluirá de futuras rotaciones automáticas.`,
+    'Eliminar Clave del Pool',
+    true,
+    'Eliminar Clave'
+  );
+  if (!confirmed) return;
 
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
     await fetch('/api/keys', {
@@ -1076,7 +1208,11 @@ window.handleTestKey = async (id, provider, apiKey) => {
   if (row) row.style.opacity = '0.5';
   const res = await validateClientKey(provider, apiKey);
   if (row) row.style.opacity = '1';
-  alert(`Resultado del Test para [${provider.toUpperCase()}]:\n${res.detail}`);
+  await sphexnAlert(
+    res.detail,
+    `Diagnóstico API — ${provider.toUpperCase()}`,
+    res.valid ? '✅' : '❌'
+  );
 };
 
 window.loadKeyPools = loadKeyPools;
@@ -1409,7 +1545,7 @@ function setupSpeciesButtons() {
       if (!container) return;
 
       if (!input.trim()) {
-        alert('Please paste code into the textarea first.');
+        sphexnAlert('Por favor, introduce o pega el código a analizar en el área de texto.', 'Área de Código Vacía', '⚠️');
         return;
       }
 

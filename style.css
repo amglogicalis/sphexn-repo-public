@@ -965,3 +965,37 @@ body {
   background: rgba(239, 68, 68, 0.2);
 }
 
+/* SPHEXN CUSTOM THEMED MODALS */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 13, 0.85);
+  backdrop-filter: blur(14px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-modal-card {
+  width: 460px;
+  max-width: 94vw;
+  background: rgba(16, 24, 38, 0.98);
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.92), 0 0 35px rgba(37, 99, 235, 0.25);
+  padding: 24px;
+  box-sizing: border-box;
+  transform: scale(0.96);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-openai-card:hover {
+  border-color: rgba(37, 99, 235, 0.45) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
