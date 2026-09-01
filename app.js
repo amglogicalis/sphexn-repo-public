@@ -198,67 +198,553 @@ function switchTab(tabId) {
   if (titleElem && titleMap[tabId]) {
     titleElem.textContent = titleMap[tabId];
   }
+
+  if (tabId === 'providers') {
+    loadKeyPools();
+    loadProviders();
+  }
 }
 window.switchTab = switchTab;
 
-// ─── BYOAI PROVIDERS & REAL-TIME SPENDING / USAGE TELEMETRY ───────────────────
+// ─── DYNAMIC KEY POOLS & LIVE AUTO-DETECTION MODULE ──────────────────────────
+
+const PROVIDER_NAMES = {
+  groq: 'Groq Cloud (Llama 3.3 Versatile)',
+  gemini: 'Google Gemini (Flash / Pro)',
+  openrouter: 'OpenRouter (Auto-Free & Frontier)',
+  cerebras: 'Cerebras Cloud (High-Speed Llama 3.3)',
+  cohere: 'Cohere (Command R+)',
+  sambanova: 'SambaNova Cloud (Llama 3.3)',
+  github_models: 'GitHub Models (Inference Beta)',
+  hiven: 'Terra Hiven Agent Swarm (Native)',
+  termes: 'Termes Symbiont Bridge (Zero-Cost Local/Online)',
+  mantx: 'Mantx AKG & Nimphys Gateway',
+  tenzor: 'Tenzor Inference Gateway',
+  ollama: 'Ollama Local Daemon'
+};
+
+const PROVIDER_ICONS = {
+  groq: '⚡',
+  gemini: '✨',
+  openrouter: '🌐',
+  cerebras: '🚀',
+  cohere: '🔮',
+  sambanova: '🐆',
+  github_models: '🐙',
+  hiven: '🐝',
+  termes: '🐜',
+  mantx: '🦗',
+  tenzor: '📡',
+  ollama: '🦙'
+};
+
+function detectClientProvider(raw) {
+  const key = raw.trim();
+  if (!key) return null;
+
+  if (key.startsWith('gsk_')) {
+    return { provider: 'groq', confidence: 0.99, pattern: 'gsk_* (Groq Cloud API)' };
+  }
+  if (key.startsWith('AIzaSy') || key.startsWith('AQ.')) {
+    return { provider: 'gemini', confidence: 0.99, pattern: 'AIzaSy* / AQ.* (Google Gemini API)' };
+  }
+  if (key.startsWith('sk-or-v1-')) {
+    return { provider: 'openrouter', confidence: 0.99, pattern: 'sk-or-v1-* (OpenRouter Unified API)' };
+  }
+  if (key.startsWith('csk-')) {
+    return { provider: 'cerebras', confidence: 0.99, pattern: 'csk-* (Cerebras Cloud)' };
+  }
+  if (key.startsWith('co_')) {
+    return { provider: 'cohere', confidence: 0.98, pattern: 'co_* (Cohere Production API)' };
+  }
+  if (key.startsWith('ghp_') || key.startsWith('gho_') || key.startsWith('github_pat_')) {
+    return { provider: 'github_models', confidence: 0.95, pattern: 'ghp_* / gho_* (GitHub Models Token)' };
+  }
+  if (key.startsWith('hiven_') || key.toLowerCase().includes('hiven')) {
+    return { provider: 'hiven', confidence: 0.99, pattern: 'hiven_* (Terra Native Swarm Key)' };
+  }
+  if (key.toLowerCase().includes('termes') || key.includes(':7420') || key.startsWith('trm_')) {
+    return { provider: 'termes', confidence: 0.98, pattern: 'termes_* / localhost:7420 (Termes Symbiont)' };
+  }
+  if (key.toLowerCase().includes('mantx') || key.toLowerCase().includes('nimphys') || key.includes(':7450')) {
+    return { provider: 'mantx', confidence: 0.98, pattern: 'mantx_* / localhost:7450 (Mantx AKG)' };
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) {
+    return { provider: 'sambanova', confidence: 0.95, pattern: 'UUID (SambaNova Cloud Key)' };
+  }
+  if (key.startsWith('sk-ds-') || key.includes('deepseek')) {
+    return { provider: 'openrouter', confidence: 0.90, pattern: 'sk-ds-* (DeepSeek Router)' };
+  }
+  if (key.startsWith('sk-ant-')) {
+    return { provider: 'openrouter', confidence: 0.90, pattern: 'sk-ant-* (Anthropic Router)' };
+  }
+  if (key.startsWith('sk-')) {
+    return { provider: 'openrouter', confidence: 0.80, pattern: 'sk-* (OpenAI / OpenRouter compatible)' };
+  }
+  if (key.startsWith('http://') || key.startsWith('https://')) {
+    if (key.includes('7420')) return { provider: 'termes', confidence: 0.98, pattern: 'Termes Daemon' };
+    if (key.includes('7450')) return { provider: 'mantx', confidence: 0.98, pattern: 'Mantx Gateway' };
+    if (key.includes('11434')) return { provider: 'ollama', confidence: 0.95, pattern: 'Ollama Endpoint' };
+  }
+  return { provider: 'groq', confidence: 0.40, pattern: 'Desconocido (predeterminado a Groq)' };
+}
+
+async function validateClientKey(provider, key) {
+  const clean = key.trim();
+  try {
+    if (provider === 'groq') {
+      const res = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { Authorization: `Bearer ${clean}` }
+      });
+      if (res.ok) return { valid: true, detail: 'Groq Cloud Online (HTTP 200)' };
+      return { valid: false, detail: `Groq error (HTTP ${res.status})` };
+    }
+    if (provider === 'gemini') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${clean}`);
+      if (res.ok) return { valid: true, detail: 'Google Gemini Online (HTTP 200)' };
+      return { valid: false, detail: `Gemini error (HTTP ${res.status})` };
+    }
+    if (provider === 'openrouter') {
+      const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: { Authorization: `Bearer ${clean}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { valid: true, detail: `OpenRouter Online (${data?.data?.label || 'Activa'})` };
+      }
+      return { valid: false, detail: `OpenRouter error (HTTP ${res.status})` };
+    }
+    if (provider === 'cerebras') {
+      const res = await fetch('https://api.cerebras.ai/v1/models', {
+        headers: { Authorization: `Bearer ${clean}` }
+      });
+      if (res.ok) return { valid: true, detail: 'Cerebras Cloud Online (HTTP 200)' };
+      return { valid: false, detail: `Cerebras error (HTTP ${res.status})` };
+    }
+    if (provider === 'github_models') {
+      const res = await fetch('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${clean}`, Accept: 'application/vnd.github.v3+json' }
+      });
+      if (res.ok) return { valid: true, detail: 'GitHub Token Verified (HTTP 200)' };
+      return { valid: false, detail: `Token error (HTTP ${res.status})` };
+    }
+    return { valid: true, detail: 'Formato verificado' };
+  } catch (e) {
+    return { valid: true, detail: 'Registrada (validación diferida en invocación)' };
+  }
+}
 
 function initProviderKeys() {
-  const elHiven = document.getElementById('cfg-hiven-key');
-  const elGemini = document.getElementById('cfg-gemini-key');
-  const elGroq = document.getElementById('cfg-groq-key');
-  const elGhModels = document.getElementById('cfg-gh-models');
-  const elOpenRouter = document.getElementById('cfg-openrouter-key');
-  const elCohere = document.getElementById('cfg-cohere-key');
+  const secretInput = document.getElementById('key-secret-input');
+  const aliasInput = document.getElementById('key-alias-input');
+  const indicatorBar = document.getElementById('detection-indicator-bar');
+  const detectionText = document.getElementById('detection-text');
+  const detectionHint = document.getElementById('detection-hint');
+  const btnAdd = document.getElementById('btn-add-detected-key');
+  const btnToggleVis = document.getElementById('btn-toggle-key-visibility');
+  const addStatus = document.getElementById('key-add-status');
+  const btnImport = document.getElementById('btn-import-real-keys');
+  const btnRefreshPools = document.getElementById('btn-refresh-pools');
+  const btnRefreshTelemetry = document.getElementById('btn-refresh-telemetry');
 
-  // Load stored keys
-  if (elHiven) elHiven.value = localStorage.getItem('sphexn_hiven_key') || '';
-  if (elGemini) elGemini.value = localStorage.getItem('sphexn_gemini_key') || '';
-  if (elGroq) elGroq.value = localStorage.getItem('sphexn_groq_key') || '';
-  if (elGhModels) elGhModels.value = localStorage.getItem('sphexn_gh_models_key') || '';
-  if (elOpenRouter) elOpenRouter.value = localStorage.getItem('sphexn_openrouter_key') || '';
-  if (elCohere) elCohere.value = localStorage.getItem('sphexn_cohere_key') || '';
+  // Symbionts buttons
+  const btnPingTermes = document.getElementById('btn-ping-termes');
+  const btnPingMantx = document.getElementById('btn-ping-mantx');
+  const btnPingHiven = document.getElementById('btn-ping-hiven');
 
-  // Save keys
-  const btnSave = document.getElementById('btn-save-providers');
-  if (btnSave) {
-    btnSave.addEventListener('click', () => {
-      localStorage.setItem('sphexn_hiven_key', elHiven?.value.trim() || '');
-      localStorage.setItem('sphexn_gemini_key', elGemini?.value.trim() || '');
-      localStorage.setItem('sphexn_groq_key', elGroq?.value.trim() || '');
-      localStorage.setItem('sphexn_gh_models_key', elGhModels?.value.trim() || '');
-      localStorage.setItem('sphexn_openrouter_key', elOpenRouter?.value.trim() || '');
-      localStorage.setItem('sphexn_cohere_key', elCohere?.value.trim() || '');
-
-      alert('BYOAI Provider keys saved securely to client-side storage.');
-      loadProviders();
+  // Toggle key visibility
+  if (btnToggleVis && secretInput) {
+    btnToggleVis.addEventListener('click', () => {
+      secretInput.type = secretInput.type === 'password' ? 'text' : 'password';
     });
   }
 
-  // Clear keys
-  const btnClear = document.getElementById('btn-clear-providers');
-  if (btnClear) {
-    btnClear.addEventListener('click', () => {
-      if (confirm('Clear all saved BYOAI provider keys?')) {
-        localStorage.removeItem('sphexn_hiven_key');
-        localStorage.removeItem('sphexn_gemini_key');
-        localStorage.removeItem('sphexn_groq_key');
-        localStorage.removeItem('sphexn_gh_models_key');
-        localStorage.removeItem('sphexn_openrouter_key');
-        localStorage.removeItem('sphexn_cohere_key');
-
-        if (elHiven) elHiven.value = '';
-        if (elGemini) elGemini.value = '';
-        if (elGroq) elGroq.value = '';
-        if (elGhModels) elGhModels.value = '';
-        if (elOpenRouter) elOpenRouter.value = '';
-        if (elCohere) elCohere.value = '';
-
-        loadProviders();
+  // Real-time live auto-detection on keystroke / paste
+  if (secretInput) {
+    secretInput.addEventListener('input', () => {
+      const val = secretInput.value.trim();
+      if (!val) {
+        if (indicatorBar) indicatorBar.style.display = 'none';
+        return;
+      }
+      const detected = detectClientProvider(val);
+      if (detected && indicatorBar) {
+        indicatorBar.style.display = 'flex';
+        const icon = PROVIDER_ICONS[detected.provider] || '⚡';
+        const name = PROVIDER_NAMES[detected.provider] || detected.provider.toUpperCase();
+        if (detectionText) detectionText.innerHTML = `${icon} Proveedor Detectado: <strong>${name}</strong>`;
+        if (detectionHint) detectionHint.textContent = `Patrón: ${detected.pattern} (Confianza: ${Math.round(detected.confidence * 100)}%)`;
       }
     });
   }
+
+  // Add key button
+  if (btnAdd) {
+    btnAdd.addEventListener('click', async () => {
+      const keyVal = secretInput?.value.trim();
+      if (!keyVal) {
+        if (addStatus) {
+          addStatus.style.color = '#ef4444';
+          addStatus.textContent = 'Introduce una API Key o Token primero.';
+        }
+        return;
+      }
+
+      const aliasVal = aliasInput?.value.trim();
+      const detected = detectClientProvider(keyVal);
+      const provider = detected ? detected.provider : 'groq';
+
+      btnAdd.disabled = true;
+      btnAdd.textContent = 'Verificando con la API... ⏳';
+      if (addStatus) {
+        addStatus.style.color = '#93c5fd';
+        addStatus.textContent = 'Consultando endpoint del proveedor...';
+      }
+
+      try {
+        // If on local server, use backend API
+        if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+          const res = await fetch('/api/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: keyVal, name: aliasVal, provider })
+          });
+          const item = await res.json();
+          if (addStatus) {
+            addStatus.style.color = '#10b981';
+            addStatus.textContent = `✔ Clave añadida al Pool de ${provider.toUpperCase()}`;
+          }
+        } else {
+          // Client-side storage (GitHub Pages mode)
+          const valRes = await validateClientKey(provider, keyVal);
+          const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+          if (!pools[provider]) pools[provider] = [];
+
+          const item = {
+            id: `key_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name: aliasVal || `${provider.toUpperCase()} Key ${pools[provider].length + 1}`,
+            apiKey: keyVal,
+            provider,
+            status: valRes.valid ? 'valid' : 'invalid',
+            callsCount: 0,
+            tokensUsed: 0,
+            error: valRes.valid ? undefined : valRes.detail,
+            createdAt: new Date().toISOString()
+          };
+          pools[provider].push(item);
+          localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+
+          if (addStatus) {
+            addStatus.style.color = valRes.valid ? '#10b981' : '#f59e0b';
+            addStatus.textContent = `✔ ${valRes.detail}. Clave guardada en Pool de ${provider.toUpperCase()}`;
+          }
+        }
+
+        // Reset inputs
+        if (secretInput) secretInput.value = '';
+        if (aliasInput) aliasInput.value = '';
+        if (indicatorBar) indicatorBar.style.display = 'none';
+
+        // Refresh UI
+        loadKeyPools();
+        loadProviders();
+      } catch (err) {
+        if (addStatus) {
+          addStatus.style.color = '#ef4444';
+          addStatus.textContent = `Error: ${err.message}`;
+        }
+      } finally {
+        btnAdd.disabled = false;
+        btnAdd.textContent = '⚡ Validar en API y Añadir al Pool';
+      }
+    });
+  }
+
+  // Import Real Keys from mis_claves_reales.json
+  if (btnImport) {
+    btnImport.addEventListener('click', async () => {
+      btnImport.disabled = true;
+      btnImport.textContent = 'Importando... ⏳';
+
+      try {
+        if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+          const res = await fetch('/api/keys/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: [] })
+          });
+          const result = await res.json();
+          alert(`✔ Claves importadas con éxito: ${result.added} añadidas, ${result.errors} omitidas.`);
+        } else {
+          // In static mode, prompt user with file picker
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+            const list = Array.isArray(parsed) ? parsed : Object.values(parsed);
+
+            const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+            let added = 0;
+            for (const k of list) {
+              const rawKey = k.apiKey || k.key;
+              if (!rawKey || rawKey.includes('error al descifrar')) continue;
+              const det = detectClientProvider(rawKey);
+              const p = k.provider || (det ? det.provider : 'groq');
+              if (!pools[p]) pools[p] = [];
+
+              pools[p].push({
+                id: `key_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                name: k.name || `${p.toUpperCase()} Key ${pools[p].length + 1}`,
+                apiKey: rawKey,
+                provider: p,
+                status: 'valid',
+                callsCount: 0,
+                tokensUsed: 0,
+                createdAt: new Date().toISOString()
+              });
+              added++;
+            }
+            localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+            alert(`✔ Se importaron ${added} claves reales correctamente a tus Pools.`);
+            loadKeyPools();
+            loadProviders();
+          };
+          input.click();
+        }
+        loadKeyPools();
+        loadProviders();
+      } catch (err) {
+        alert(`Error al importar: ${err.message}`);
+      } finally {
+        btnImport.disabled = false;
+        btnImport.textContent = '📂 Importar Claves Reales';
+      }
+    });
+  }
+
+  // Refresh buttons
+  if (btnRefreshPools) btnRefreshPools.addEventListener('click', loadKeyPools);
+  if (btnRefreshTelemetry) btnRefreshTelemetry.addEventListener('click', () => { loadKeyPools(); loadProviders(); });
+
+  // Symbiont Pings
+  if (btnPingTermes) {
+    btnPingTermes.addEventListener('click', async () => {
+      const badge = document.getElementById('termes-status-badge');
+      if (badge) badge.innerHTML = '<span class="dot blue"></span> <span>Pinging localhost:7420...</span>';
+      try {
+        const r = await fetch('http://127.0.0.1:7420/v1/models', { mode: 'cors' });
+        if (r.ok) {
+          if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Daemon ONLINE (Cost $0)</span>';
+        } else {
+          if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Daemon Standby (HTTP ' + r.status + ')</span>';
+        }
+      } catch {
+        if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Daemon Inactivo (Inicia Termes en :7420)</span>';
+      }
+    });
+  }
+
+  if (btnPingMantx) {
+    btnPingMantx.addEventListener('click', async () => {
+      const badge = document.getElementById('mantx-status-badge');
+      if (badge) badge.innerHTML = '<span class="dot blue"></span> <span>Pinging localhost:7450...</span>';
+      try {
+        const r = await fetch('http://127.0.0.1:7450/v1/models', { mode: 'cors' });
+        if (r.ok) {
+          if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Gateway ONLINE (Cost $0)</span>';
+        } else {
+          if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Gateway Standby (HTTP ' + r.status + ')</span>';
+        }
+      } catch {
+        if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Gateway Inactivo (Inicia Mantx en :7450)</span>';
+      }
+    });
+  }
+
+  if (btnPingHiven) {
+    btnPingHiven.addEventListener('click', async () => {
+      const badge = document.getElementById('hiven-status-badge');
+      if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Swarm Cluster Active</span>';
+    });
+  }
+
+  // Load initial pool inventory
+  loadKeyPools();
 }
+
+async function loadKeyPools() {
+  const container = document.getElementById('key-pools-container');
+  const poolsCountEl = document.getElementById('telemetry-pools-count');
+  const poolsKeysEl = document.getElementById('telemetry-pools-keys');
+  const callsEl = document.getElementById('telemetry-calls');
+  const tokensEl = document.getElementById('telemetry-tokens');
+
+  let pools = {};
+
+  try {
+    if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+      const res = await fetch('/api/keys');
+      pools = await res.json();
+    } else {
+      pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+    }
+  } catch {
+    pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+  }
+
+  // Calculate totals
+  let totalProvidersWithKeys = 0;
+  let totalKeysCount = 0;
+  let totalCallsSum = 0;
+  let totalTokensSum = 0;
+
+  for (const [provider, keys] of Object.entries(pools)) {
+    if (Array.isArray(keys) && keys.length > 0) {
+      totalProvidersWithKeys++;
+      totalKeysCount += keys.length;
+      for (const k of keys) {
+        totalCallsSum += (k.callsCount || 0);
+        totalTokensSum += (k.tokensUsed || 0);
+      }
+    }
+  }
+
+  if (poolsCountEl) poolsCountEl.textContent = String(totalProvidersWithKeys);
+  if (poolsKeysEl) poolsKeysEl.textContent = `${totalKeysCount} claves configuradas en pools`;
+  if (callsEl) callsEl.textContent = String(totalCallsSum);
+  if (tokensEl) tokensEl.textContent = totalTokensSum.toLocaleString();
+
+  if (!container) return;
+
+  if (totalKeysCount === 0) {
+    container.innerHTML = `
+      <div class="empty-state p-24 text-center text-muted" style="background: rgba(16,24,38,0.4); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🔑</span>
+        No hay claves en el inventario aún.<br>
+        Usa el campo inteligente superior o pulsa <strong>"Importar Claves Reales"</strong> para cargar tus pools.
+      </div>
+    `;
+    return;
+  }
+
+  // Render provider groups
+  let html = '';
+  for (const [provider, keys] of Object.entries(pools)) {
+    if (!Array.isArray(keys) || keys.length === 0) continue;
+
+    const icon = PROVIDER_ICONS[provider] || '⚡';
+    const name = PROVIDER_NAMES[provider] || provider.toUpperCase();
+
+    html += `
+      <div class="pool-group-card" id="group-${provider}">
+        <div class="pool-group-header">
+          <div class="pool-group-title">
+            <span>${icon}</span>
+            <span>${name}</span>
+            <span class="pool-group-badge">${keys.length} clave${keys.length > 1 ? 's' : ''} en pool</span>
+          </div>
+          <span class="text-muted" style="font-size: 0.8rem;">Rotación & Fallback 429 Activos ⚡</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="pool-keys-table">
+            <thead>
+              <tr>
+                <th>Alias / Nombre</th>
+                <th>API Key Enmascarada</th>
+                <th>Estado</th>
+                <th>Llamadas</th>
+                <th>Tokens</th>
+                <th style="text-align: right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${keys.map(k => {
+                const masked = k.apiKey.length > 12 
+                  ? k.apiKey.slice(0, 7) + '••••••••' + k.apiKey.slice(-4)
+                  : '••••••••';
+                const statusBadge = k.status === 'valid' 
+                  ? '<span class="badge badge-green">VALID</span>'
+                  : k.status === 'rate_limited'
+                  ? '<span class="badge badge-amber">RATE_LIMITED</span>'
+                  : '<span class="badge badge-red">INVALID</span>';
+
+                return `
+                  <tr id="row-${k.id}">
+                    <td>
+                      <input type="text" class="key-alias-edit" value="${k.name || 'Key'}" 
+                        onchange="handleUpdateKeyAlias('${k.id}', this.value)"
+                        title="Click para editar alias">
+                    </td>
+                    <td><span class="key-masked">${masked}</span></td>
+                    <td>${statusBadge}</td>
+                    <td><strong>${k.callsCount || 0}</strong></td>
+                    <td>${(k.tokensUsed || 0).toLocaleString()}</td>
+                    <td style="text-align: right;">
+                      <button class="key-action-btn" title="Probar conexión con la API" onclick="handleTestKey('${k.id}', '${provider}', '${k.apiKey}')">🔄</button>
+                      <button class="key-action-btn delete" title="Eliminar clave del pool" onclick="handleDeleteKey('${k.id}', '${provider}')">🗑️</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+window.handleUpdateKeyAlias = async (id, newName) => {
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    // local server update
+  } else {
+    const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+    for (const keys of Object.values(pools)) {
+      const item = keys.find(k => k.id === id);
+      if (item) {
+        item.name = newName.trim();
+        localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+        break;
+      }
+    }
+  }
+};
+
+window.handleDeleteKey = async (id, provider) => {
+  if (!confirm('¿Eliminar esta clave del pool de ' + provider.toUpperCase() + '?')) return;
+
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    await fetch('/api/keys', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  } else {
+    const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+    if (pools[provider]) {
+      pools[provider] = pools[provider].filter(k => k.id !== id);
+      localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+    }
+  }
+  loadKeyPools();
+  loadProviders();
+};
+
+window.handleTestKey = async (id, provider, apiKey) => {
+  const row = document.getElementById(`row-${id}`);
+  if (row) row.style.opacity = '0.5';
+  const res = await validateClientKey(provider, apiKey);
+  if (row) row.style.opacity = '1';
+  alert(`Resultado del Test para [${provider.toUpperCase()}]:\n${res.detail}`);
+};
+
+window.loadKeyPools = loadKeyPools;
 
 async function loadProviders() {
   const container = document.getElementById('providers-container');

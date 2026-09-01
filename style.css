@@ -752,3 +752,216 @@ body {
   transform: scale(1.15);
 }
 
+/* ─── DYNAMIC KEY ADDER & DETECTION ───────────────────────────────────────── */
+.key-adder-box {
+  background: rgba(11, 17, 26, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.detection-indicator-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.detection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #60a5fa;
+  font-family: var(--font-mono);
+}
+
+.detection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+.detection-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ─── SYMBIONTS GRID ──────────────────────────────────────────────────────── */
+.symbionts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.symbiont-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  background: rgba(16, 24, 38, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.symbiont-card:hover {
+  border-color: var(--border-bright);
+  background: rgba(22, 33, 52, 0.75);
+}
+
+.symbiont-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.symbiont-details {
+  flex: 1;
+}
+
+.symbiont-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.symbiont-desc {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.symbiont-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* ─── KEY POOLS INVENTORY ─────────────────────────────────────────────────── */
+.pool-group-card {
+  background: rgba(16, 24, 38, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.pool-group-card:hover {
+  border-color: var(--border-bright);
+}
+
+.pool-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: rgba(22, 33, 52, 0.5);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.pool-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pool-group-badge {
+  font-size: 0.74rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  font-family: var(--font-mono);
+}
+
+.pool-keys-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pool-keys-table th {
+  padding: 10px 16px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  text-align: left;
+  background: rgba(11, 17, 26, 0.4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pool-keys-table td {
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+  vertical-align: middle;
+}
+
+.pool-keys-table tr:last-child td {
+  border-bottom: none;
+}
+
+.key-alias-edit {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.84rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.key-alias-edit:focus {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--border-bright);
+  outline: none;
+}
+
+.key-masked {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(15, 23, 42, 0.6);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.key-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.key-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.15);
+}
+
+.key-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
