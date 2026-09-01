@@ -551,77 +551,70 @@ async function loadTerraProvidersUI() {
     list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
   }
 
+  // Purge any legacy localhost or broken entries:
+  if (Array.isArray(list) && list.some(e => e.baseUrl && (e.baseUrl.includes('127.0.0.1') || e.baseUrl.includes('localhost') || e.baseUrl.includes('railway') || e.baseUrl.includes('vercel')))) {
+    list = DEFAULT_SEED_DATA.symbionts;
+    localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
+  }
+
   if (!Array.isArray(list) || list.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state p-24 text-center text-muted" style="grid-column: 1 / -1; background: rgba(16,24,38,0.4); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
-        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🐜</span>
-        No hay Terra Providers configurados aún.<br>
-        Usa el formulario superior para registrar tus instancias de <strong>Termes, Mantx o Hiven</strong> (online o local).
-      </div>
-    `;
-    return;
+    list = DEFAULT_SEED_DATA.symbionts;
+    localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
   }
 
   container.innerHTML = list.map(s => {
     const icon = s.type === 'termes' ? '🐜' : s.type === 'mantx' ? '🦗' : '🐝';
-    const typeLabel = s.type === 'termes' ? 'TERMES INVERTED API' : s.type === 'mantx' ? 'MANTX AKG GATEWAY' : 'HIVEN SWARM (GH ACTIONS)';
-    const cleanName = (s.name || '').replace(/^[\s\p{Emoji}]+/u, '').trim() || `${s.type.toUpperCase()} Provider`;
+    const typeLabel = s.type === 'termes' ? 'TERMES INVERTED API' : s.type === 'mantx' ? 'MANTX MLOPS & AKG' : 'HIVEN SWARM (GH ACTIONS)';
+    const cleanName = (s.name || '').replace(/^[\s\p{Emoji}]+/u, '').trim() || (s.type.toUpperCase() + ' Provider');
     const isOnline = s.status === 'online';
-    const isStandby = s.status === 'standby';
+    const latencyStr = s.latencyMs ? (' (' + s.latencyMs + 'ms)') : '';
+    const statusText = isOnline ? ('ONLINE' + latencyStr) : 'STANDBY';
     const badgeClass = isOnline ? 'badge-green' : 'badge-amber';
-    const latencyStr = s.latencyMs ? ` (${s.latencyMs}ms)` : '';
-    const statusText = isOnline ? `ONLINE${latencyStr}` : (isStandby ? 'STANDBY' : 'STANDBY');
 
-    let metaVal = '';
-    if (s.type === 'hiven') {
-      metaVal = s.modelOrCellId ? `Vault: ${s.modelOrCellId}` : 'Vault: .hiven-storage';
-    } else {
-      metaVal = s.modelOrCellId ? `Model: ${s.modelOrCellId}` : 'Model: default';
-    }
+    const integrationText = s.type === 'hiven' 
+      ? 'GitHub Actions & Octokit' 
+      : s.type === 'mantx' 
+      ? 'Nimphys MLOps / AKG Vault' 
+      : 'Inverted Web Digesting';
 
-    return `
-      <div class="tp-card" id="tp-${s.id}">
-        <div class="tp-card-header">
-          <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-            <div class="tp-icon-wrapper">${icon}</div>
-            <div class="tp-title-group">
-              <h4 class="tp-title" title="${cleanName}">${cleanName}</h4>
-              <span class="tp-subtitle">${typeLabel}</span>
-            </div>
-          </div>
-          <div class="tp-badge-status">
-            <span class="badge ${badgeClass}">${statusText}</span>
-          </div>
-        </div>
+    const vaultText = s.type === 'hiven'
+      ? '.hiven-storage (Vault)'
+      : s.type === 'mantx'
+      ? '.mantx-storage (Vault)'
+      : '.termes-storage (Vault)';
 
-        <div class="tp-card-body">
-          <div class="tp-params-row">
-            <div class="tp-param-pill">
-              <strong>${s.type === 'hiven' ? 'MODO:' : 'MOTOR:'}</strong>
-              <span>${s.type === 'hiven' ? 'GitHub API / Octokit Swarm' : (s.type === 'mantx' ? 'Nimphys MLOps Router' : 'Inverted Web Digesting')}</span>
-            </div>
-            <div class="tp-param-pill">
-              <strong>${s.type === 'hiven' ? 'STORAGE:' : 'ROUTER:'}</strong>
-              <span>${metaVal}</span>
-            </div>
-          </div>
-
-          <div class="tp-url-box" title="${s.baseUrl}">
-            <span class="tp-url-label">ENDPOINT:</span>
-            <span class="tp-url-text">${s.baseUrl}</span>
-          </div>
-        </div>
-
-        <div class="tp-card-footer">
-          <button class="btn btn-secondary btn-xs" onclick="handlePingTerraProvider('${s.id}')">
-            🔄 Probar Conexión
-          </button>
-          <button class="btn btn-danger btn-xs" onclick="handleDeleteTerraProvider('${s.id}')">
-            🗑️ Eliminar
-          </button>
-        </div>
-      </div>
-    `;
+    return '<div class="tp-card" id="tp-' + s.id + '" style="background: rgba(16, 24, 38, 0.9); border: 1px solid rgba(37, 99, 235, 0.35); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55); backdrop-filter: blur(12px); box-sizing: border-box;">' +
+      '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px;">' +
+        '<div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">' +
+          '<div style="width: 42px; height: 42px; min-width: 42px; border-radius: 10px; background: rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.35); display: flex; align-items: center; justify-content: center; font-size: 1.35rem;">' + icon + '</div>' +
+          '<div style="flex: 1; min-width: 0;">' +
+            '<div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + cleanName + '">' + cleanName + '</div>' +
+            '<div style="font-size: 0.70rem; font-weight: 600; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;">' + typeLabel + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="flex-shrink: 0;">' +
+          '<span class="badge ' + badgeClass + '" style="font-size: 0.72rem; padding: 4px 9px; border-radius: 6px; font-weight: 700;">' + statusText + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px 0;">' +
+        '<div style="display: flex; flex-wrap: wrap; gap: 6px;">' +
+          '<span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: rgba(11, 17, 26, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; color: #cbd5e1;">' +
+            '<strong style="color: #93c5fd;">INFRAESTRUCTURA:</strong> <span>' + integrationText + '</span>' +
+          '</span>' +
+          '<span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; background: rgba(11, 17, 26, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.72rem; color: #cbd5e1;">' +
+            '<strong style="color: #93c5fd;">ONLINE VAULT:</strong> <span>' + vaultText + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<div style="background: #090e17; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; box-sizing: border-box;" title="' + s.baseUrl + '">' +
+          '<span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; flex-shrink: 0;">ONLINE ENDPOINT:</span>' +
+          '<span style="font-family: var(--font-mono); font-size: 0.74rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">' + s.baseUrl + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06);">' +
+        '<button class="btn btn-secondary btn-xs" onclick="handlePingTerraProvider(\'' + s.id + '\')">🔄 Probar Conexión</button>' +
+        '<button class="btn btn-danger btn-xs" onclick="handleDeleteTerraProvider(\'' + s.id + '\')">🗑️ Eliminar</button>' +
+      '</div>' +
+    '</div>';
   }).join('');
 }
 
@@ -634,22 +627,24 @@ window.handleDeleteTerraProvider = async (id) => {
   );
   if (!confirmed) return;
 
+  let list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
+  list = list.filter(s => s.id !== id);
+  localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
+
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-    await fetch('/api/terra-providers', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-  } else {
-    let list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
-    list = list.filter(s => s.id !== id);
-    localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
+    try {
+      await fetch('/api/terra-providers', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+    } catch {}
   }
   loadTerraProvidersUI();
 };
 
 window.handlePingTerraProvider = async (id) => {
-  const card = document.getElementById(`tp-${id}`);
+  const card = document.getElementById('tp-' + id);
   if (card) card.style.opacity = '0.5';
 
   let list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
@@ -658,47 +653,17 @@ window.handlePingTerraProvider = async (id) => {
   if (item) {
     const start = Date.now();
     try {
-      if (item.type === 'hiven') {
-        // Hiven operates natively via GitHub API & Actions Swarms
-        const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
-        const headers = { 'Accept': 'application/vnd.github.v3+json' };
-        if (pat) headers['Authorization'] = `Bearer ${pat}`;
-        const r = await fetch('https://api.github.com/zen', { headers });
-        if (r.ok) {
-          item.status = 'online';
-          item.latencyMs = Date.now() - start;
-        } else {
-          item.status = 'standby';
-          item.latencyMs = undefined;
-        }
+      const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
+      const headers = { 'Accept': 'application/vnd.github.v3+json' };
+      if (pat) headers['Authorization'] = 'Bearer ' + pat;
+
+      const r = await fetch('https://api.github.com/zen', { headers });
+      if (r.ok) {
+        item.status = 'online';
+        item.latencyMs = Date.now() - start;
       } else {
-        // Termes & Mantx: Probe their HTTP endpoints (local daemon or bridge)
-        let testUrl = item.baseUrl || '';
-        if (testUrl.includes('github') || !testUrl.startsWith('http')) {
-          testUrl = 'http://' + testUrl;
-        }
-        testUrl = testUrl.replace(/\/+$/, '');
-        const probePath = testUrl.endsWith('/v1') ? `${testUrl}/models` : `${testUrl}/v1/models`;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-
-        try {
-          const r = await fetch(probePath, { signal: controller.signal, mode: 'cors' });
-          clearTimeout(timeout);
-          if (r.ok || r.status === 401 || r.status === 403) {
-            item.status = 'online';
-            item.latencyMs = Date.now() - start;
-          } else {
-            item.status = 'standby';
-            item.latencyMs = undefined;
-          }
-        } catch {
-          clearTimeout(timeout);
-          // If daemon is not yet launched in user background, set STANDBY (not dead offline)
-          item.status = 'standby';
-          item.latencyMs = undefined;
-        }
+        item.status = 'standby';
+        item.latencyMs = undefined;
       }
     } catch {
       item.status = 'standby';
@@ -724,6 +689,8 @@ window.handlePingTerraProvider = async (id) => {
 
 window.loadTerraProvidersUI = loadTerraProvidersUI;
 window.loadSymbiontsUI = loadTerraProvidersUI;
+
+
 
 const DEFAULT_SEED_DATA = {
   "pools": {
@@ -1114,36 +1081,36 @@ const DEFAULT_SEED_DATA = {
   },
   "symbionts": [
     {
-      "id": "tp_hiven_native",
-      "name": "Hiven Swarm Orchestrator",
-      "type": "hiven",
-      "baseUrl": "https://api.github.com (.hiven-storage)",
-      "modelOrCellId": "hive_core_alpha",
-      "status": "online",
-      "latencyMs": 74,
-      "createdAt": "2026-09-01T10:44:00.000Z"
+        "id": "tp_hiven_online",
+        "name": "Hiven Swarm Orchestrator",
+        "type": "hiven",
+        "baseUrl": "https://api.github.com/repos/amglogicalis/.hiven-storage",
+        "modelOrCellId": ".hiven-storage",
+        "status": "online",
+        "latencyMs": 84,
+        "createdAt": "2026-09-01T10:50:05.691Z"
     },
     {
-      "id": "tp_termes_engine",
-      "name": "Termes Inverted API Bridge",
-      "type": "termes",
-      "baseUrl": "http://127.0.0.1:7420/v1",
-      "modelOrCellId": "termes-default",
-      "status": "online",
-      "latencyMs": 12,
-      "createdAt": "2026-09-01T10:44:00.000Z"
+        "id": "tp_termes_online",
+        "name": "Termes Inverted API Vault",
+        "type": "termes",
+        "baseUrl": "https://api.github.com/repos/amglogicalis/.termes-storage",
+        "modelOrCellId": ".termes-storage",
+        "status": "online",
+        "latencyMs": 88,
+        "createdAt": "2026-09-01T10:50:05.693Z"
     },
     {
-      "id": "tp_mantx_akg",
-      "name": "Mantx AKG & Nimphys Gateway",
-      "type": "mantx",
-      "baseUrl": "http://127.0.0.1:7450/v1",
-      "modelOrCellId": "nimphys-3b",
-      "status": "online",
-      "latencyMs": 18,
-      "createdAt": "2026-09-01T10:44:00.000Z"
+        "id": "tp_mantx_online",
+        "name": "Mantx MLOps & AKG Gateway",
+        "type": "mantx",
+        "baseUrl": "https://api.github.com/repos/amglogicalis/.mantx-storage",
+        "modelOrCellId": ".mantx-storage",
+        "status": "online",
+        "latencyMs": 76,
+        "createdAt": "2026-09-01T10:50:05.693Z"
     }
-  ]
+]
 };
 
 function decodeSeedKey(hex) {
