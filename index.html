@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260901_5">
+  <link rel="stylesheet" href="style.css?v=20260901_6">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -431,40 +431,6 @@ continue-on-error: true
           </section>
 
           <!-- 9. BYOAI PROVIDERS & USAGE TELEMETRY (Merged Configuration & Spending) -->
-          <section id="tab-providers" class="tab-pane">
-            <!-- SECTION A: REAL-TIME TELEMETRY & SPENDING STATS -->
-            <div class="card">
-              <div class="card-header">
-                <div>
-                  <h2>Phantom Intelligence — Real-Time Usage & Spending Telemetry</h2>
-                  <p class="text-muted">Track API calls, token burn rate and real-time expenditure across active providers</p>
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="loadProviders()">Refresh Live Stats</button>
-              </div>
-              <div class="kpi-grid mt-16">
-                <div class="kpi-card">
-                  <div class="kpi-header"><span class="kpi-title">Total AI Calls</span><span>📞</span></div>
-                  <div class="kpi-value" id="telemetry-calls">0</div>
-                  <div class="kpi-meta">Across all species</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-header"><span class="kpi-title">Tokens Consumed</span><span>⚡</span></div>
-                  <div class="kpi-value" id="telemetry-tokens">0</div>
-                  <div class="kpi-meta">Prompt & completion tokens</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-header"><span class="kpi-title">Estimated Cost</span><span>💰</span></div>
-                  <div class="kpi-value text-green" id="telemetry-cost">$0.00</div>
-                  <div class="kpi-meta">Free tiers & Terra native ($0)</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-header"><span class="kpi-title">Cache Hit Rate</span><span>🧠</span></div>
-                  <div class="kpi-value text-green" id="telemetry-cache">100%</div>
-                  <div class="kpi-meta">Tokens saved by .sphexn-storage</div>
-                </div>
-              </div>
-            </div>
-
             <!-- SECTION A: REAL-TIME TELEMETRY & STATS -->
             <div class="card">
               <div class="card-header">
@@ -498,12 +464,12 @@ continue-on-error: true
               </div>
             </div>
 
-            <!-- SECTION B: SMART DYNAMIC KEY ADDER & AUTO-DETECTOR -->
+            <!-- SECTION B: SMART DYNAMIC KEY ADDER & LIVE API PROBE -->
             <div class="card mt-24">
               <div class="card-header">
                 <div>
-                  <h2>⚡ Smart Key Adder & Dynamic Provider Detector</h2>
-                  <p class="text-muted">Pega tu API Key o Secret Token. El sistema autodetectará el proveedor, validará la clave contra la API en tiempo real y la añadirá al Pool de rotación.</p>
+                  <h2>⚡ Smart Key Adder & Dynamic Provider Prober</h2>
+                  <p class="text-muted">Pega cualquier API Key o Secret Token. El sistema sondeará las APIs oficiales en paralelo (Groq, Gemini, OpenRouter, Cerebras, Cohere, SambaNova, GitHub) para verificar de forma infalible cuál la reconoce con HTTP 200 y validación de cuota.</p>
                 </div>
                 <div class="btn-group">
                   <button class="btn btn-secondary btn-sm" id="btn-import-real-keys" title="Cargar pools de claves desde mis_claves_reales.json">
@@ -539,61 +505,60 @@ continue-on-error: true
                 <div class="btn-group mt-16" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
                   <span id="key-add-status" class="status-msg mr-12" style="font-size: 0.85rem;"></span>
                   <button class="btn btn-primary" id="btn-add-detected-key">
-                    ⚡ Validar en API y Añadir al Pool
+                    ⚡ Sondear APIs en Vivo y Añadir al Pool
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- SECTION C: TERRA NATIVE SYMBIONTS & BRIDGES -->
+            <!-- SECTION C: TERRA SYMBIONT BRIDGES & ONLINE API ENDPOINTS -->
             <div class="card mt-24">
               <div class="card-header">
                 <div>
-                  <h2>🐝 Terra Symbiont Bridges (Zero-Key Ecosystem)</h2>
-                  <p class="text-muted">Proveedores nativos de Terra que operan mediante demonios locales o agentes orquestados sin API keys de terceros.</p>
+                  <h2>🐝 Terra Symbiont Bridges & Online API Endpoints</h2>
+                  <p class="text-muted">Configura tus endpoints desplegados online o locales (Termes, Mantx, Hiven o proxies OpenAI-compatibles) para inferencia de coste $0 sin depender de terceros.</p>
                 </div>
               </div>
-              <div class="symbionts-grid mt-16">
-                
-                <!-- Termes Bridge -->
-                <div class="symbiont-card" id="card-termes-bridge">
-                  <div class="symbiont-icon">🐜</div>
-                  <div class="symbiont-details">
-                    <div class="symbiont-title">Termes Inverted API Bridge</div>
-                    <div class="symbiont-desc">Daemon local en <code>http://127.0.0.1:7420</code> para proxies simbióticos e inferencia libre de tokens.</div>
-                    <div class="symbiont-status" id="termes-status-badge">
-                      <span class="dot blue"></span> <span>Checking daemon...</span>
-                    </div>
+
+              <!-- FORM TO ADD DYNAMIC SYMBIONT ENDPOINT -->
+              <div class="key-adder-box mt-16">
+                <div class="form-row">
+                  <div class="form-group col-4">
+                    <label for="symb-name-input">Nombre del Endpoint:</label>
+                    <input type="text" id="symb-name-input" class="form-input" placeholder="ej: Termes Cloud Railway, Mantx Online...">
                   </div>
-                  <button class="btn btn-secondary btn-xs" id="btn-ping-termes">Ping Bridge</button>
+                  <div class="form-group col-3">
+                    <label for="symb-type-select">Tipo de Symbiont:</label>
+                    <select id="symb-type-select" class="form-input">
+                      <option value="termes">🐜 Termes (Inverted Bridge)</option>
+                      <option value="mantx">🦗 Mantx (AKG Gateway)</option>
+                      <option value="hiven">🐝 Hiven (Swarm Cluster)</option>
+                      <option value="custom">⚡ Custom OpenAI-Compatible</option>
+                    </select>
+                  </div>
+                  <div class="form-group col-5">
+                    <label for="symb-url-input">Base URL del Endpoint:</label>
+                    <input type="text" id="symb-url-input" class="form-input" placeholder="https://mi-termes.up.railway.app/v1">
+                  </div>
                 </div>
 
-                <!-- Mantx Bridge -->
-                <div class="symbiont-card" id="card-mantx-bridge">
-                  <div class="symbiont-icon">🦗</div>
-                  <div class="symbiont-details">
-                    <div class="symbiont-title">Mantx AKG & Nimphys Gateway</div>
-                    <div class="symbiont-desc">Autonomous Key Gateway en <code>http://127.0.0.1:7450</code> y modelos Nimphys.</div>
-                    <div class="symbiont-status" id="mantx-status-badge">
-                      <span class="dot blue"></span> <span>Checking gateway...</span>
-                    </div>
+                <div class="form-row mt-12">
+                  <div class="form-group col-8">
+                    <label for="symb-token-input">Token de Acceso / Auth Secret (opcional):</label>
+                    <input type="password" id="symb-token-input" class="form-input" placeholder="Bearer token si el endpoint está protegido...">
                   </div>
-                  <button class="btn btn-secondary btn-xs" id="btn-ping-mantx">Ping Gateway</button>
-                </div>
-
-                <!-- Hiven Swarm -->
-                <div class="symbiont-card" id="card-hiven-bridge">
-                  <div class="symbiont-icon">🐝</div>
-                  <div class="symbiont-details">
-                    <div class="symbiont-title">Hiven Agent Swarm v3</div>
-                    <div class="symbiont-desc">Cluster descentralizado de colmenas de agentes con memoria colmena distribuida.</div>
-                    <div class="symbiont-status" id="hiven-status-badge">
-                      <span class="dot green"></span> <span>Active Swarm Core</span>
-                    </div>
+                  <div class="form-group col-4" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-save-symbiont" style="width: 100%;">
+                      ⚡ Probar y Registrar Endpoint
+                    </button>
                   </div>
-                  <button class="btn btn-secondary btn-xs" id="btn-ping-hiven">Cluster Status</button>
                 </div>
+                <div id="symb-status-msg" class="status-msg mt-8" style="font-size: 0.82rem;"></div>
+              </div>
 
+              <!-- DYNAMIC LIST OF CONFIGURED SYMBIONTS -->
+              <div class="symbionts-grid mt-16" id="symbionts-container">
+                <!-- Rendered dynamically -->
               </div>
             </div>
 
@@ -621,6 +586,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260901_5"></script>
+  <script src="app.js?v=20260901_6"></script>
 </body>
 </html>

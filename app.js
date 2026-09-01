@@ -202,6 +202,7 @@ function switchTab(tabId) {
   if (tabId === 'providers') {
     loadKeyPools();
     loadProviders();
+    loadSymbiontsUI();
   }
 }
 window.switchTab = switchTab;
@@ -325,14 +326,171 @@ async function validateClientKey(provider, key) {
       const res = await fetch('https://api.github.com/user', {
         headers: { Authorization: `Bearer ${clean}`, Accept: 'application/vnd.github.v3+json' }
       });
-      if (res.ok) return { valid: true, detail: 'GitHub Token Verified (HTTP 200)' };
-      return { valid: false, detail: `Token error (HTTP ${res.status})` };
-    }
-    return { valid: true, detail: 'Formato verificado' };
-  } catch (e) {
-    return { valid: true, detail: 'Registrada (validación diferida en invocación)' };
+      if (res.async function probeClientKeyAgainstApis(rawKey) {
+  const clean = rawKey.trim();
+  if (!clean) throw new Error('API Key no puede estar vacía');
+
+  // If local backend is accessible, delegate to server probe:
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    try {
+      const apiRes = await fetch('/api/keys/probe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: clean })
+      });
+      if (apiRes.ok) {
+        const probed = await apiRes.json();
+        return probed;
+      }
+    } catch {}
   }
+
+  // Browser-side live probe against real candidate APIs in parallel:
+  const heuristic = detectClientProvider(clean);
+  const primary = heuristic ? heuristic.provider : 'groq';
+
+  // 1. Try primary candidate first
+  const primaryTest = await validateClientKey(primary, clean);
+  if (primaryTest.valid) {
+    return {
+      provider: primary,
+      valid: true,
+      confidence: 1.0,
+      pattern: `Confirmado por llamada en vivo a la API oficial de ${primary.toUpperCase()} (HTTP 200)`,
+      modelDetected: primaryTest.detail
+    };
+  }
+
+  // 2. If primary failed, probe all other providers in parallel
+  const candidates = ['groq', 'gemini', 'openrouter', 'cerebras', 'github_models'].filter(p => p !== primary);
+  const probePromises = candidates.map(async (p) => {
+    const val = await validateClientKey(p, clean);
+    return { provider: p, ...val };
+  });
+
+  const results = await Promise.all(probePromises);
+  const match = results.find(r => r.valid);
+
+  if (match) {
+    return {
+      provider: match.provider,
+      valid: true,
+      confidence: 1.0,
+      pattern: `Confirmado por llamada en vivo a la API oficial de ${match.provider.toUpperCase()} (HTTP 200)`,
+      modelDetected: match.detail
+    };
+  }
+
+  return {
+    provider: primary,
+    valid: false,
+    confidence: 0.1,
+    pattern: heuristic ? heuristic.pattern : 'Desconocido',
+    error: primaryTest.detail || 'Ninguna API oficial reconoció la clave con HTTP 200.'
+  };
 }
+
+// ─── TERRA SYMBIONT ENDPOINTS MANAGER (ONLINE & LOCAL) ────────────────────────
+
+async function loadSymbiontsUI() {
+  const container = document.getElementById('symbionts-container');
+  if (!container) return;
+
+  let list = [];
+  try {
+    if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+      const res = await fetch('/api/symbionts');
+      list = await res.json();
+    } else {
+      list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    }
+  } catch {
+    list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state p-20 text-center text-muted" style="grid-column: 1 / -1; background: rgba(16,24,38,0.4); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
+        <span style="font-size: 1.8rem; display: block; margin-bottom: 6px;">🐜</span>
+        No hay endpoints simbióticos configurados aún.<br>
+        Usa el formulario superior para añadir instancias desplegadas en Railway, Vercel, Render o daemon local.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = list.map(s => {
+    const icon = s.type === 'termes' ? '🐜' : s.type === 'mantx' ? '🦗' : s.type === 'hiven' ? '🐝' : '⚡';
+    const isOnline = s.status === 'online';
+    const latencyStr = s.latencyMs ? ` (${s.latencyMs}ms)` : '';
+
+    return `
+      <div class="symbiont-card" id="symb-${s.id}">
+        <div class="symbiont-icon">${icon}</div>
+        <div class="symbiont-details">
+          <div class="symbiont-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>${s.name}</span>
+            <span class="badge ${isOnline ? 'badge-green' : 'badge-amber'}">${isOnline ? 'ONLINE' + latencyStr : 'OFFLINE'}</span>
+          </div>
+          <div class="symbiont-desc" style="font-family: var(--font-mono); font-size: 0.74rem; word-break: break-all;">
+            ${s.baseUrl}
+          </div>
+          <div class="symbiont-status mt-8" style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-xs" onclick="handlePingSymbiont('${s.id}')">🔄 Ping</button>
+            <button class="btn btn-danger btn-xs" onclick="handleDeleteSymbiont('${s.id}')">🗑️ Eliminar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.handleDeleteSymbiont = async (id) => {
+  if (!confirm('¿Eliminar este endpoint simbiótico?')) return;
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    await fetch('/api/symbionts', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  } else {
+    let list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    list = list.filter(s => s.id !== id);
+    localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+  }
+  loadSymbiontsUI();
+};
+
+window.handlePingSymbiont = async (id) => {
+  const card = document.getElementById(`symb-${id}`);
+  if (card) card.style.opacity = '0.5';
+
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    await fetch('/api/symbionts/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  } else {
+    let list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    const item = list.find(s => s.id === id);
+    if (item) {
+      const start = Date.now();
+      try {
+        const testUrl = item.baseUrl.endsWith('/v1') ? `${item.baseUrl}/models` : `${item.baseUrl}/v1/models`;
+        const r = await fetch(testUrl, { mode: 'cors' });
+        item.status = r.ok ? 'online' : 'offline';
+        item.latencyMs = Date.now() - start;
+      } catch {
+        item.status = 'offline';
+      }
+      localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+    }
+  }
+  loadSymbiontsUI();
+};
+
+window.loadSymbiontsUI = loadSymbiontsUI;
 
 function initProviderKeys() {
   const secretInput = document.getElementById('key-secret-input');
@@ -347,10 +505,13 @@ function initProviderKeys() {
   const btnRefreshPools = document.getElementById('btn-refresh-pools');
   const btnRefreshTelemetry = document.getElementById('btn-refresh-telemetry');
 
-  // Symbionts buttons
-  const btnPingTermes = document.getElementById('btn-ping-termes');
-  const btnPingMantx = document.getElementById('btn-ping-mantx');
-  const btnPingHiven = document.getElementById('btn-ping-hiven');
+  // Symbiont form inputs
+  const btnSaveSymb = document.getElementById('btn-save-symbiont');
+  const symbName = document.getElementById('symb-name-input');
+  const symbType = document.getElementById('symb-type-select');
+  const symbUrl = document.getElementById('symb-url-input');
+  const symbToken = document.getElementById('symb-token-input');
+  const symbStatus = document.getElementById('symb-status-msg');
 
   // Toggle key visibility
   if (btnToggleVis && secretInput) {
@@ -359,7 +520,7 @@ function initProviderKeys() {
     });
   }
 
-  // Real-time live auto-detection on keystroke / paste
+  // Real-time visual pattern hint while typing
   if (secretInput) {
     secretInput.addEventListener('input', () => {
       const val = secretInput.value.trim();
@@ -372,13 +533,13 @@ function initProviderKeys() {
         indicatorBar.style.display = 'flex';
         const icon = PROVIDER_ICONS[detected.provider] || '⚡';
         const name = PROVIDER_NAMES[detected.provider] || detected.provider.toUpperCase();
-        if (detectionText) detectionText.innerHTML = `${icon} Proveedor Detectado: <strong>${name}</strong>`;
-        if (detectionHint) detectionHint.textContent = `Patrón: ${detected.pattern} (Confianza: ${Math.round(detected.confidence * 100)}%)`;
+        if (detectionText) detectionText.innerHTML = `${icon} Proveedor Candidato: <strong>${name}</strong>`;
+        if (detectionHint) detectionHint.textContent = `Pulsa "Sondear APIs en Vivo" para validar con HTTP 200 en su API oficial.`;
       }
     });
   }
 
-  // Add key button
+  // Add key button — REAL API PROBE
   if (btnAdd) {
     btnAdd.addEventListener('click', async () => {
       const keyVal = secretInput?.value.trim();
@@ -391,53 +552,53 @@ function initProviderKeys() {
       }
 
       const aliasVal = aliasInput?.value.trim();
-      const detected = detectClientProvider(keyVal);
-      const provider = detected ? detected.provider : 'groq';
-
       btnAdd.disabled = true;
-      btnAdd.textContent = 'Verificando con la API... ⏳';
+      btnAdd.textContent = 'Sondeando APIs oficiales en paralelo... ⏳';
       if (addStatus) {
         addStatus.style.color = '#93c5fd';
-        addStatus.textContent = 'Consultando endpoint del proveedor...';
+        addStatus.textContent = 'Consultando endpoints oficiales de Groq, Gemini, OpenRouter, Cerebras, Cohere, GitHub...';
       }
 
       try {
-        // If on local server, use backend API
+        const probed = await probeClientKeyAgainstApis(keyVal);
+        const provider = probed.provider;
+
+        if (!probed.valid) {
+          if (addStatus) {
+            addStatus.style.color = '#ef4444';
+            addStatus.textContent = `✖ Ninguna API oficial validó esta clave: ${probed.error || 'HTTP 401/403'}`;
+          }
+          return;
+        }
+
+        // Add to local server or localStorage
         if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
           const res = await fetch('/api/keys', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: keyVal, name: aliasVal, provider })
           });
-          const item = await res.json();
-          if (addStatus) {
-            addStatus.style.color = '#10b981';
-            addStatus.textContent = `✔ Clave añadida al Pool de ${provider.toUpperCase()}`;
-          }
+          await res.json();
         } else {
-          // Client-side storage (GitHub Pages mode)
-          const valRes = await validateClientKey(provider, keyVal);
           const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
           if (!pools[provider]) pools[provider] = [];
 
-          const item = {
+          pools[provider].push({
             id: `key_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             name: aliasVal || `${provider.toUpperCase()} Key ${pools[provider].length + 1}`,
             apiKey: keyVal,
             provider,
-            status: valRes.valid ? 'valid' : 'invalid',
+            status: 'valid',
             callsCount: 0,
             tokensUsed: 0,
-            error: valRes.valid ? undefined : valRes.detail,
             createdAt: new Date().toISOString()
-          };
-          pools[provider].push(item);
+          });
           localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+        }
 
-          if (addStatus) {
-            addStatus.style.color = valRes.valid ? '#10b981' : '#f59e0b';
-            addStatus.textContent = `✔ ${valRes.detail}. Clave guardada en Pool de ${provider.toUpperCase()}`;
-          }
+        if (addStatus) {
+          addStatus.style.color = '#10b981';
+          addStatus.textContent = `✔ ${probed.pattern}. Añadida con éxito al Pool de ${provider.toUpperCase()}`;
         }
 
         // Reset inputs
@@ -455,7 +616,89 @@ function initProviderKeys() {
         }
       } finally {
         btnAdd.disabled = false;
-        btnAdd.textContent = '⚡ Validar en API y Añadir al Pool';
+        btnAdd.textContent = '⚡ Sondear APIs en Vivo y Añadir al Pool';
+      }
+    });
+  }
+
+  // Symbionts Register Button
+  if (btnSaveSymb) {
+    btnSaveSymb.addEventListener('click', async () => {
+      const urlVal = symbUrl?.value.trim();
+      if (!urlVal) {
+        if (symbStatus) {
+          symbStatus.style.color = '#ef4444';
+          symbStatus.textContent = 'Introduce la URL base del endpoint (ej: https://.../v1 o http://127.0.0.1:7420/v1)';
+        }
+        return;
+      }
+
+      btnSaveSymb.disabled = true;
+      btnSaveSymb.textContent = 'Probando conexión en vivo... ⏳';
+      if (symbStatus) {
+        symbStatus.style.color = '#93c5fd';
+        symbStatus.textContent = 'Haciendo ping al endpoint...';
+      }
+
+      const payload = {
+        name: symbName?.value.trim() || `${symbType?.value.toUpperCase()} Endpoint`,
+        type: symbType?.value || 'termes',
+        baseUrl: urlVal,
+        apiKey: symbToken?.value.trim() || undefined
+      };
+
+      try {
+        if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+          const r = await fetch('/api/symbionts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const item = await r.json();
+          if (symbStatus) {
+            symbStatus.style.color = item.status === 'online' ? '#10b981' : '#f59e0b';
+            symbStatus.textContent = `✔ Endpoint registrado (${item.status.toUpperCase()}${item.latencyMs ? ' ' + item.latencyMs + 'ms' : ''}).`;
+          }
+        } else {
+          // Client test
+          const start = Date.now();
+          let online = false;
+          try {
+            const testUrl = urlVal.endsWith('/v1') ? `${urlVal}/models` : `${urlVal}/v1/models`;
+            const r = await fetch(testUrl, { mode: 'cors' });
+            online = r.ok;
+          } catch {
+            online = false;
+          }
+
+          const list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+          list.push({
+            id: `symb_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            ...payload,
+            status: online ? 'online' : 'offline',
+            latencyMs: Date.now() - start,
+            createdAt: new Date().toISOString()
+          });
+          localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+
+          if (symbStatus) {
+            symbStatus.style.color = online ? '#10b981' : '#f59e0b';
+            symbStatus.textContent = `✔ Endpoint registrado (${online ? 'ONLINE' : 'OFFLINE / STANDBY'}).`;
+          }
+        }
+
+        if (symbName) symbName.value = '';
+        if (symbUrl) symbUrl.value = '';
+        if (symbToken) symbToken.value = '';
+        loadSymbiontsUI();
+      } catch (err) {
+        if (symbStatus) {
+          symbStatus.style.color = '#ef4444';
+          symbStatus.textContent = `Error: ${err.message}`;
+        }
+      } finally {
+        btnSaveSymb.disabled = false;
+        btnSaveSymb.textContent = '⚡ Probar y Registrar Endpoint';
       }
     });
   }
@@ -528,52 +771,11 @@ function initProviderKeys() {
 
   // Refresh buttons
   if (btnRefreshPools) btnRefreshPools.addEventListener('click', loadKeyPools);
-  if (btnRefreshTelemetry) btnRefreshTelemetry.addEventListener('click', () => { loadKeyPools(); loadProviders(); });
+  if (btnRefreshTelemetry) btnRefreshTelemetry.addEventListener('click', () => { loadKeyPools(); loadProviders(); loadSymbiontsUI(); });
 
-  // Symbiont Pings
-  if (btnPingTermes) {
-    btnPingTermes.addEventListener('click', async () => {
-      const badge = document.getElementById('termes-status-badge');
-      if (badge) badge.innerHTML = '<span class="dot blue"></span> <span>Pinging localhost:7420...</span>';
-      try {
-        const r = await fetch('http://127.0.0.1:7420/v1/models', { mode: 'cors' });
-        if (r.ok) {
-          if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Daemon ONLINE (Cost $0)</span>';
-        } else {
-          if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Daemon Standby (HTTP ' + r.status + ')</span>';
-        }
-      } catch {
-        if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Daemon Inactivo (Inicia Termes en :7420)</span>';
-      }
-    });
-  }
-
-  if (btnPingMantx) {
-    btnPingMantx.addEventListener('click', async () => {
-      const badge = document.getElementById('mantx-status-badge');
-      if (badge) badge.innerHTML = '<span class="dot blue"></span> <span>Pinging localhost:7450...</span>';
-      try {
-        const r = await fetch('http://127.0.0.1:7450/v1/models', { mode: 'cors' });
-        if (r.ok) {
-          if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Gateway ONLINE (Cost $0)</span>';
-        } else {
-          if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Gateway Standby (HTTP ' + r.status + ')</span>';
-        }
-      } catch {
-        if (badge) badge.innerHTML = '<span class="dot amber"></span> <span class="text-amber">Gateway Inactivo (Inicia Mantx en :7450)</span>';
-      }
-    });
-  }
-
-  if (btnPingHiven) {
-    btnPingHiven.addEventListener('click', async () => {
-      const badge = document.getElementById('hiven-status-badge');
-      if (badge) badge.innerHTML = '<span class="dot green"></span> <span class="text-green">Swarm Cluster Active</span>';
-    });
-  }
-
-  // Load initial pool inventory
+  // Load initial pool inventory & symbionts
   loadKeyPools();
+  loadSymbiontsUI();
 }
 
 async function loadKeyPools() {
