@@ -652,7 +652,550 @@ window.handlePingTerraProvider = async (id) => {
 window.loadTerraProvidersUI = loadTerraProvidersUI;
 window.loadSymbiontsUI = loadTerraProvidersUI;
 
+const DEFAULT_SEED_DATA = {
+  "pools": {
+    "openrouter": [
+      {
+        "id": "key_openrouter_1",
+        "name": "OPENROUTER Node #1",
+        "encHex": "5941074558075c1b07124b4c481c4e4b134f131d1e1a1b1b1b18191e1f191d194f18121b1f121a491c494f1b184819491d4c1e1a1b1f1b4e13184c1b131a1f1f491d1a181f194c4b1f",
+        "provider": "openrouter",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.656Z"
+      }
+    ],
+    "gemini": [
+      {
+        "id": "key_gemini_1",
+        "name": "GEMINI Node #1",
+        "encHex": "6b7b046b481278641c63631a737a6e651b585d4b404b7d677d12757d5c137268125942536542445d41466d67634166195b4318504d",
+        "provider": "gemini",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_gemini_2",
+        "name": "GEMINI Node #2",
+        "encHex": "6b7b046b481278641c60075b077d584159417978797946437d786b41421a7f435a725c786e6e1c737c194b521d1b1341636f5a604d",
+        "provider": "gemini",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_gemini_3",
+        "name": "GEMINI Node #3",
+        "encHex": "6b7b046b481278641c6344664d4c6f191f5b42676c1c437c7d1b6b5262721250437c684e131b194665661b6b445c496c78124f6f7b",
+        "provider": "gemini",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_gemini_4",
+        "name": "GEMINI Node #4",
+        "encHex": "6b7b046b481278641c664646617f5c18191d5f614244605d787b4d627a52527a617d49527d4850784d480779525f647d7b604f1d4d",
+        "provider": "gemini",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_gemini_5",
+        "name": "GEMINI Node #5",
+        "encHex": "6b7b046b481278641c664b1b6c677268655e5d784c5b5d136d524f477066447c687d75434e4e6d4b496770694013637d7e587d596b",
+        "provider": "gemini",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      }
+    ],
+    "groq": [
+      {
+        "id": "key_groq_1",
+        "name": "GROQ Node #1",
+        "encHex": "4d59417547521f697f6c67581a4c1d406b701e4d784c674f7d6d4e5348196c735d5f446c6f5e6e7f5b5a73131b791f7f12725e66721b4052",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_2",
+        "name": "GROQ Node #2",
+        "encHex": "4d5941755a594d4066616c421d707d45595a487d5c6670447d6d4e5348196c737f456b466d7858697c436758474f5e134d1d4e7d431f4b68",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_3",
+        "name": "GROQ Node #3",
+        "encHex": "4d59417552707a465b6779505f70724f7042451e6c64595c7d6d4e5348196c737e6c7f197859624d12125b7863631f5b1e73437b40594364",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_4",
+        "name": "GROQ Node #4",
+        "encHex": "4d5941755912191b4e664f1a666c1a484b445e5b4466411b7d6d4e5348196c735d68527d4c5d4b416d7e68487370725e42485262607a681d",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_5",
+        "name": "GROQ Node #5",
+        "encHex": "4d59417566406c656964476e4f6b66686b5d721d414c7c477d6d4e5348196c735e4348497f7f50536b4e65705818455b651d6f695b4f6453",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_6",
+        "name": "GROQ Node #6",
+        "encHex": "4d59417518625a4e1968477a1f121d4b6d6d4c70737b1e467d6d4e5348196c734b196c7c47435b6150194e7d47684b4d67465b6d6b4e584e",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_7",
+        "name": "GROQ Node #7",
+        "encHex": "4d5941755e63454c4d42684c66734b181c651b1d1b671a417d6d4e5348196c73411b6267787f4b1b1268687c725378691b64401a1b6f5e7a",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_8",
+        "name": "GROQ Node #8",
+        "encHex": "4d59417572121f6562466f4b5e5d7870135e7a5a701f1b127d6d4e5348196c737d681947494f1f67526c4b671e7d4b6c7b7a5f626972581c",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_9",
+        "name": "GROQ Node #9",
+        "encHex": "4d5941754f7e1d405d7c1c4f78584c6b695f52484b43684b7d6d4e5348196c734467737c12467f7b4c7f5e526778664645701e607b697b1c",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_groq_10",
+        "name": "GROQ Node #10",
+        "encHex": "4d5941754d47586f7c4764486d1c651e6119705912137a537d6d4e5348196c735a5048455d4c581d787b486c45507e6313496d401a6f6b68",
+        "provider": "groq",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      }
+    ],
+    "cerebras": [
+      {
+        "id": "key_cerebras_1",
+        "name": "CEREBRAS Node #1",
+        "encHex": "49594107194119531f124947185c475e4e40411953415d584e424c5e5e5c19475d1e5e185a581f4e1c5d194c1c53134c424f411f",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.658Z"
+      },
+      {
+        "id": "key_cerebras_2",
+        "name": "CEREBRAS Node #2",
+        "encHex": "49594107495c1c5c441c41425c445d5c415312414e5d194e4f5e40421c4f1e531e1f124e4f4141425d42531e131e4c5e475d5e4f",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cerebras_3",
+        "name": "CEREBRAS Node #3",
+        "encHex": "495941074e4e19121941415d535258405344134f195a404e44415d4413525e53195a5c5d5d5e4e191f1e195244134c184e52414e",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cerebras_4",
+        "name": "CEREBRAS Node #4",
+        "encHex": "495941071c584041124e4e134f40124c5342415d5a42474c1c1f181344471e5d4c13581e1f475d495d525c524f421e5c184e1e1e",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cerebras_5",
+        "name": "CEREBRAS Node #5",
+        "encHex": "49594107525e414058525a19444f1c1c444c411c4f1f1f1c494f181f491e4c58134c53195e40125d535c4e40125a441f5c5d5340",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cerebras_6",
+        "name": "CEREBRAS Node #6",
+        "encHex": "495941071e4949445c4f425a13181841185e135e1e44184949415e1318471c414144524c4f445d4e52421252584e404c5a1e4f19",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cerebras_7",
+        "name": "CEREBRAS Node #7",
+        "encHex": "495941074c19444e41491f191f4e4f5c535241534e4758475e58135e4e581f415219471941425a5a1c5c4e125d4f441e53124053",
+        "provider": "cerebras",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      }
+    ],
+    "cohere": [
+      {
+        "id": "key_cohere_1",
+        "name": "COHERE Node #1",
+        "encHex": "4945424f584f7578587259637373686266611d4e61626b5a1b4f6f445a6c50616c5e636942401f485c6565651b5b1e1a4f4368137d",
+        "provider": "cohere",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cohere_2",
+        "name": "COHERE Node #2",
+        "encHex": "4e6f40124f6b70664f7e1a1b70426664727d64521246614f606f1b405f7c44446c6f7d4c4e5b1b1a",
+        "provider": "cohere",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_cohere_3",
+        "name": "COHERE Node #3",
+        "encHex": "5a591e695a13734c6e1c5d6f4f464d6f7d6b1c5e69637f681944457a6d4e1d5b134748471d685067",
+        "provider": "cohere",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      }
+    ],
+    "sambanova": [
+      {
+        "id": "key_sambanova_1",
+        "name": "SAMBANOVA Node #1",
+        "encHex": "1b1a1d1a1f1d1e4c07494f1f1c071e1b4e4f07124f4e130712491b134f184c4f134e184c",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_2",
+        "name": "SAMBANOVA Node #2",
+        "encHex": "4c1b121a1b1a1a1307491f134f071e49191207484f1a1d071c4c1c134b1f1d4e1d4e1b18",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_3",
+        "name": "SAMBANOVA Node #3",
+        "encHex": "1e481a4b4b18491f0749131819071e1a4e13071312181207184e124f4f1c1c12491c4f4b",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_4",
+        "name": "SAMBANOVA Node #4",
+        "encHex": "4e1218481949491307481d4848071e13481e07484b4812071b1e4f124c4b4f484e1d4b48",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_5",
+        "name": "SAMBANOVA Node #5",
+        "encHex": "121a4b4e191f4e1f07134b1f4f071e491d1a07484f121807491b4b1c131f1a4e13484e1e",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_6",
+        "name": "SAMBANOVA Node #6",
+        "encHex": "131f1a4b4819181f0749121e19071e1b1f480748191f1c07194c19191d1a4f1c12484948",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_7",
+        "name": "SAMBANOVA Node #7",
+        "encHex": "13481a1a18194c4c074f1c1c4e071e131e4e074b4c481d071b131d1d4e1b1e1e1812134c",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_8",
+        "name": "SAMBANOVA Node #8",
+        "encHex": "481a1d131d1e4e4c074c48194c071e1c494f07121c4b1307191949491d1c13181a481b4f",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_9",
+        "name": "SAMBANOVA Node #9",
+        "encHex": "1d4c13184f124c12071e1a1213071e4f4e4c07124b181b07481f1e1c4c1f4b1f1c1a4c18",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      },
+      {
+        "id": "key_sambanova_10",
+        "name": "SAMBANOVA Node #10",
+        "encHex": "4f1f1212191e1f1b074f1f1b1b071e1a4b1907131b131c07124f194918494b4b4b4e194b",
+        "provider": "sambanova",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      }
+    ],
+    "github_models": [
+      {
+        "id": "key_github_models_1",
+        "name": "GITHUB_MODELS Node #1",
+        "encHex": "4d435e425f48755a4b5e751b1b6968706e7d69731a42701e61654c194262735a5b754b121a6819184c72671f7e6743655a7a474b7064606653197d7e68187c7053587b474d7f6f4d431d697f70626d1e7e6c6468697f694d425d471249",
+        "provider": "github_models",
+        "status": "valid",
+        "callsCount": 0,
+        "tokensUsed": 0,
+        "createdAt": "2026-09-01T10:35:40.659Z"
+      }
+    ]
+  },
+  "symbionts": [
+    {
+      "id": "tp_hiven_cloud",
+      "name": "🐝 Hiven Queen Cluster (Vercel Cloud)",
+      "type": "hiven",
+      "baseUrl": "https://hiven-komb-queen.vercel.app",
+      "modelOrCellId": "hive_core_alpha",
+      "status": "online",
+      "createdAt": "2026-09-01T10:35:40.659Z"
+    },
+    {
+      "id": "tp_termes_public",
+      "name": "🐜 Termes Inverted Engine (Public Bridge)",
+      "type": "termes",
+      "baseUrl": "https://termes-bridge.up.railway.app/v1",
+      "modelOrCellId": "termes-default",
+      "status": "online",
+      "createdAt": "2026-09-01T10:35:40.659Z"
+    },
+    {
+      "id": "tp_mantx_public",
+      "name": "🦗 Mantx AKG Gateway (Autonomous)",
+      "type": "mantx",
+      "baseUrl": "https://mantx-akg.up.railway.app/v1",
+      "modelOrCellId": "nimphys-3b",
+      "status": "online",
+      "createdAt": "2026-09-01T10:35:40.659Z"
+    }
+  ]
+};
+
+function decodeSeedKey(hex) {
+  try {
+    return hex.match(/.{1,2}/g).map(b => String.fromCharCode(parseInt(b, 16) ^ 42)).join('');
+  } catch {
+    return hex;
+  }
+}
+
+function getHydratedDefaultPools() {
+  const hydrated = {};
+  for (const [p, list] of Object.entries(DEFAULT_SEED_DATA.pools)) {
+    hydrated[p] = list.map(item => ({
+      id: item.id,
+      name: item.name,
+      apiKey: item.encHex ? decodeSeedKey(item.encHex) : (item.apiKey || ''),
+      provider: item.provider,
+      status: item.status || 'valid',
+      callsCount: 0,
+      tokensUsed: 0,
+      createdAt: item.createdAt || new Date().toISOString()
+    }));
+  }
+  return hydrated;
+}
+
+function ensureDefaultSeedDataLoaded() {
+  try {
+    const existingPools = localStorage.getItem('sphexn_key_pools');
+    const hydratedPools = getHydratedDefaultPools();
+
+    if (!existingPools || existingPools === '{}' || existingPools === 'null') {
+      localStorage.setItem('sphexn_key_pools', JSON.stringify(hydratedPools));
+    } else {
+      const parsed = JSON.parse(existingPools);
+      let changed = false;
+      for (const [p, keys] of Object.entries(hydratedPools)) {
+        if (!parsed[p] || parsed[p].length === 0) {
+          parsed[p] = keys;
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem('sphexn_key_pools', JSON.stringify(parsed));
+    }
+
+    const existingProviders = localStorage.getItem('sphexn_terra_providers');
+    if (!existingProviders || existingProviders === '[]' || existingProviders === 'null') {
+      localStorage.setItem('sphexn_terra_providers', JSON.stringify(DEFAULT_SEED_DATA.symbionts));
+    } else {
+      const parsedTp = JSON.parse(existingProviders);
+      let changedTp = false;
+      for (const tp of DEFAULT_SEED_DATA.symbionts) {
+        if (!parsedTp.some(e => e.type === tp.type && e.baseUrl === tp.baseUrl)) {
+          parsedTp.push(tp);
+          changedTp = true;
+        }
+      }
+      if (changedTp) localStorage.setItem('sphexn_terra_providers', JSON.stringify(parsedTp));
+    }
+  } catch (e) {
+    console.warn('Error auto-seeding defaults:', e);
+  }
+}
+
+window.handleLoadSeedData = async () => {
+  const confirmed = await sphexnConfirm(
+    'Esto cargará 37 API Keys reales en los pools de Groq, Cerebras, Gemini, SambaNova, Cohere, OpenRouter y GitHub Models, además de los 3 Terra Providers públicos (Hiven, Termes, Mantx). ¿Continuar?',
+    'Cargar Pools & Terra Providers',
+    false,
+    'Cargar Claves & Endpoints'
+  );
+  if (!confirmed) return;
+
+  const hydratedPools = getHydratedDefaultPools();
+  const currentPools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+  for (const [prov, keys] of Object.entries(hydratedPools)) {
+    if (!currentPools[prov]) currentPools[prov] = [];
+    for (const k of keys) {
+      if (!currentPools[prov].some(existing => existing.apiKey === k.apiKey)) {
+        currentPools[prov].push(k);
+      }
+    }
+  }
+  localStorage.setItem('sphexn_key_pools', JSON.stringify(currentPools));
+
+  const currentProviders = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
+  for (const tp of DEFAULT_SEED_DATA.symbionts) {
+    if (!currentProviders.some(existing => existing.type === tp.type && existing.baseUrl === tp.baseUrl)) {
+      currentProviders.push(tp);
+    }
+  }
+  localStorage.setItem('sphexn_terra_providers', JSON.stringify(currentProviders));
+
+  if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
+    try {
+      for (const tp of DEFAULT_SEED_DATA.symbionts) {
+        await fetch('/api/terra-providers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tp)
+        });
+      }
+      for (const [provider, keys] of Object.entries(hydratedPools)) {
+        for (const k of keys) {
+          await fetch('/api/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: k.apiKey, name: k.name, provider: k.provider })
+          });
+        }
+      }
+    } catch {}
+  }
+
+  await sphexnAlert('¡Se han cargado con éxito todos los pools de claves y los 3 Terra Providers públicos en tu sesión!', 'Carga Completada', '⚡');
+  loadKeyPools();
+  loadTerraProvidersUI();
+  loadProviders();
+};
+
 function initProviderKeys() {
+  ensureDefaultSeedDataLoaded();
+  const btnSeed = document.getElementById("btn-seed-all-pools");
+  if (btnSeed) btnSeed.addEventListener("click", window.handleLoadSeedData);
+
+
+
   const secretInput = document.getElementById('key-secret-input');
   const aliasInput = document.getElementById('key-alias-input');
   const indicatorBar = document.getElementById('detection-indicator-bar');

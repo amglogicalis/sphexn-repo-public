@@ -609,7 +609,10 @@ continue-on-error: true
                   <h2>🗃️ Inventario de Key Pools Organizado por Proveedor</h2>
                   <p class="text-muted">Múltiples claves por proveedor con balanceo de carga automático, rotación transparente y recuperación ante 429.</p>
                 </div>
-                <button class="btn btn-secondary btn-sm" id="btn-refresh-pools">Recargar Inventario</button>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary btn-sm" id="btn-seed-all-pools">⚡ Cargar Pools & Endpoints</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-refresh-pools">Recargar</button>
+                </div>
               </div>
 
               <div id="key-pools-container" class="key-pools-container mt-16">
@@ -655,6 +658,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260901_9"></script>
+  <script src="app.js?v=20260901_10"></script>
 </body>
 </html>
