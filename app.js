@@ -202,7 +202,7 @@ function switchTab(tabId) {
   if (tabId === 'providers') {
     loadKeyPools();
     loadProviders();
-    loadSymbiontsUI();
+    loadTerraProvidersUI();
   }
 }
 window.switchTab = switchTab;
@@ -217,9 +217,10 @@ const PROVIDER_NAMES = {
   cohere: 'Cohere (Command R+)',
   sambanova: 'SambaNova Cloud (Llama 3.3)',
   github_models: 'GitHub Models (Inference Beta)',
+  custom_openai: 'Custom OpenAI-Compatible (vLLM / LM Studio / DeepSeek)',
   hiven: 'Terra Hiven Agent Swarm (Native)',
-  termes: 'Termes Symbiont Bridge (Zero-Cost Local/Online)',
-  mantx: 'Mantx AKG & Nimphys Gateway',
+  termes: 'Termes API Engine (Terra Provider)',
+  mantx: 'Mantx Gateway & Nimphys (Terra Provider)',
   tenzor: 'Tenzor Inference Gateway',
   ollama: 'Ollama Local Daemon'
 };
@@ -232,6 +233,7 @@ const PROVIDER_ICONS = {
   cohere: '🔮',
   sambanova: '🐆',
   github_models: '🐙',
+  custom_openai: '🔌',
   hiven: '🐝',
   termes: '🐜',
   mantx: '🦗',
@@ -335,11 +337,34 @@ async function validateClientKey(provider, key) {
   }
 }
 
-async function probeClientKeyAgainstApis(rawKey) {
+async function probeClientKeyAgainstApis(rawKey, customUrl, customModel) {
   const clean = rawKey.trim();
   if (!clean) throw new Error('API Key no puede estar vacía');
 
-  // If local backend is accessible, delegate to server probe:
+  // 1. If user provided a custom OpenAI-Compatible Base URL, probe it directly:
+  if (customUrl && customUrl.trim()) {
+    const cleanUrl = customUrl.trim().replace(/\/+$/, '');
+    try {
+      const testUrl = `${cleanUrl}/models`;
+      const res = await fetch(testUrl, {
+        headers: { Authorization: `Bearer ${clean}` }
+      });
+      if (res.ok) {
+        return {
+          provider: 'custom_openai',
+          valid: true,
+          confidence: 1.0,
+          pattern: `Validada en API OpenAI-Compatible (${cleanUrl})`,
+          baseUrl: cleanUrl,
+          modelDetected: customModel || 'gpt-4o'
+        };
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  // 2. If local backend is accessible, delegate to server probe:
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
     try {
       const apiRes = await fetch('/api/keys/probe', {
@@ -354,11 +379,11 @@ async function probeClientKeyAgainstApis(rawKey) {
     } catch {}
   }
 
-  // Browser-side live probe against real candidate APIs in parallel:
+  // 3. Browser-side live probe against candidate APIs in parallel:
   const heuristic = detectClientProvider(clean);
   const primary = heuristic ? heuristic.provider : 'groq';
 
-  // 1. Try primary candidate first
+  // Try primary candidate first
   const primaryTest = await validateClientKey(primary, clean);
   if (primaryTest.valid) {
     return {
@@ -370,7 +395,7 @@ async function probeClientKeyAgainstApis(rawKey) {
     };
   }
 
-  // 2. If primary failed, probe all other providers in parallel
+  // If primary failed, probe all other providers in parallel
   const candidates = ['groq', 'gemini', 'openrouter', 'cerebras', 'github_models'].filter(p => p !== primary);
   const probePromises = candidates.map(async (p) => {
     const val = await validateClientKey(p, clean);
@@ -399,54 +424,61 @@ async function probeClientKeyAgainstApis(rawKey) {
   };
 }
 
-// ─── TERRA SYMBIONT ENDPOINTS MANAGER (ONLINE & LOCAL) ────────────────────────
+// ─── TERRA PROVIDERS MANAGER (TERMES, MANTX, HIVEN) ──────────────────────────
 
-async function loadSymbiontsUI() {
-  const container = document.getElementById('symbionts-container');
+async function loadTerraProvidersUI() {
+  const container = document.getElementById('terra-providers-container');
   if (!container) return;
 
   let list = [];
   try {
     if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-      const res = await fetch('/api/symbionts');
+      const res = await fetch('/api/terra-providers');
       list = await res.json();
     } else {
-      list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+      list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
     }
   } catch {
-    list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
   }
 
-  if (list.length === 0) {
+  if (!Array.isArray(list) || list.length === 0) {
     container.innerHTML = `
       <div class="empty-state p-20 text-center text-muted" style="grid-column: 1 / -1; background: rgba(16,24,38,0.4); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md);">
         <span style="font-size: 1.8rem; display: block; margin-bottom: 6px;">🐜</span>
-        No hay endpoints simbióticos configurados aún.<br>
-        Usa el formulario superior para añadir instancias desplegadas en Railway, Vercel, Render o daemon local.
+        No hay Terra Providers configurados aún.<br>
+        Usa el formulario superior para registrar tus instancias de <strong>Termes, Mantx o Hiven</strong> (online o local).
       </div>
     `;
     return;
   }
 
   container.innerHTML = list.map(s => {
-    const icon = s.type === 'termes' ? '🐜' : s.type === 'mantx' ? '🦗' : s.type === 'hiven' ? '🐝' : '⚡';
+    const icon = s.type === 'termes' ? '🐜' : s.type === 'mantx' ? '🦗' : '🐝';
+    const typeLabel = s.type === 'termes' ? 'TERMES ENGINE' : s.type === 'mantx' ? 'MANTX GATEWAY' : 'HIVEN SWARM';
     const isOnline = s.status === 'online';
     const latencyStr = s.latencyMs ? ` (${s.latencyMs}ms)` : '';
+    const extraParamHtml = s.modelOrCellId 
+      ? `<span class="badge" style="background: rgba(37,99,235,0.15); color: #93c5fd; border: 1px solid rgba(37,99,235,0.3); font-size: 0.7rem; margin-right: 6px;">${s.type === 'hiven' ? 'Cell: ' : 'Model: '}${s.modelOrCellId}</span>` 
+      : '';
 
     return `
-      <div class="symbiont-card" id="symb-${s.id}">
+      <div class="symbiont-card" id="tp-${s.id}">
         <div class="symbiont-icon">${icon}</div>
         <div class="symbiont-details">
           <div class="symbiont-title" style="display: flex; justify-content: space-between; align-items: center;">
             <span>${s.name}</span>
-            <span class="badge ${isOnline ? 'badge-green' : 'badge-amber'}">${isOnline ? 'ONLINE' + latencyStr : 'OFFLINE'}</span>
+            <div>
+              ${extraParamHtml}
+              <span class="badge ${isOnline ? 'badge-green' : 'badge-amber'}">${isOnline ? 'ONLINE' + latencyStr : 'OFFLINE'}</span>
+            </div>
           </div>
-          <div class="symbiont-desc" style="font-family: var(--font-mono); font-size: 0.74rem; word-break: break-all;">
+          <div class="symbiont-desc" style="font-family: var(--font-mono); font-size: 0.74rem; word-break: break-all; margin-top: 4px;">
             ${s.baseUrl}
           </div>
           <div class="symbiont-status mt-8" style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary btn-xs" onclick="handlePingSymbiont('${s.id}')">🔄 Ping</button>
-            <button class="btn btn-danger btn-xs" onclick="handleDeleteSymbiont('${s.id}')">🗑️ Eliminar</button>
+            <button class="btn btn-secondary btn-xs" onclick="handlePingTerraProvider('${s.id}')">🔄 Ping</button>
+            <button class="btn btn-danger btn-xs" onclick="handleDeleteTerraProvider('${s.id}')">🗑️ Eliminar</button>
           </div>
         </div>
       </div>
@@ -454,52 +486,55 @@ async function loadSymbiontsUI() {
   }).join('');
 }
 
-window.handleDeleteSymbiont = async (id) => {
-  if (!confirm('¿Eliminar este endpoint simbiótico?')) return;
+window.handleDeleteTerraProvider = async (id) => {
+  if (!confirm('¿Eliminar este Terra Provider?')) return;
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-    await fetch('/api/symbionts', {
+    await fetch('/api/terra-providers', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
   } else {
-    let list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    let list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
     list = list.filter(s => s.id !== id);
-    localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+    localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
   }
-  loadSymbiontsUI();
+  loadTerraProvidersUI();
 };
 
-window.handlePingSymbiont = async (id) => {
-  const card = document.getElementById(`symb-${id}`);
+window.handlePingTerraProvider = async (id) => {
+  const card = document.getElementById(`tp-${id}`);
   if (card) card.style.opacity = '0.5';
 
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-    await fetch('/api/symbionts/ping', {
+    await fetch('/api/terra-providers/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
   } else {
-    let list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+    let list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
     const item = list.find(s => s.id === id);
     if (item) {
       const start = Date.now();
       try {
-        const testUrl = item.baseUrl.endsWith('/v1') ? `${item.baseUrl}/models` : `${item.baseUrl}/v1/models`;
-        const r = await fetch(testUrl, { mode: 'cors' });
+        const probeEndpoint = item.type === 'hiven'
+          ? `${item.baseUrl.replace(/\/+$/, '')}/swarm/health`
+          : item.baseUrl.endsWith('/v1') ? `${item.baseUrl}/models` : `${item.baseUrl}/v1/models`;
+        const r = await fetch(probeEndpoint, { mode: 'cors' });
         item.status = r.ok ? 'online' : 'offline';
         item.latencyMs = Date.now() - start;
       } catch {
         item.status = 'offline';
       }
-      localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+      localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
     }
   }
-  loadSymbiontsUI();
+  loadTerraProvidersUI();
 };
 
-window.loadSymbiontsUI = loadSymbiontsUI;
+window.loadTerraProvidersUI = loadTerraProvidersUI;
+window.loadSymbiontsUI = loadTerraProvidersUI;
 
 function initProviderKeys() {
   const secretInput = document.getElementById('key-secret-input');
@@ -514,13 +549,62 @@ function initProviderKeys() {
   const btnRefreshPools = document.getElementById('btn-refresh-pools');
   const btnRefreshTelemetry = document.getElementById('btn-refresh-telemetry');
 
-  // Symbiont form inputs
-  const btnSaveSymb = document.getElementById('btn-save-symbiont');
-  const symbName = document.getElementById('symb-name-input');
-  const symbType = document.getElementById('symb-type-select');
-  const symbUrl = document.getElementById('symb-url-input');
-  const symbToken = document.getElementById('symb-token-input');
-  const symbStatus = document.getElementById('symb-status-msg');
+  // Terra Provider form elements
+  const btnSaveTerra = document.getElementById('btn-save-terra-provider');
+  const terraName = document.getElementById('terra-name-input');
+  const terraType = document.getElementById('terra-type-select');
+  const terraUrl = document.getElementById('terra-url-input');
+  const lblTerraUrl = document.getElementById('lbl-terra-url');
+  const terraParam = document.getElementById('terra-param-extra');
+  const lblTerraParam = document.getElementById('lbl-terra-param-extra');
+  const terraToken = document.getElementById('terra-token-input');
+  const lblTerraToken = document.getElementById('lbl-terra-token');
+  const terraStatus = document.getElementById('terra-status-msg');
+
+  // Custom OpenAI-Compatible toggle
+  const btnToggleOpenAI = document.getElementById('btn-toggle-custom-openai');
+  const customOpenAIFields = document.getElementById('custom-openai-fields');
+  const customOpenAIUrl = document.getElementById('custom-openai-url');
+  const customOpenAIModel = document.getElementById('custom-openai-model');
+
+  if (btnToggleOpenAI && customOpenAIFields) {
+    btnToggleOpenAI.addEventListener('click', () => {
+      const isHidden = customOpenAIFields.style.display === 'none';
+      customOpenAIFields.style.display = isHidden ? 'flex' : 'none';
+    });
+  }
+
+  // Dynamic parameter adjustment based on Terra Provider type
+  const syncTerraFields = () => {
+    const type = terraType ? terraType.value : 'termes';
+    if (type === 'termes') {
+      if (lblTerraUrl) lblTerraUrl.textContent = 'Base URL de Instancia Termes:';
+      if (terraUrl) terraUrl.placeholder = 'https://mi-termes.up.railway.app/v1 o http://127.0.0.1:7420/v1';
+      if (lblTerraParam) lblTerraParam.textContent = 'Ruta / Modelo de Inferencia:';
+      if (terraParam) { terraParam.placeholder = 'termes-default'; terraParam.value = 'termes-default'; }
+      if (lblTerraToken) lblTerraToken.textContent = 'Auth Secret / Token (opcional):';
+      if (terraToken) terraToken.placeholder = 'X-Termes-Key o Bearer si requiere auth...';
+    } else if (type === 'mantx') {
+      if (lblTerraUrl) lblTerraUrl.textContent = 'Gateway URL de Mantx (AKG / Nimphys):';
+      if (terraUrl) terraUrl.placeholder = 'https://mi-mantx.up.railway.app/v1 o http://127.0.0.1:7450/v1';
+      if (lblTerraParam) lblTerraParam.textContent = 'Modelo Destino Nimphys / Pool:';
+      if (terraParam) { terraParam.placeholder = 'nimphys-3b o mantx-akg-default'; terraParam.value = 'nimphys-3b'; }
+      if (lblTerraToken) lblTerraToken.textContent = 'AKG Master Token (opcional):';
+      if (terraToken) terraToken.placeholder = 'Bearer token si el gateway está protegido...';
+    } else if (type === 'hiven') {
+      if (lblTerraUrl) lblTerraUrl.textContent = 'URL de Nodo / Cluster Hiven:';
+      if (terraUrl) terraUrl.placeholder = 'https://mi-hiven.up.railway.app/v1 o http://127.0.0.1:7460/v1';
+      if (lblTerraParam) lblTerraParam.textContent = 'Swarm Cell ID / Hive ID:';
+      if (terraParam) { terraParam.placeholder = 'hive_core_alpha'; terraParam.value = 'hive_core_alpha'; }
+      if (lblTerraToken) lblTerraToken.textContent = 'Swarm Secret Token (opcional):';
+      if (terraToken) terraToken.placeholder = 'Token de enjambre si está protegido...';
+    }
+  };
+
+  if (terraType) {
+    terraType.addEventListener('change', syncTerraFields);
+    syncTerraFields();
+  }
 
   // Toggle key visibility
   if (btnToggleVis && secretInput) {
@@ -548,7 +632,7 @@ function initProviderKeys() {
     });
   }
 
-  // Add key button — REAL API PROBE
+  // Add key button — REAL API PROBE WITH OPTIONAL CUSTOM OPENAI ENDPOINT
   if (btnAdd) {
     btnAdd.addEventListener('click', async () => {
       const keyVal = secretInput?.value.trim();
@@ -561,6 +645,9 @@ function initProviderKeys() {
       }
 
       const aliasVal = aliasInput?.value.trim();
+      const customUrl = customOpenAIUrl?.value.trim() || undefined;
+      const customModel = customOpenAIModel?.value.trim() || undefined;
+
       btnAdd.disabled = true;
       btnAdd.textContent = 'Sondeando APIs oficiales en paralelo... ⏳';
       if (addStatus) {
@@ -569,7 +656,7 @@ function initProviderKeys() {
       }
 
       try {
-        const probed = await probeClientKeyAgainstApis(keyVal);
+        const probed = await probeClientKeyAgainstApis(keyVal, customUrl, customModel);
         const provider = probed.provider;
 
         if (!probed.valid) {
@@ -585,7 +672,13 @@ function initProviderKeys() {
           const res = await fetch('/api/keys', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: keyVal, name: aliasVal, provider })
+            body: JSON.stringify({ 
+              apiKey: keyVal, 
+              name: aliasVal, 
+              provider,
+              baseUrl: probed.baseUrl,
+              model: probed.modelDetected
+            })
           });
           await res.json();
         } else {
@@ -597,6 +690,8 @@ function initProviderKeys() {
             name: aliasVal || `${provider.toUpperCase()} Key ${pools[provider].length + 1}`,
             apiKey: keyVal,
             provider,
+            baseUrl: probed.baseUrl,
+            model: probed.modelDetected,
             status: 'valid',
             callsCount: 0,
             tokensUsed: 0,
@@ -613,6 +708,9 @@ function initProviderKeys() {
         // Reset inputs
         if (secretInput) secretInput.value = '';
         if (aliasInput) aliasInput.value = '';
+        if (customOpenAIUrl) customOpenAIUrl.value = '';
+        if (customOpenAIModel) customOpenAIModel.value = '';
+        if (customOpenAIFields) customOpenAIFields.style.display = 'none';
         if (indicatorBar) indicatorBar.style.display = 'none';
 
         // Refresh UI
@@ -630,84 +728,87 @@ function initProviderKeys() {
     });
   }
 
-  // Symbionts Register Button
-  if (btnSaveSymb) {
-    btnSaveSymb.addEventListener('click', async () => {
-      const urlVal = symbUrl?.value.trim();
+  // Terra Provider Register Button
+  if (btnSaveTerra) {
+    btnSaveTerra.addEventListener('click', async () => {
+      const urlVal = terraUrl?.value.trim();
       if (!urlVal) {
-        if (symbStatus) {
-          symbStatus.style.color = '#ef4444';
-          symbStatus.textContent = 'Introduce la URL base del endpoint (ej: https://.../v1 o http://127.0.0.1:7420/v1)';
+        if (terraStatus) {
+          terraStatus.style.color = '#ef4444';
+          terraStatus.textContent = 'Introduce la URL base del Terra Provider (ej: https://.../v1 o http://127.0.0.1:7420/v1)';
         }
         return;
       }
 
-      btnSaveSymb.disabled = true;
-      btnSaveSymb.textContent = 'Probando conexión en vivo... ⏳';
-      if (symbStatus) {
-        symbStatus.style.color = '#93c5fd';
-        symbStatus.textContent = 'Haciendo ping al endpoint...';
+      btnSaveTerra.disabled = true;
+      btnSaveTerra.textContent = 'Probando conexión en vivo... ⏳';
+      if (terraStatus) {
+        terraStatus.style.color = '#93c5fd';
+        terraStatus.textContent = 'Verificando salud del Terra Provider...';
       }
 
       const payload = {
-        name: symbName?.value.trim() || `${symbType?.value.toUpperCase()} Endpoint`,
-        type: symbType?.value || 'termes',
+        name: terraName?.value.trim() || `${terraType?.value.toUpperCase()} Provider`,
+        type: terraType?.value || 'termes',
         baseUrl: urlVal,
-        apiKey: symbToken?.value.trim() || undefined
+        apiKey: terraToken?.value.trim() || undefined,
+        modelOrCellId: terraParam?.value.trim() || undefined
       };
 
       try {
         if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-          const r = await fetch('/api/symbionts', {
+          const r = await fetch('/api/terra-providers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
           const item = await r.json();
-          if (symbStatus) {
-            symbStatus.style.color = item.status === 'online' ? '#10b981' : '#f59e0b';
-            symbStatus.textContent = `✔ Endpoint registrado (${item.status.toUpperCase()}${item.latencyMs ? ' ' + item.latencyMs + 'ms' : ''}).`;
+          if (terraStatus) {
+            terraStatus.style.color = item.status === 'online' ? '#10b981' : '#f59e0b';
+            terraStatus.textContent = `✔ Terra Provider registrado (${item.status.toUpperCase()}${item.latencyMs ? ' ' + item.latencyMs + 'ms' : ''}).`;
           }
         } else {
           // Client test
           const start = Date.now();
           let online = false;
           try {
-            const testUrl = urlVal.endsWith('/v1') ? `${urlVal}/models` : `${urlVal}/v1/models`;
-            const r = await fetch(testUrl, { mode: 'cors' });
+            const probeEndpoint = payload.type === 'hiven'
+              ? `${urlVal.replace(/\/+$/, '')}/swarm/health`
+              : urlVal.endsWith('/v1') ? `${urlVal}/models` : `${urlVal}/v1/models`;
+            const r = await fetch(probeEndpoint, { mode: 'cors' });
             online = r.ok;
           } catch {
             online = false;
           }
 
-          const list = JSON.parse(localStorage.getItem('sphexn_symbiont_endpoints') || '[]');
+          const list = JSON.parse(localStorage.getItem('sphexn_terra_providers') || '[]');
           list.push({
-            id: `symb_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: `tp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             ...payload,
             status: online ? 'online' : 'offline',
             latencyMs: Date.now() - start,
             createdAt: new Date().toISOString()
           });
-          localStorage.setItem('sphexn_symbiont_endpoints', JSON.stringify(list));
+          localStorage.setItem('sphexn_terra_providers', JSON.stringify(list));
 
-          if (symbStatus) {
-            symbStatus.style.color = online ? '#10b981' : '#f59e0b';
-            symbStatus.textContent = `✔ Endpoint registrado (${online ? 'ONLINE' : 'OFFLINE / STANDBY'}).`;
+          if (terraStatus) {
+            terraStatus.style.color = online ? '#10b981' : '#f59e0b';
+            terraStatus.textContent = `✔ Terra Provider registrado (${online ? 'ONLINE' : 'STANDBY'}).`;
           }
         }
 
-        if (symbName) symbName.value = '';
-        if (symbUrl) symbUrl.value = '';
-        if (symbToken) symbToken.value = '';
-        loadSymbiontsUI();
+        if (terraName) terraName.value = '';
+        if (terraUrl) terraUrl.value = '';
+        if (terraToken) terraToken.value = '';
+        loadTerraProvidersUI();
       } catch (err) {
-        if (symbStatus) {
-          symbStatus.style.color = '#ef4444';
-          symbStatus.textContent = `Error: ${err.message}`;
+        if (terraStatus) {
+          terraStatus.style.color = '#ef4444';
+          terraStatus.textContent = `Error: ${err.message}`;
         }
       } finally {
-        btnSaveSymb.disabled = false;
-        btnSaveSymb.textContent = '⚡ Probar y Registrar Endpoint';
+        btnSaveTerra.disabled = false;
+        btnSaveTerra.textContent = '⚡ Probar y Registrar';
       }
     });
   }
@@ -886,9 +987,16 @@ async function loadKeyPools() {
                 return `
                   <tr id="row-${k.id}">
                     <td>
-                      <input type="text" class="key-alias-edit" value="${k.name || 'Key'}" 
-                        onchange="handleUpdateKeyAlias('${k.id}', this.value)"
-                        title="Click para editar alias">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="text" class="key-alias-edit" value="${k.name || 'Key'}" 
+                          onchange="handleUpdateKeyAlias('${k.id}', this.value)"
+                          title="Edita el alias directamente y pulsa Enter">
+                        <button class="key-action-btn edit" style="padding: 2px 6px; font-size: 0.74rem;" 
+                          title="Renombrar alias" 
+                          onclick="handleEditKeyName('${k.id}', '${provider}', '${(k.name || '').replace(/'/g, "\\'")}')">
+                          ✏️
+                        </button>
+                      </div>
                     </td>
                     <td><span class="key-masked">${masked}</span></td>
                     <td>${statusBadge}</td>
@@ -911,18 +1019,34 @@ async function loadKeyPools() {
   container.innerHTML = html;
 }
 
+window.handleEditKeyName = async (id, provider, currentName) => {
+  const newName = prompt('Introduce el nuevo alias para esta clave:', currentName);
+  if (newName === null || newName.trim() === '') return;
+  await handleUpdateKeyAlias(id, newName.trim());
+  loadKeyPools();
+};
+
 window.handleUpdateKeyAlias = async (id, newName) => {
+  const cleanName = newName.trim();
+  if (!cleanName) return;
+
   if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-    // local server update
-  } else {
-    const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
-    for (const keys of Object.values(pools)) {
-      const item = keys.find(k => k.id === id);
-      if (item) {
-        item.name = newName.trim();
-        localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
-        break;
-      }
+    try {
+      await fetch('/api/keys/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: cleanName })
+      });
+    } catch {}
+  }
+
+  const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}');
+  for (const keys of Object.values(pools)) {
+    const item = keys.find(k => k.id === id);
+    if (item) {
+      item.name = cleanName;
+      localStorage.setItem('sphexn_key_pools', JSON.stringify(pools));
+      break;
     }
   }
 };

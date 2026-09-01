@@ -493,6 +493,23 @@ continue-on-error: true
                   </div>
                 </div>
 
+                <!-- OPTIONAL CUSTOM OPENAI-COMPATIBLE ENDPOINT TOGGLE -->
+                <div class="mt-12" style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-toggle-custom-openai" style="font-size: 0.76rem;">
+                    ⚙️ ¿Usas un endpoint Custom OpenAI-Compatible? (Click para configurar Base URL / Modelo)
+                  </button>
+                  <div id="custom-openai-fields" class="form-row mt-8" style="display: none;">
+                    <div class="form-group col-6">
+                      <label for="custom-openai-url">Custom Base URL (opcional):</label>
+                      <input type="text" id="custom-openai-url" class="form-input" placeholder="https://api.deepseek.com/v1 o https://api.openai.com/v1">
+                    </div>
+                    <div class="form-group col-6">
+                      <label for="custom-openai-model">Modelo Destino (opcional):</label>
+                      <input type="text" id="custom-openai-model" class="form-input" placeholder="ej: gpt-4o, deepseek-chat, llama-3...">
+                    </div>
+                  </div>
+                </div>
+
                 <!-- LIVE DETECTION BADGE -->
                 <div class="detection-indicator-bar mt-12" id="detection-indicator-bar" style="display: none;">
                   <div class="detection-badge" id="detection-badge">
@@ -511,53 +528,57 @@ continue-on-error: true
               </div>
             </div>
 
-            <!-- SECTION C: TERRA SYMBIONT BRIDGES & ONLINE API ENDPOINTS -->
+            <!-- SECTION C: TERRA PROVIDERS (TERMES, MANTX, HIVEN) -->
             <div class="card mt-24">
               <div class="card-header">
                 <div>
-                  <h2>🐝 Terra Symbiont Bridges & Online API Endpoints</h2>
-                  <p class="text-muted">Configura tus endpoints desplegados online o locales (Termes, Mantx, Hiven o proxies OpenAI-compatibles) para inferencia de coste $0 sin depender de terceros.</p>
+                  <h2>🐝 Terra Providers & Swarm Ecosystem</h2>
+                  <p class="text-muted">Conecta las instancias de los motores nativos del ecosistema Terra (Termes, Mantx, Hiven) desplegadas online o en local para inferencia descentralizada de coste $0.</p>
                 </div>
               </div>
 
-              <!-- FORM TO ADD DYNAMIC SYMBIONT ENDPOINT -->
+              <!-- FORM TO ADD DYNAMIC TERRA PROVIDER -->
               <div class="key-adder-box mt-16">
                 <div class="form-row">
                   <div class="form-group col-4">
-                    <label for="symb-name-input">Nombre del Endpoint:</label>
-                    <input type="text" id="symb-name-input" class="form-input" placeholder="ej: Termes Cloud Railway, Mantx Online...">
+                    <label for="terra-name-input">Nombre del Terra Provider:</label>
+                    <input type="text" id="terra-name-input" class="form-input" placeholder="ej: Termes Cloud Railway, Mantx Gateway...">
                   </div>
                   <div class="form-group col-3">
-                    <label for="symb-type-select">Tipo de Symbiont:</label>
-                    <select id="symb-type-select" class="form-input">
-                      <option value="termes">🐜 Termes (Inverted Bridge)</option>
-                      <option value="mantx">🦗 Mantx (AKG Gateway)</option>
+                    <label for="terra-type-select">Tipo de Terra Provider:</label>
+                    <select id="terra-type-select" class="form-input">
+                      <option value="termes">🐜 Termes (Inverted API Engine)</option>
+                      <option value="mantx">🦗 Mantx (AKG & Nimphys Gateway)</option>
                       <option value="hiven">🐝 Hiven (Swarm Cluster)</option>
-                      <option value="custom">⚡ Custom OpenAI-Compatible</option>
                     </select>
                   </div>
                   <div class="form-group col-5">
-                    <label for="symb-url-input">Base URL del Endpoint:</label>
-                    <input type="text" id="symb-url-input" class="form-input" placeholder="https://mi-termes.up.railway.app/v1">
+                    <label for="terra-url-input" id="lbl-terra-url">Base URL de Instancia Termes:</label>
+                    <input type="text" id="terra-url-input" class="form-input" placeholder="https://mi-termes.up.railway.app/v1 o http://127.0.0.1:7420/v1">
                   </div>
                 </div>
 
+                <!-- DYNAMIC PARAMETER ROW SPECIFIC TO SELECTED TERRA PROVIDER -->
                 <div class="form-row mt-12">
-                  <div class="form-group col-8">
-                    <label for="symb-token-input">Token de Acceso / Auth Secret (opcional):</label>
-                    <input type="password" id="symb-token-input" class="form-input" placeholder="Bearer token si el endpoint está protegido...">
+                  <div class="form-group col-5" id="terra-param-extra-group">
+                    <label for="terra-param-extra" id="lbl-terra-param-extra">Ruta / Modelo de Inferencia:</label>
+                    <input type="text" id="terra-param-extra" class="form-input" placeholder="termes-default" value="termes-default">
                   </div>
-                  <div class="form-group col-4" style="display: flex; align-items: flex-end;">
-                    <button class="btn btn-primary" id="btn-save-symbiont" style="width: 100%;">
-                      ⚡ Probar y Registrar Endpoint
+                  <div class="form-group col-4">
+                    <label for="terra-token-input" id="lbl-terra-token">Auth Secret / Token (opcional):</label>
+                    <input type="password" id="terra-token-input" class="form-input" placeholder="Token Bearer / Secret si está protegido...">
+                  </div>
+                  <div class="form-group col-3" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-save-terra-provider" style="width: 100%;">
+                      ⚡ Probar y Registrar
                     </button>
                   </div>
                 </div>
-                <div id="symb-status-msg" class="status-msg mt-8" style="font-size: 0.82rem;"></div>
+                <div id="terra-status-msg" class="status-msg mt-8" style="font-size: 0.82rem;"></div>
               </div>
 
-              <!-- DYNAMIC LIST OF CONFIGURED SYMBIONTS -->
-              <div class="symbionts-grid mt-16" id="symbionts-container">
+              <!-- DYNAMIC LIST OF CONFIGURED TERRA PROVIDERS -->
+              <div class="symbionts-grid mt-16" id="terra-providers-container">
                 <!-- Rendered dynamically -->
               </div>
             </div>
@@ -586,6 +607,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260901_7"></script>
+  <script src="app.js?v=20260901_8"></script>
 </body>
 </html>
