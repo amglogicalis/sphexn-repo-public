@@ -686,58 +686,69 @@ body {
   color: var(--text-dim);
 }
 
-/* USER PROFILE IN SIDEBAR */
-.user-profile-card {
+/* USER PROFILE IN TOPBAR */
+.user-profile-card-topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  margin: 12px 12px 0 12px;
-  background: rgba(16, 24, 38, 0.6);
+  gap: 9px;
+  padding: 5px 12px 5px 6px;
+  background: rgba(16, 24, 38, 0.85);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s, background 0.2s;
 }
 
-.user-avatar {
-  width: 32px;
-  height: 32px;
+.user-profile-card-topbar:hover {
+  border-color: var(--border-bright);
+  background: rgba(22, 33, 52, 0.9);
+}
+
+.user-profile-card-topbar .user-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
   border-radius: 50%;
   border: 1px solid var(--border-bright);
+  object-fit: cover;
   background: #1e293b;
 }
 
-.user-info {
-  flex: 1;
-  overflow: hidden;
+.user-profile-card-topbar .user-info {
   display: flex;
   flex-direction: column;
+  text-align: left;
 }
 
-.user-name {
-  font-size: 0.84rem;
+.user-profile-card-topbar .user-name {
+  font-size: 0.82rem;
   font-weight: 700;
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
-.user-role {
-  font-size: 0.7rem;
+.user-profile-card-topbar .user-role {
+  font-size: 0.66rem;
   font-family: var(--font-mono);
+  color: var(--success-green);
+  line-height: 1.1;
 }
 
-.btn-disconnect {
+.user-profile-card-topbar .btn-disconnect {
   background: transparent;
   border: none;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   cursor: pointer;
-  padding: 4px;
+  padding: 3px 5px;
   border-radius: 4px;
-  transition: background 0.15s;
+  margin-left: 4px;
+  line-height: 1;
+  transition: background 0.15s, transform 0.15s;
 }
 
-.btn-disconnect:hover {
-  background: rgba(239, 68, 68, 0.2);
+.user-profile-card-topbar .btn-disconnect:hover {
+  background: rgba(239, 68, 68, 0.25);
+  transform: scale(1.15);
 }
 

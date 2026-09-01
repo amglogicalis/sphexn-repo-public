@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260901_3">
+  <link rel="stylesheet" href="style.css?v=20260901_4">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -63,18 +63,6 @@
             <span class="brand-title">SPHEXN</span>
             <span class="brand-subtitle">NEST STUDIO</span>
           </div>
-        </div>
-
-        <!-- AUTHENTICATED USER PROFILE BADGE -->
-        <div class="user-profile-card">
-          <img src="assets/logo_sphexn.png" alt="Avatar" id="user-avatar" class="user-avatar">
-          <div class="user-info">
-            <span class="user-name" id="user-display">@user</span>
-            <span class="user-role text-green">Connected Vault</span>
-          </div>
-          <button class="btn btn-ghost btn-xs btn-disconnect" id="btn-disconnect" title="Desconectar sesión">
-            🚪
-          </button>
         </div>
 
         <nav class="nav-menu">
@@ -145,17 +133,22 @@
             <span class="page-caption" id="page-caption">Deterministic Governance, Continuous Verification & Structural Armor</span>
           </div>
           <div class="topbar-right">
-            <div class="status-pill" id="vault-status">
-              <span class="dot green"></span>
-              <span>Vault: .sphexn-storage</span>
-            </div>
             <div class="status-pill" id="ai-status">
               <span class="dot blue"></span>
               <span id="active-providers-count">Phantom AI: Standby</span>
             </div>
-            <button class="btn btn-secondary btn-sm" id="btn-topbar-disconnect">
-              Desconectar
-            </button>
+
+            <!-- AUTHENTICATED USER PROFILE BADGE IN TOPBAR -->
+            <div class="user-profile-card-topbar" id="user-profile-topbar">
+              <img src="assets/logo_sphexn.png" alt="Avatar" id="user-avatar" class="user-avatar">
+              <div class="user-info">
+                <span class="user-name" id="user-display">@user</span>
+                <span class="user-role text-green">Connected Vault</span>
+              </div>
+              <button class="btn-disconnect" id="btn-disconnect" title="Desconectar sesión">
+                🚪
+              </button>
+            </div>
           </div>
         </header>
 
