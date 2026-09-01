@@ -1,0 +1,6 @@
+{
+  "name": "sphexn-nest-studio",
+  "type": "spa",
+  "root": ".",
+  "entry": "index.html"
+}
