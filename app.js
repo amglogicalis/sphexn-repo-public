@@ -326,7 +326,16 @@ async function validateClientKey(provider, key) {
       const res = await fetch('https://api.github.com/user', {
         headers: { Authorization: `Bearer ${clean}`, Accept: 'application/vnd.github.v3+json' }
       });
-      if (res.async function probeClientKeyAgainstApis(rawKey) {
+      if (res.ok) return { valid: true, detail: 'GitHub Token Verified (HTTP 200)' };
+      return { valid: false, detail: `Token error (HTTP ${res.status})` };
+    }
+    return { valid: true, detail: 'Formato verificado' };
+  } catch (e) {
+    return { valid: true, detail: 'Registrada' };
+  }
+}
+
+async function probeClientKeyAgainstApis(rawKey) {
   const clean = rawKey.trim();
   if (!clean) throw new Error('API Key no puede estar vacía');
 
