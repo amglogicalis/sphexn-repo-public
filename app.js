@@ -2048,8 +2048,33 @@ async function initLucaeUI() {
   renderLucaeRunsInventory();
 }
 
+
+// ─── UTF-8 BASE64 DECODER FOR GITHUB BLOBS ───────────────────────────────────
+
+function decodeBase64Utf8(base64Str) {
+  try {
+    const cleanBase64 = (base64Str || '').replace(/\s/g, '');
+    const binary = atob(cleanBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch (e) {
+    try {
+      return atob((base64Str || '').replace(/\s/g, ''));
+    } catch {
+      return '';
+    }
+  }
+}
+
+let allUserReposCache = [];
+let allRepoBranchesCache = [];
+
 async function loadLucaeRepositories(force = false) {
   const repoSelect = document.getElementById('lucae-repo-select');
+  const searchInput = document.getElementById('lucae-repo-search');
   if (!repoSelect) return;
 
   const token = getGitHubToken();
@@ -2058,8 +2083,7 @@ async function loadLucaeRepositories(force = false) {
     return;
   }
 
-  // If already loaded and not forced, do not wipe
-  if (!force && repoSelect.options.length > 1 && repoSelect.value) {
+  if (!force && allUserReposCache.length > 0 && repoSelect.options.length > 1) {
     return;
   }
 
@@ -2071,7 +2095,6 @@ async function loadLucaeRepositories(force = false) {
       'Authorization': 'Bearer ' + token
     };
 
-    // Real call to GitHub API to list all user repositories
     const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', { headers });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -2080,32 +2103,58 @@ async function loadLucaeRepositories(force = false) {
 
     const repos = await res.json();
     if (!Array.isArray(repos) || repos.length === 0) {
-      repoSelect.innerHTML = '<option value="">No se encontraron repositorios en tu cuenta de GitHub.</option>';
+      repoSelect.innerHTML = '<option value="">No se encontraron repositorios en tu cuenta.</option>';
       return;
     }
 
-    // Populate with real detected repositories
-    repoSelect.innerHTML = repos.map(r => {
-      const lock = r.private ? '🔒 ' : '';
-      return '<option value="' + r.full_name + '">' + lock + r.full_name + '</option>';
-    }).join('');
+    allUserReposCache = repos;
+    populateReposSelect(repos);
 
-    // Default to Sphexn or first repo
-    const preferred = repos.find(r => r.full_name.toLowerCase().includes('sphexn')) || repos[0];
-    if (preferred) {
-      repoSelect.value = preferred.full_name;
+    // Filter listener
+    if (searchInput && !searchInput.dataset.listening) {
+      searchInput.dataset.listening = 'true';
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+        const filtered = allUserReposCache.filter(r => r.full_name.toLowerCase().includes(query));
+        populateReposSelect(filtered);
+      });
     }
 
-    // Fetch branches for the selected repository
-    await loadLucaeBranches(repoSelect.value);
+    if (repoSelect.value) {
+      await loadLucaeBranches(repoSelect.value);
+    }
   } catch (err) {
     console.error('Error fetching repositories from GitHub API:', err);
     repoSelect.innerHTML = '<option value="">Error consultando GitHub API: ' + err.message + '</option>';
   }
 }
 
+function populateReposSelect(repos) {
+  const repoSelect = document.getElementById('lucae-repo-select');
+  if (!repoSelect) return;
+
+  if (!Array.isArray(repos) || repos.length === 0) {
+    repoSelect.innerHTML = '<option value="">No hay repositorios que coincidan</option>';
+    return;
+  }
+
+  const currentVal = repoSelect.value;
+  repoSelect.innerHTML = repos.map(r => {
+    const lock = r.private ? '🔒 ' : '';
+    return '<option value="' + r.full_name + '">' + lock + r.full_name + '</option>';
+  }).join('');
+
+  if (currentVal && repos.some(r => r.full_name === currentVal)) {
+    repoSelect.value = currentVal;
+  } else {
+    const preferred = repos.find(r => r.full_name.toLowerCase().includes('pokemon') || r.full_name.toLowerCase().includes('sphexn')) || repos[0];
+    if (preferred) repoSelect.value = preferred.full_name;
+  }
+}
+
 async function loadLucaeBranches(repoFullName) {
   const branchSelect = document.getElementById('lucae-branch-select');
+  const searchBranch = document.getElementById('lucae-branch-search');
   if (!branchSelect) return;
 
   if (!repoFullName) {
@@ -2120,7 +2169,6 @@ async function loadLucaeBranches(repoFullName) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
 
   try {
-    // Real call to GitHub API to get branches of the repository
     const res = await fetch('https://api.github.com/repos/' + repoFullName + '/branches?per_page=100', { headers });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -2133,121 +2181,42 @@ async function loadLucaeBranches(repoFullName) {
       return;
     }
 
-    branchSelect.innerHTML = branches.map(b => '<option value="' + b.name + '">🌿 ' + b.name + '</option>').join('');
+    allRepoBranchesCache = branches;
+    populateBranchesSelect(branches);
 
-    const defaultBranch = branches.find(b => b.name === 'main') || branches.find(b => b.name === 'master') || branches[0];
-    if (defaultBranch) {
-      branchSelect.value = defaultBranch.name;
+    // Branch search listener
+    if (searchBranch && !searchBranch.dataset.listening) {
+      searchBranch.dataset.listening = 'true';
+      searchBranch.addEventListener('input', () => {
+        const query = searchBranch.value.toLowerCase().trim();
+        const filtered = allRepoBranchesCache.filter(b => b.name.toLowerCase().includes(query));
+        populateBranchesSelect(filtered);
+      });
     }
   } catch (err) {
-    console.error('Error fetching branches from GitHub API:', err);
+    console.error('Error fetching branches:', err);
     branchSelect.innerHTML = '<option value="main">main (fallback: ' + err.message + ')</option>';
   }
 }
 
-function getSelectedLucaeTarget() {
-  const repoSelect = document.getElementById('lucae-repo-select');
-  const repoCustom = document.getElementById('lucae-repo-custom');
-  const isCustom = repoCustom && repoCustom.style.display !== 'none';
-  const repo = (isCustom ? repoCustom.value.trim() : (repoSelect ? repoSelect.value : '')) || 'amglogicalis/Sphexn';
-  const branch = document.getElementById('lucae-branch-select')?.value || 'main';
-  const threshold = parseInt(document.getElementById('lucae-threshold')?.value || '500', 10);
-  return { repo, branch, threshold };
-}
+function populateBranchesSelect(branches) {
+  const branchSelect = document.getElementById('lucae-branch-select');
+  if (!branchSelect) return;
 
-// ─── CLIENT-SIDE DETERMINISTIC AST ENGINE ─────────────────────────────────────
-
-function calculateCodeCyclomaticComplexity(code) {
-  let cc = 1;
-  const patterns = [
-    /\bif\s*\(/g,
-    /\belse\s+if\s*\(/g,
-    /\bfor\s*\(/g,
-    /\bwhile\s*\(/g,
-    /\bcase\s+[^:]+:/g,
-    /\bcatch\s*\(/g,
-    /\?\s*[^:]+\s*:/g,
-    /&&/g,
-    /\|\|/g,
-    /\?\?/g
-  ];
-  for (const p of patterns) {
-    const m = code.match(p);
-    if (m) cc += m.length;
-  }
-  return cc;
-}
-
-function extractCodeFunctions(code) {
-  const funcs = [];
-  const lines = code.split('\n');
-  const fnRegex = /(?:function\s+([a-zA-Z0-9_$]+)|const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?\((.*?)\)\s*=>|def\s+([a-zA-Z0-9_]+)\((.*?)\)|func\s+(?:\([^)]+\)\s*)?([a-zA-Z0-9_]+)\((.*?)\))/g;
-  let match;
-  while ((match = fnRegex.exec(code)) !== null) {
-    const name = match[1] || match[2] || match[4] || match[6] || 'anonymous';
-    const beforeStr = code.substring(0, match.index);
-    const lineNum = beforeStr.split('\n').length;
-    const block = lines.slice(lineNum - 1, lineNum + 35).join('\n');
-    const cc = calculateCodeCyclomaticComplexity(block);
-    funcs.push({
-      name,
-      line: lineNum,
-      cyclomaticComplexity: Math.min(cc, 35)
-    });
-  }
-  return funcs.slice(0, 30);
-}
-
-function extractCodeImports(code) {
-  const imports = new Set();
-  const regexes = [
-    /import\s+.*?from\s+['"]([^'"]+)['"]/g,
-    /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-    /from\s+([a-zA-Z0-9_.]+)\s+import/g
-  ];
-  for (const r of regexes) {
-    let m;
-    while ((m = r.exec(code)) !== null) {
-      if (m[1]) imports.add(m[1]);
-    }
-  }
-  return Array.from(imports);
-}
-
-function generateMermaidDiagram(files, edges) {
-  const lines = ['graph TD'];
-  const nodesMap = new Map();
-
-  const sanitizeId = (pathStr) => {
-    if (!nodesMap.has(pathStr)) {
-      nodesMap.set(pathStr, 'n' + (nodesMap.size + 1));
-    }
-    return nodesMap.get(pathStr);
-  };
-
-  for (const f of files.slice(0, 25)) {
-    const id = sanitizeId(f.filePath);
-    const baseName = f.filePath.split('/').pop();
-    const styleClass = f.isGodFile ? ':::godFile' : '';
-    lines.push(`  ${id}["${baseName}"]${styleClass}`);
+  if (!Array.isArray(branches) || branches.length === 0) {
+    branchSelect.innerHTML = '<option value="main">main</option>';
+    return;
   }
 
-  for (const e of edges.slice(0, 40)) {
-    const fromId = sanitizeId(e.from);
-    const toBase = e.to.split('/').pop().replace(/\.[^/.]+$/, '');
-    // Try to match target file
-    const matched = files.find(f => f.filePath.includes(toBase));
-    if (matched) {
-      const toId = sanitizeId(matched.filePath);
-      lines.push(`  ${fromId} --> ${toId}`);
-    }
-  }
+  branchSelect.innerHTML = branches.map(b => '<option value="' + b.name + '">🌿 ' + b.name + '</option>').join('');
 
-  lines.push('  classDef godFile fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff;');
-  return lines.join('\n');
+  const defaultBranch = branches.find(b => b.name === 'main') || branches.find(b => b.name === 'master') || branches[0];
+  if (defaultBranch) {
+    branchSelect.value = defaultBranch.name;
+  }
 }
 
-// ─── HANDLER: REAL AST RUN ───────────────────────────────────────────────────
+// ─── REAL AST EXECUTION (VIA GITHUB API BLOBS WITH CORS & AUTH) ──────────────
 
 async function handleRunLucaeReal() {
   const { repo, branch, threshold } = getSelectedLucaeTarget();
@@ -2260,19 +2229,21 @@ async function handleRunLucaeReal() {
     btnRun.textContent = 'Analizando Árbol... ⏳';
   }
   if (spinner) spinner.style.display = 'inline-block';
-  if (statusPill) statusPill.textContent = `Escaneando ${repo}...`;
+  if (statusPill) statusPill.textContent = 'Escaneando ' + repo + '...';
 
   const startTime = Date.now();
 
   try {
-    const pat = getGitHubToken();
+    const token = getGitHubToken();
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
-    if (pat) headers['Authorization'] = 'Bearer ' + pat;
+    if (token) headers['Authorization'] = 'Bearer ' + token;
 
     // 1. Fetch Repository Git Tree
-    const treeRes = await fetch(`https://api.github.com/repos/${repo}/git/trees/${branch}?recursive=1`, { headers });
+    const treeUrl = 'https://api.github.com/repos/' + repo + '/git/trees/' + branch + '?recursive=1';
+    const treeRes = await fetch(treeUrl, { headers });
     if (!treeRes.ok) {
-      throw new Error(`No se pudo leer el árbol git de ${repo} en rama ${branch} (${treeRes.status})`);
+      const errJson = await treeRes.json().catch(() => ({}));
+      throw new Error(errJson.message || ('HTTP ' + treeRes.status + ' leyendo árbol git'));
     }
     const treeData = await treeRes.json();
     const allTreeItems = treeData.tree || [];
@@ -2289,10 +2260,10 @@ async function handleRunLucaeReal() {
     });
 
     if (codeFiles.length === 0) {
-      throw new Error(`No se encontraron archivos de código fuente en ${repo} (${branch})`);
+      throw new Error('No se encontraron archivos de código fuente (.ts, .js, etc.) en ' + repo + ' (' + branch + ')');
     }
 
-    // Limit to top 30 source files for lightning fast analysis
+    // Process top 30 source files
     const targetFiles = codeFiles.slice(0, 30);
     const filesComplexity = [];
     const allEdges = [];
@@ -2301,15 +2272,13 @@ async function handleRunLucaeReal() {
     for (const tf of targetFiles) {
       try {
         let content = '';
-        // Fetch raw content
-        const rawRes = await fetch(`https://raw.githubusercontent.com/${repo}/${branch}/${tf.path}`, { headers });
-        if (rawRes.ok) {
-          content = await rawRes.text();
-        } else if (tf.url) {
-          const blobRes = await fetch(tf.url, { headers });
-          if (blobRes.ok) {
-            const blobData = await blobRes.json();
-            content = atob(blobData.content.replace(/\n/g, ''));
+        // Use GitHub Blobs API directly (always works with auth and CORS on private repos)
+        const blobUrl = tf.url || ('https://api.github.com/repos/' + repo + '/git/blobs/' + tf.sha);
+        const blobRes = await fetch(blobUrl, { headers });
+        if (blobRes.ok) {
+          const blobData = await blobRes.json();
+          if (blobData.content) {
+            content = decodeBase64Utf8(blobData.content);
           }
         }
 
@@ -2344,9 +2313,13 @@ async function handleRunLucaeReal() {
           isGodFile,
           imports
         });
-      } catch {
-        // skip unreadable blob
+      } catch (fileErr) {
+        console.warn('Error reading blob for ' + tf.path, fileErr);
       }
+    }
+
+    if (filesComplexity.length === 0) {
+      throw new Error('No se pudieron descargar los contenidos de los archivos vía GitHub API.');
     }
 
     const godFiles = filesComplexity.filter(f => f.isGodFile);
@@ -2356,7 +2329,7 @@ async function handleRunLucaeReal() {
 
     // Calculate Health Score (0 - 100)
     let healthScore = 100;
-    healthScore -= Math.min(30, godFiles.length * 8);
+    healthScore -= Math.min(35, godFiles.length * 9);
     if (avgRepoCC > 25) healthScore -= 15;
     else if (avgRepoCC > 15) healthScore -= 8;
     healthScore = Math.max(10, Math.min(100, Math.round(healthScore)));
@@ -2386,18 +2359,19 @@ async function handleRunLucaeReal() {
     // Save to localStorage
     const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
     runs.unshift(run);
-    localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs.slice(0, 30)));
+    localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs.slice(0, 50)));
 
     // Update Telemetry & KPI on Dashboard
     const kpiHealth = document.getElementById('kpi-health');
-    if (kpiHealth) kpiHealth.textContent = `${healthScore}/100`;
+    if (kpiHealth) kpiHealth.textContent = healthScore + '/100';
 
     // Render in UI
     renderLucaeRunsInventory();
     displayLucaeRun(run.id);
 
-    if (statusPill) statusPill.textContent = `Auditoría completada (${(durationMs/1000).toFixed(1)}s)`;
+    if (statusPill) statusPill.textContent = 'Auditoría completada (' + (durationMs/1000).toFixed(1) + 's)';
   } catch (err) {
+    console.error('Error running Lucae:', err);
     await sphexnAlert('Error ejecutando Sphexn Lucae: ' + err.message, 'Fallo en Análisis AST', '⚠️');
     if (statusPill) statusPill.textContent = 'Error en ejecución';
   } finally {
@@ -2409,24 +2383,24 @@ async function handleRunLucaeReal() {
   }
 }
 
-// ─── HANDLER: DISPATCH GITHUB ACTIONS RUNNER ─────────────────────────────────
+// ─── DISPATCH SPECIE IN GITHUB ACTIONS RUNNER (UNIVERSAL ORCHESTRATOR) ────────
 
 async function handleDispatchLucaeAction() {
   const { repo, branch, threshold } = getSelectedLucaeTarget();
   const btnDispatch = document.getElementById('btn-dispatch-lucae-action');
   const statusPill = document.getElementById('lucae-status-text');
 
-  const pat = getGitHubToken();
-  if (!pat) {
-    await sphexnAlert('Se requiere una sesión con GitHub PAT para disparar GitHub Actions.', 'Acción no permitida', '🔑');
+  const token = getGitHubToken();
+  if (!token) {
+    await sphexnAlert('Se requiere una sesión con GitHub PAT para disparar la Specie en GitHub Actions.', 'Acción no permitida', '🔑');
     return;
   }
 
   const confirmed = await sphexnConfirm(
-    `¿Disparar Sphexn Lucae en GitHub Actions para el repositorio ${repo} (rama: ${branch})?`,
-    'Confirmar Disparo de Action',
+    '¿Disparar Sphexn Lucae en GitHub Actions para auditar ' + repo + ' (rama: ' + branch + ')?',
+    'Confirmar Disparo de Specie',
     false,
-    'Lanzar Action'
+    'Lanzar Specie'
   );
   if (!confirmed) return;
 
@@ -2438,28 +2412,44 @@ async function handleDispatchLucaeAction() {
   try {
     const headers = {
       'Accept': 'application/vnd.github.v3+json',
-      'Authorization': 'Bearer ' + pat,
+      'Authorization': 'Bearer ' + token,
       'Content-Type': 'application/json'
     };
 
-    const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/sphexn-lucae.yml/dispatches`, {
+    // First check if target repo has sphexn-lucae.yml
+    let dispatchRepo = repo;
+    let dispatchInputs = {
+      branch,
+      threshold: String(threshold)
+    };
+
+    const checkWorkflow = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/sphexn-lucae.yml', { headers });
+    
+    if (!checkWorkflow.ok) {
+      // If target repo doesn't have the workflow file, dispatch to Sphexn central orchestrator passing target repo!
+      dispatchRepo = 'amglogicalis/Sphexn';
+      dispatchInputs = {
+        repo: repo,
+        branch: branch,
+        threshold: String(threshold)
+      };
+    }
+
+    const res = await fetch('https://api.github.com/repos/' + dispatchRepo + '/actions/workflows/sphexn-lucae.yml/dispatches', {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        ref: branch,
-        inputs: {
-          branch,
-          threshold: String(threshold)
-        }
+        ref: 'main',
+        inputs: dispatchInputs
       })
     });
 
     if (res.status === 204 || res.ok) {
       const run = {
         id: 'action_' + Date.now().toString(36),
-        repo,
-        branch,
-        mode: '🚀 GitHub Actions',
+        repo: repo,
+        branch: branch,
+        mode: '🚀 GitHub Actions (' + dispatchRepo.split('/')[1] + ')',
         status: 'queued',
         timestamp: new Date().toISOString(),
         durationMs: 0,
@@ -2468,41 +2458,41 @@ async function handleDispatchLucaeAction() {
         totalLines: '--',
         avgComplexity: '--',
         godFiles: [],
-        mermaidDiagram: 'graph TD\n  A["Dispatched in GitHub Actions"] --> B["Processing Runner ($0 Compute)"]'
+        mermaidDiagram: 'graph TD\n  A["Dispatched in GitHub Actions Runner"] --> B["Analyzing ' + repo + ' ($0 Compute)"]'
       };
 
       const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
       runs.unshift(run);
-      localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs.slice(0, 30)));
+      localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs.slice(0, 50)));
 
       renderLucaeRunsInventory();
       displayLucaeRun(run.id);
 
       await sphexnAlert(
-        `El workflow de GitHub Actions fue disparado exitosamente en ${repo}. Puedes seguir la ejecución en la pestaña Actions de tu repositorio.`,
-        'GitHub Actions Disparado',
+        'La Specie Sphexn Lucae fue disparada exitosamente en GitHub Actions (Runner: ' + dispatchRepo + ').\n\nPuedes seguir la ejecución en vivo en la pestaña Actions de ' + dispatchRepo + '.',
+        'Specie Disparada con Éxito',
         '🚀'
       );
-      if (statusPill) statusPill.textContent = 'Action en cola en GitHub Actions';
+      if (statusPill) statusPill.textContent = 'Specie en ejecución en GitHub Actions';
     } else {
       const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.message || `HTTP ${res.status}`);
+      throw new Error(errJson.message || ('HTTP ' + res.status));
     }
   } catch (err) {
     await sphexnAlert(
-      `No se pudo disparar el workflow directamente: ${err.message}.\n\nPuedes usar "⚡ Análisis AST en Tiempo Real" para obtener el análisis y diagrama Mermaid de forma inmediata en el navegador.`,
-      'Aviso de GitHub Actions',
-      'ℹ️'
+      'Error al disparar en GitHub Actions: ' + err.message + '.\n\nPuedes ejecutar "⚡ Análisis AST en Tiempo Real" para obtener el diagnóstico y grafo Mermaid directamente en tu navegador.',
+      'Aviso de Disparo',
+      '⚠️'
     );
   } finally {
     if (btnDispatch) {
       btnDispatch.disabled = false;
-      btnDispatch.textContent = '🚀 Disparar en GitHub Actions';
+      btnDispatch.textContent = '🚀 Disparar Specie';
     }
   }
 }
 
-// ─── INVENTORY RENDERING & DETAILS DISPLAY ───────────────────────────────────
+// ─── INVENTORY WITH INDIVIDUAL DELETE BUTTONS ────────────────────────────────
 
 function renderLucaeRunsInventory() {
   const tbody = document.getElementById('lucae-runs-tbody');
@@ -2510,17 +2500,11 @@ function renderLucaeRunsInventory() {
 
   const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   if (!Array.isArray(runs) || runs.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="text-center text-muted" style="padding: 24px;">
-          No hay ejecuciones registradas todavía. Selecciona un repositorio y pulsa <strong>"⚡ Análisis AST en Tiempo Real"</strong>.
-        </td>
-      </tr>
-    `;
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay ejecuciones registradas todavía. Selecciona un repositorio y pulsa <strong>"⚡ Análisis AST en Tiempo Real"</strong>.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = runs.map((r, idx) => {
+  tbody.innerHTML = runs.map(r => {
     const isCompleted = r.status === 'completed';
     const isQueued = r.status === 'queued';
     const statusBadge = isCompleted 
@@ -2530,119 +2514,36 @@ function renderLucaeRunsInventory() {
       : '<span class="badge badge-blue">EJECUTANDO</span>';
 
     const scoreBadge = r.healthScore !== '--' 
-      ? `<span class="badge ${r.healthScore >= 80 ? 'badge-green' : 'badge-amber'}">${r.healthScore}/100</span>` 
+      ? '<span class="badge ' + (r.healthScore >= 80 ? 'badge-green' : 'badge-amber') + '">' + r.healthScore + '/100</span>' 
       : '<span class="text-muted">--</span>';
 
     const dateStr = new Date(r.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
 
-    return `
-      <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.08)'" onmouseout="this.style.background='transparent'" onclick="displayLucaeRun('${r.id}')">
-        <td style="font-family: var(--font-mono); font-size: 0.8rem; color: #93c5fd;">${r.id}</td>
-        <td style="font-weight: 600;">${r.repo} <span style="font-size: 0.75rem; color: var(--text-muted);">(@${r.branch})</span></td>
-        <td><span style="font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05);">${r.mode}</span></td>
-        <td>${scoreBadge}</td>
-        <td><strong style="color: ${(r.godFiles && r.godFiles.length > 0) ? '#ef4444' : '#10b981'};">${r.godFiles ? r.godFiles.length : 0}</strong></td>
-        <td>${statusBadge}</td>
-        <td style="font-size: 0.78rem; color: var(--text-muted);">${dateStr}</td>
-        <td>
-          <button class="btn btn-secondary btn-xs" style="padding: 2px 8px;" onclick="event.stopPropagation(); displayLucaeRun('${r.id}')">
-            👁️ Ver
-          </button>
-        </td>
-      </tr>
-    `;
+    return '<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background=\'rgba(37,99,235,0.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="displayLucaeRun(\'' + r.id + '\')">' +
+      '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: #93c5fd;">' + r.id + '</td>' +
+      '<td style="font-weight: 600;">' + r.repo + ' <span style="font-size: 0.75rem; color: var(--text-muted);">(@' + r.branch + ')</span></td>' +
+      '<td><span style="font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05);">' + r.mode + '</span></td>' +
+      '<td>' + scoreBadge + '</td>' +
+      '<td><strong style="color: ' + ((r.godFiles && r.godFiles.length > 0) ? '#ef4444' : '#10b981') + ';">' + (r.godFiles ? r.godFiles.length : 0) + '</strong></td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td style="font-size: 0.78rem; color: var(--text-muted);">' + dateStr + '</td>' +
+      '<td>' +
+        '<div style="display: flex; gap: 6px;">' +
+          '<button class="btn btn-secondary btn-xs" style="padding: 2px 8px;" onclick="event.stopPropagation(); displayLucaeRun(\'' + r.id + '\')">👁️ Ver</button>' +
+          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deleteLucaeRun(\'' + r.id + '\')">🗑️</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
   }).join('');
 }
 
-window.displayLucaeRun = function(runId) {
-  const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
-  const run = runs.find(r => r.id === runId);
-  const container = document.getElementById('lucae-results-container');
-  if (!run || !container) return;
-
-  const godFilesHtml = (run.godFilesDetails && run.godFilesDetails.length > 0)
-    ? `
-      <div class="card mt-16" style="border-left: 4px solid var(--danger-red);">
-        <h4 style="margin-bottom: 8px; color: #f87171;">⚠️ God Files Detectados (${run.godFilesDetails.length})</h4>
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr><th>Archivo</th><th>Líneas</th><th>Complejidad Ciclomática</th><th>Función Más Compleja</th></tr>
-            </thead>
-            <tbody>
-              ${run.godFilesDetails.map(g => `
-                <tr>
-                  <td><code>${g.filePath}</code></td>
-                  <td><strong>${g.lines}</strong></td>
-                  <td><span class="badge badge-amber">${g.cyclomaticComplexityTotal}</span></td>
-                  <td><code>${g.highestComplexityFunction ? g.highestComplexityFunction.name + ' (CC ' + g.highestComplexityFunction.cyclomaticComplexity + ')' : 'N/A'}</code></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `
-    : `
-      <div class="card mt-16" style="border-left: 4px solid var(--success-green); padding: 14px 18px;">
-        <span style="color: #4ade80; font-weight: 600;">✅ Cero God Files detectados. La base de código respeta los principios de desacoplamiento modular de Terra.</span>
-      </div>
-    `;
-
-  container.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h3>Informe Arquitectónico: ${run.repo} <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">(Rama: ${run.branch})</span></h3>
-          <p class="text-muted" style="font-size: 0.8rem;">Ejecución: ${run.id} • Modo: ${run.mode} • Fecha: ${new Date(run.timestamp).toLocaleString()}</p>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary btn-xs" onclick="copyLucaeSummary('${run.id}')">📋 Copiar Resumen</button>
-        </div>
-      </div>
-
-      <!-- KPI GRID -->
-      <div class="kpi-grid mt-16">
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-title">Health Score</span><span>🛡️</span></div>
-          <div class="kpi-value ${run.healthScore >= 80 ? 'text-green' : 'text-amber'}">${run.healthScore}/100</div>
-          <div class="kpi-meta">${run.healthScore >= 80 ? 'Decoupled & Healthy' : 'Action Recommended'}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-title">Archivos Analizados</span><span>📁</span></div>
-          <div class="kpi-value">${run.totalFiles}</div>
-          <div class="kpi-meta">${run.totalLines} Líneas de Código</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-title">God Files</span><span>⚠️</span></div>
-          <div class="kpi-value text-red">${run.godFiles ? run.godFiles.length : 0}</div>
-          <div class="kpi-meta">${(!run.godFiles || run.godFiles.length === 0) ? 'Estructura Óptima' : 'Requiere Refactor'}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-header"><span class="kpi-title">Complejidad Media</span><span>🌀</span></div>
-          <div class="kpi-value">${run.avgComplexity}</div>
-          <div class="kpi-meta">Índice Ciclomático de Ramas</div>
-        </div>
-      </div>
-
-      ${godFilesHtml}
-
-      <h4 class="mt-24" style="margin-bottom: 8px;">🗺️ Grafo de Dependencias Interactivo (Mermaid)</h4>
-      <div class="mermaid-box" style="background: rgba(11, 17, 26, 0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; overflow-x: auto;">
-        <pre class="mermaid">${run.mermaidDiagram}</pre>
-      </div>
-    </div>
-  `;
-
-  if (window.mermaid) {
-    try {
-      window.mermaid.run();
-    } catch {}
-  }
-
-  // Scroll to results
-  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+window.deleteLucaeRun = function(runId) {
+  let runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
+  runs = runs.filter(r => r.id !== runId);
+  localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs));
+  renderLucaeRunsInventory();
 };
+
 
 window.copyLucaeSummary = function(runId) {
   const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');

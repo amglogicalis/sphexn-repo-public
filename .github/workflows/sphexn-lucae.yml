@@ -3,6 +3,10 @@ name: Sphexn Lucae — Architectural Synthesizer
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: 'Target repository to analyze (owner/repo)'
+        required: false
+        default: 'amglogicalis/Sphexn'
       branch:
         description: 'Branch to analyze'
         required: false
@@ -25,9 +29,10 @@ jobs:
   lucae-analysis:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Target Code
         uses: actions/checkout@v4
         with:
+          repository: ${{ inputs.repo || github.repository }}
           ref: ${{ inputs.branch || github.ref }}
           fetch-depth: 0
 

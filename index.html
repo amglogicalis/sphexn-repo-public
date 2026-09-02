@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260902_3">
+  <link rel="stylesheet" href="style.css?v=20260902_4">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -268,7 +268,7 @@
                 </div>
               </div>
 
-              <div class="form-row mt-16" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; align-items: end;">
+              <div class="form-row mt-16" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr; gap: 14px; align-items: end;">
                 <div class="form-group">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <label for="lucae-repo-select" style="font-weight: 600; font-size: 0.85rem;">Repositorio Target:</label>
@@ -277,6 +277,7 @@
                       <button type="button" class="btn btn-secondary btn-xs" id="btn-refresh-repos" title="Recargar repositorios" style="padding: 2px 8px; font-size: 0.72rem;">🔄</button>
                     </div>
                   </div>
+                  <input type="text" id="lucae-repo-search" class="form-input" placeholder="🔍 Filtrar repositorios (ej: pokemon, terra)..." style="width: 100%; font-size: 0.8rem; padding: 6px 10px; margin-bottom: 6px; box-sizing: border-box;">
                   <select id="lucae-repo-select" class="form-input" style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
                     <option value="">Detectando repositorios vía GitHub API...</option>
                   </select>
@@ -285,6 +286,7 @@
 
                 <div class="form-group">
                   <label for="lucae-branch-select" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; display: block;">Rama (Branch):</label>
+                  <input type="text" id="lucae-branch-search" class="form-input" placeholder="🔍 Filtrar rama..." style="width: 100%; font-size: 0.8rem; padding: 6px 10px; margin-bottom: 6px; box-sizing: border-box;">
                   <select id="lucae-branch-select" class="form-input" style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
                     <option value="">Esperando repositorio...</option>
                   </select>
@@ -744,6 +746,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260902_3"></script>
+  <script src="app.js?v=20260902_4"></script>
 </body>
 </html>
