@@ -2216,6 +2216,17 @@ function populateBranchesSelect(branches) {
   }
 }
 
+function getSelectedLucaeTarget() {
+  const repoSelect = document.getElementById('lucae-repo-select');
+  const repoCustom = document.getElementById('lucae-repo-custom');
+  const isCustom = repoCustom && repoCustom.style.display !== 'none';
+  const repo = (isCustom ? repoCustom.value.trim() : (repoSelect ? repoSelect.value : '')) || 'amglogicalis/Sphexn';
+  const branch = document.getElementById('lucae-branch-select')?.value || 'main';
+  const threshold = parseInt(document.getElementById('lucae-threshold')?.value || '500', 10);
+  return { repo, branch, threshold };
+}
+window.getSelectedLucaeTarget = getSelectedLucaeTarget;
+
 // ─── REAL AST EXECUTION (VIA GITHUB API BLOBS WITH CORS & AUTH) ──────────────
 
 async function handleRunLucaeReal() {
