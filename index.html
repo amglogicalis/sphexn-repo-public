@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260901_15">
+  <link rel="stylesheet" href="style.css?v=20260902_1">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -252,23 +252,108 @@
             </div>
           </section>
 
-          <!-- 2. LUCAE TAB -->
+                    <!-- 2. LUCAE TAB (Real Execution, Repo/Branch Selector & Runs Inventory) -->
           <section id="tab-lucae" class="tab-pane">
+            
+            <!-- SECTION 1: TARGET CONFIGURATION & TRIGGER -->
             <div class="card">
               <div class="card-header">
                 <div>
-                  <h2>Sphexn Lucae — Architectural & Complexity Synthesizer</h2>
-                  <p class="text-muted">100% Deterministic AST Analysis & Modular Mermaid Graph Generation</p>
+                  <h2>🔍 Sphexn Lucae — Architectural & Complexity Synthesizer</h2>
+                  <p class="text-muted">Análisis AST 100% Determinista • Complejidad Ciclomática • Grafo Mermaid • Cómputo $0</p>
                 </div>
-                <button class="btn btn-primary" id="btn-run-lucae">Run Architecture Analysis</button>
+                <div class="status-pill" id="lucae-pill-status">
+                  <span class="dot blue"></span>
+                  <span id="lucae-status-text">Listo para auditar</span>
+                </div>
               </div>
-              <div id="lucae-results-container" class="mt-16">
-                <div class="placeholder-box">
-                  <span class="large-icon">🔍</span>
-                  <p>Click <strong>"Run Architecture Analysis"</strong> to scan the codebase, detect God Files, and generate the Mermaid dependency graph.</p>
+
+              <div class="form-row mt-16" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; align-items: end;">
+                <div class="form-group">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label for="lucae-repo-select" style="font-weight: 600; font-size: 0.85rem;">Repositorio Target:</label>
+                    <div style="display: flex; gap: 6px;">
+                      <button type="button" class="btn btn-secondary btn-xs" id="btn-toggle-custom-repo" style="padding: 2px 8px; font-size: 0.72rem;">Manual</button>
+                      <button type="button" class="btn btn-secondary btn-xs" id="btn-refresh-repos" title="Recargar repositorios" style="padding: 2px 8px; font-size: 0.72rem;">🔄</button>
+                    </div>
+                  </div>
+                  <select id="lucae-repo-select" class="form-input" style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
+                    <option value="">Cargando repositorios...</option>
+                  </select>
+                  <input type="text" id="lucae-repo-custom" class="form-input" placeholder="e.g. amglogicalis/Sphexn" style="display: none; width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
                 </div>
+
+                <div class="form-group">
+                  <label for="lucae-branch-select" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; display: block;">Rama (Branch):</label>
+                  <select id="lucae-branch-select" class="form-input" style="width: 100%; font-family: var(--font-mono); font-size: 0.85rem;">
+                    <option value="main">main</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="lucae-threshold" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; display: block;">Umbral God File (Líneas):</label>
+                  <input type="number" id="lucae-threshold" class="form-input" value="500" min="100" max="5000" style="width: 100%;">
+                </div>
+              </div>
+
+              <div class="btn-group mt-20" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-run-lucae-real">
+                  ⚡ Análisis AST en Tiempo Real
+                </button>
+                <button class="btn btn-secondary" id="btn-dispatch-lucae-action">
+                  🚀 Disparar en GitHub Actions
+                </button>
+                <span id="lucae-spinner" style="display: none; font-size: 0.85rem; color: #60a5fa; margin-left: 8px;">
+                  ⏳ Analizando árbol de código y complejidad...
+                </span>
               </div>
             </div>
+
+            <!-- SECTION 2: RUNS INVENTORY & LOGS LEDGER -->
+            <div class="card mt-24">
+              <div class="card-header">
+                <div>
+                  <h3 style="font-size: 1.1rem; font-weight: 700;">📋 Inventario de Ejecuciones & Historial de Lucae</h3>
+                  <p class="text-muted" style="font-size: 0.8rem;">Registro de auditorías. Haz clic en cualquier ejecución para cargar su informe y grafo de arquitectura.</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-secondary btn-xs" id="btn-refresh-lucae-runs">🔄 Actualizar</button>
+                  <button class="btn btn-danger btn-xs" id="btn-clear-lucae-runs">🗑️ Limpiar</button>
+                </div>
+              </div>
+              <div class="table-wrapper mt-12">
+                <table class="data-table" id="lucae-runs-table">
+                  <thead>
+                    <tr>
+                      <th>ID / Ejecución</th>
+                      <th>Repositorio & Rama</th>
+                      <th>Modo</th>
+                      <th>Salud</th>
+                      <th>God Files</th>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lucae-runs-tbody">
+                    <tr>
+                      <td colspan="8" class="text-center text-muted" style="padding: 24px;">
+                        No hay ejecuciones registradas todavía. Selecciona un repositorio y pulsa <strong>"⚡ Análisis AST en Tiempo Real"</strong>.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SECTION 3: DETAILED RESULTS & MERMAID GRAPH -->
+            <div id="lucae-results-container" class="mt-24">
+              <div class="placeholder-box">
+                <span class="large-icon">🔍</span>
+                <p>Selecciona un repositorio arriba y ejecuta el análisis, o haz clic en cualquier ejecución del inventario para inspeccionar sus métricas y topología.</p>
+              </div>
+            </div>
+
           </section>
 
           <!-- 3. PRAEDATOR TAB -->
@@ -659,6 +744,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260901_15"></script>
+  <script src="app.js?v=20260902_1"></script>
 </body>
 </html>
