@@ -43,11 +43,12 @@ jobs:
       - name: Run Sphexn Praedator Auditor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRAEDATOR_DIFF: ${{ inputs.target_input }}
         run: |
           MODE="${{ github.event_name == 'pull_request' && 'pr' || inputs.mode }}"
           REPO="${{ github.event_name == 'pull_request' && github.repository || inputs.repo }}"
           INPUT="${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.target_input }}"
-          node .sphexn/praedator-runner.js "$MODE" "$REPO" "$INPUT" '${{ inputs.fallback_matrix }}'
+          node .sphexn/praedator-runner.cjs "$MODE" "$REPO" "$INPUT" '${{ inputs.fallback_matrix }}'
 
       - name: Commit and Push Audit Results to Vault
         run: |
@@ -57,6 +58,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No audit changes to commit"
           else
-            git commit -m "chore(praedator): record PR / diff audit for ${{ inputs.repo || github.repository }}"
+            git commit -m "chore(praedator): record PR / diff audit"
             git push origin main || echo "Audit pushed or up-to-date"
           fi

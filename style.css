@@ -1143,3 +1143,84 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+
+
+/* ─── SPHEXN PREMIUM TOGGLE SWITCH & SEGMENTED CONTROLS ─── */
+.sphexn-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.sphexn-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.sphexn-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: .25s ease;
+  border-radius: 26px;
+}
+.sphexn-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #94a3b8;
+  transition: .25s ease;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.sphexn-switch input:checked + .sphexn-slider {
+  background-color: var(--primary-blue);
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+}
+.sphexn-switch input:checked + .sphexn-slider:before {
+  transform: translateX(22px);
+  background-color: #ffffff;
+}
+
+.segmented-control {
+  display: inline-flex;
+  background: rgba(11, 17, 26, 0.9);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+}
+.segmented-item {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.segmented-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+.segmented-item.active {
+  background: var(--primary-blue);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}

@@ -4,7 +4,7 @@ const https = require('https');
 
 const mode = process.argv[2] || 'diff';
 const targetRepo = process.argv[3] || 'amglogicalis/pokemon-tcg-project';
-const inputData = process.argv[4] || '';
+const inputData = process.env.PRAEDATOR_DIFF || process.argv[4] || '';
 const fallbackConfigRaw = process.argv[5] || '[]';
 const githubToken = process.env.GITHUB_TOKEN || process.env.GH_PAT || '';
 
@@ -38,12 +38,12 @@ function httpsRequest(options, postData) {
 function scanSecrets(diffText) {
   const findings = [];
   const patterns = [
-    { type: 'GitHub Personal Access Token', regex: /(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,255}/g, severity: 'CRITICAL' },
+    { type: 'GitHub Personal Access Token', regex: /(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,255}/g, severity: 'CRITICAL' },
     { type: 'OpenAI / Anthropic API Key', regex: /(?:sk-[A-Za-z0-9-_]{32,64}|sk-ant-[A-Za-z0-9-_]{32,64})/g, severity: 'CRITICAL' },
     { type: 'AWS Access Key ID', regex: /(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}/g, severity: 'CRITICAL' },
     { type: 'Generic Private Key', regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/g, severity: 'CRITICAL' },
     { type: 'JWT Token Secret', regex: /ey[A-Za-z0-9-_=]+\.ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+/g, severity: 'HIGH' },
-    { type: 'Hardcoded Password / API Key', regex: /(?:password|passwd|pwd|secret|api_key|apikey)\s*[:=]\s*['"][^'"]{8,}['"]/gi, severity: 'HIGH' },
+    { type: 'Hardcoded Password / API Key', regex: /(?:password|passwd|pwd|secret|api_?key|token)\s*[:=]\s*['"][^'"]{8,}['"]/gi, severity: 'HIGH' },
     { type: 'Database Connection URI with Credentials', regex: /(?:mongodb|postgres|mysql|redis):\/\/[^:]+:[^@]+@/gi, severity: 'HIGH' }
   ];
 

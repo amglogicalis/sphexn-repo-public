@@ -1,4 +1,21 @@
 
+function setFallbackMode(mode) {
+  const btnDef = document.getElementById('btn-fallback-mode-default');
+  const btnCust = document.getElementById('btn-fallback-mode-custom');
+  if (btnDef && btnCust) {
+    if (mode === 'default') {
+      btnDef.classList.add('active');
+      btnCust.classList.remove('active');
+    } else {
+      btnDef.classList.remove('active');
+      btnCust.classList.add('active');
+    }
+  }
+  toggleFallbackMode(mode);
+}
+window.setFallbackMode = setFallbackMode;
+
+
 function getGitHubUser() {
   const userElem = document.getElementById('user-display') || document.getElementById('user-name') || document.querySelector('.user-name');
   let name = (userElem ? userElem.textContent : '').replace('@', '').trim();
@@ -3580,7 +3597,7 @@ async function handleDispatchPraedatorAction(mode) {
       return;
     }
     targetInput = diffText.trim();
-    repo = document.getElementById('praedator-diff-repo')?.value.trim() || repo;
+    repo = 'Local Workspace (Git Diff)';
     modeLabel = 'Git Diff';
     const spinner = document.getElementById('praedator-diff-spinner');
     if (spinner) spinner.style.display = 'inline';
