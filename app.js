@@ -1,4 +1,13 @@
 
+// Initialize cached repos if available for instant UI rendering
+try {
+  const savedRepos = JSON.parse(localStorage.getItem('sphexn_cached_repos') || '[]');
+  if (Array.isArray(savedRepos) && savedRepos.length > 0) {
+    allUserReposCache = savedRepos;
+  }
+} catch (e) {}
+
+
 function setFallbackMode(mode) {
   const btnDef = document.getElementById('btn-fallback-mode-default');
   const btnCust = document.getElementById('btn-fallback-mode-custom');
@@ -2143,34 +2152,62 @@ function getSelectedLucaeTarget() {
 }
 window.getSelectedLucaeTarget = getSelectedLucaeTarget;
 
-// Universal Unified Repositories Fetcher (Single Source of Truth)
+// Universal Unified Repositories Fetcher (Single Source of Truth with Multi-Level Fallback)
 async function getOrFetchAllUserRepos(force = false) {
   if (!force && Array.isArray(allUserReposCache) && allUserReposCache.length > 0) {
     return allUserReposCache;
   }
 
   const token = getGitHubToken();
-  if (!token) {
-    console.warn('getOrFetchAllUserRepos: no token found');
-    return [];
+  const currentUser = getGitHubUser() || 'amglogicalis';
+
+  // 1. Try authenticated user/repos
+  if (token) {
+    try {
+      const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': 'Bearer ' + token
+      };
+      const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', { headers });
+      if (res.ok) {
+        const repos = await res.json();
+        if (Array.isArray(repos) && repos.length > 0) {
+          allUserReposCache = repos;
+          try { localStorage.setItem('sphexn_cached_repos', JSON.stringify(repos)); } catch (e) {}
+          return repos;
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching /user/repos, trying public fallback:', err);
+    }
   }
 
-  try {
-    const headers = {
-      'Accept': 'application/vnd.github.v3+json',
-      'Authorization': 'Bearer ' + token
-    };
-    const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', { headers });
-    if (res.ok) {
-      const repos = await res.json();
-      if (Array.isArray(repos) && repos.length > 0) {
-        allUserReposCache = repos;
-        return repos;
+  // 2. Try public fallback if token is expired or absent
+  if (currentUser) {
+    try {
+      const pubRes = await fetch('https://api.github.com/users/' + currentUser + '/repos?sort=updated&per_page=100');
+      if (pubRes.ok) {
+        const pubRepos = await pubRes.json();
+        if (Array.isArray(pubRepos) && pubRepos.length > 0) {
+          allUserReposCache = pubRepos;
+          try { localStorage.setItem('sphexn_cached_repos', JSON.stringify(pubRepos)); } catch (e) {}
+          return pubRepos;
+        }
       }
+    } catch (err) {
+      console.warn('Error fetching /users/' + currentUser + '/repos:', err);
     }
-  } catch (err) {
-    console.error('Error fetching repositories:', err);
   }
+
+  // 3. Fallback to localStorage cache
+  try {
+    const cached = JSON.parse(localStorage.getItem('sphexn_cached_repos') || '[]');
+    if (Array.isArray(cached) && cached.length > 0) {
+      allUserReposCache = cached;
+      return cached;
+    }
+  } catch (e) {}
+
   return allUserReposCache || [];
 }
 window.getOrFetchAllUserRepos = getOrFetchAllUserRepos;
@@ -3547,6 +3584,7 @@ window.toggleMasterAutoPraedator = toggleMasterAutoPraedator;
 
 async function loadAutoPrRepoOptions(force = false) {
   const picker = document.getElementById('autopr-repo-picker');
+  const searchInput = document.getElementById('autopr-repo-search');
   if (!picker) return;
 
   picker.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
@@ -3557,7 +3595,14 @@ async function loadAutoPrRepoOptions(force = false) {
     return;
   }
 
-  filterAutoPrRepos('');
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterAutoPrRepos(searchInput.value);
+    });
+  }
+
+  filterAutoPrRepos(searchInput ? searchInput.value : '');
 }
 window.loadAutoPrRepoOptions = loadAutoPrRepoOptions;
 
@@ -3642,6 +3687,49 @@ function renderAutoPrMonitoredRepos() {
   }).join('');
 }
 window.renderAutoPrMonitoredRepos = renderAutoPrMonitoredRepos;
+
+
+// ─── FALLBACK MATRIX ACTIONS & PERSISTENCE ───
+function saveFallbackMatrixConfig() {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  const specieId = specieSelect ? specieSelect.value : 'praedator';
+  const specieName = specieSelect ? specieSelect.options[specieSelect.selectedIndex].text : specieId;
+
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  if (!config[specieId]) {
+    config[specieId] = {
+      mode: 'custom',
+      order: (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice()
+    };
+  } else {
+    config[specieId].mode = 'custom';
+    if (!config[specieId].order) {
+      config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
+    }
+  }
+
+  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+  renderFallbackMatrixUI();
+
+  sphexnAlert('La matriz de fallback personalizada para ' + specieName + ' se ha guardado y persistido correctamente.', 'Matriz Guardada', '💾');
+}
+window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;
+
+function resetFallbackMatrixDefaults() {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  const specieId = specieSelect ? specieSelect.value : 'praedator';
+  const specieName = specieSelect ? specieSelect.options[specieSelect.selectedIndex].text : specieId;
+
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  delete config[specieId];
+  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+
+  renderFallbackMatrixUI();
+
+  sphexnAlert('Se han restablecido los valores predeterminados (Óptimo Automático) para ' + specieName + '.', 'Defaults Restaurados', '↺');
+}
+window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ─── MODULE: SPHEXN PRAEDATOR (PR & GIT DIFF AUDITOR) ─────────────────────────
