@@ -309,7 +309,8 @@ function switchTab(tabId) {
   }
 
   if (tabId === 'lucae') {
-    initLucaeUI();
+    if (typeof window.initLucaeUI === 'function') window.initLucaeUI();
+    if (typeof window.loadLucaeRepositories === 'function') window.loadLucaeRepositories();
   }
   if (tabId === 'providers') {
     loadKeyPools();
@@ -1958,6 +1959,9 @@ function setupSpeciesButtons() {
 
 let lucaeInitialized = false;
 
+window.initLucaeUI = initLucaeUI;
+window.loadLucaeRepositories = loadLucaeRepositories;
+window.loadLucaeBranches = loadLucaeBranches;
 async function initLucaeUI() {
   if (lucaeInitialized) return;
   lucaeInitialized = true;
@@ -2038,6 +2042,7 @@ async function loadLucaeRepositories(force = false) {
   const repoSelect = document.getElementById('lucae-repo-select');
   if (!repoSelect) return;
 
+  const currentVal = repoSelect.value;
   const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
   const headers = { 'Accept': 'application/vnd.github.v3+json' };
   if (pat) headers['Authorization'] = 'Bearer ' + pat;
@@ -2045,46 +2050,39 @@ async function loadLucaeRepositories(force = false) {
   try {
     let repos = [];
     if (pat) {
-      const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', { headers });
+      const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator', { headers });
       if (res.ok) {
-        repos = await res.json();
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          repos = data;
+        }
       }
     }
 
-    if (!Array.isArray(repos) || repos.length === 0) {
-      // Fallback default repos in Terra ecosystem
-      repos = [
-        { full_name: 'amglogicalis/Sphexn', default_branch: 'main' },
-        { full_name: 'amglogicalis/Terra', default_branch: 'main' },
-        { full_name: 'amglogicalis/hiven-repo-public', default_branch: 'main' },
-        { full_name: 'amglogicalis/termes-repo-public', default_branch: 'main' },
-        { full_name: 'amglogicalis/mantx-repo-public', default_branch: 'main' },
-        { full_name: 'amglogicalis/formica-repo-public', default_branch: 'main' },
-        { full_name: 'amglogicalis/waisp-repo-public', default_branch: 'main' },
-        { full_name: 'amglogicalis/webbl-repo-public', default_branch: 'main' }
-      ];
-    }
-
-    repoSelect.innerHTML = repos.map(r => `<option value="${r.full_name}">${r.full_name}</option>`).join('');
-    
-    // Default to Sphexn if present
-    const sphexnRepo = repos.find(r => r.full_name.toLowerCase().includes('sphexn'));
-    if (sphexnRepo) {
-      repoSelect.value = sphexnRepo.full_name;
+    if (Array.isArray(repos) && repos.length > 0) {
+      repoSelect.innerHTML = repos.map(r => `<option value="${r.full_name}">${r.full_name}</option>`).join('');
+      if (currentVal && repos.some(r => r.full_name === currentVal)) {
+        repoSelect.value = currentVal;
+      } else {
+        const sphexnRepo = repos.find(r => r.full_name.toLowerCase().includes('sphexn'));
+        repoSelect.value = sphexnRepo ? sphexnRepo.full_name : repos[0].full_name;
+      }
     }
 
     if (repoSelect.value) {
       loadLucaeBranches(repoSelect.value);
     }
   } catch (err) {
-    repoSelect.innerHTML = '<option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
-    loadLucaeBranches('amglogicalis/Sphexn');
+    console.warn('Could not fetch live GitHub repos, using available options:', err);
+    if (repoSelect.value) {
+      loadLucaeBranches(repoSelect.value);
+    }
   }
 }
 
 async function loadLucaeBranches(repoFullName) {
   const branchSelect = document.getElementById('lucae-branch-select');
-  if (!branchSelect) return;
+  if (!branchSelect || !repoFullName) return;
 
   const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
   const headers = { 'Accept': 'application/vnd.github.v3+json' };
