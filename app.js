@@ -196,14 +196,18 @@ function initAuth() {
     });
   }
 
-  // Disconnect button
+  // Disconnect / Logout handler
   const handleDisconnect = () => {
     sessionStorage.removeItem('sphexn_gh_token');
+    sessionStorage.removeItem('sphexn_gh_user');
     showLogin();
   };
+  window.handleLogout = handleDisconnect;
 
   if (btnDisconnect) btnDisconnect.addEventListener('click', handleDisconnect);
   if (btnTopbarDisconnect) btnTopbarDisconnect.addEventListener('click', handleDisconnect);
+  const btnTopbarLogout = document.getElementById('btn-topbar-logout');
+  if (btnTopbarLogout) btnTopbarLogout.addEventListener('click', handleDisconnect);
 }
 
 function showLogin() {
