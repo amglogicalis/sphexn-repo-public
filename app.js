@@ -2707,11 +2707,11 @@ async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBran
 }
 window.pollLucaeActionStatus = pollLucaeActionStatus;
 
-// Actively Sync Local Inventory with Vault and GitHub Actions Runs
+// Actively Sync Local Inventory with Vault and GitHub Actions Runs (Universal Sync)
 async function syncLucaeRunsWithGitHub() {
   const token = getGitHubToken();
   const statusPill = document.getElementById('lucae-status-text');
-  if (statusPill) statusPill.textContent = 'Sincronizando con GitHub Actions y .sphexn-storage...';
+  if (statusPill) statusPill.textContent = 'Sincronizando inventario con .sphexn-storage...';
 
   try {
     const userDisplay = document.getElementById('user-name');
@@ -2727,62 +2727,78 @@ async function syncLucaeRunsWithGitHub() {
       'Authorization': 'Bearer ' + token
     };
 
-    const runsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/actions/runs?per_page=10', { headers });
-    let latestAudit = null;
+    // 1. Fetch all audit files from .sphexn-storage/audits/lucae
+    const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main', { headers });
+    let auditFiles = [];
+    if (auditsRes.ok) {
+      const aData = await auditsRes.json();
+      if (Array.isArray(aData)) auditFiles = aData;
+    }
 
-    try {
-      const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main', { headers });
-      if (auditsRes.ok) {
-        const auditFiles = await auditsRes.json();
-        if (Array.isArray(auditFiles) && auditFiles.length > 0) {
-          const lastF = auditFiles[auditFiles.length - 1];
-          const contentRes = await fetch(lastF.url, { headers });
-          if (contentRes.ok) {
-            const blob = await contentRes.json();
-            if (blob.content) {
-              latestAudit = JSON.parse(decodeBase64Utf8(blob.content));
-            }
-          }
-        }
-      }
-    } catch (e) {}
-
-    let localRuns = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
-    let modified = false;
-
+    // 2. Fetch all workflow runs from vault
+    const runsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/actions/runs?per_page=25', { headers });
+    let ghRuns = [];
     if (runsRes.ok) {
-      const data = await runsRes.json();
-      const ghRuns = data.workflow_runs || [];
+      const rData = await runsRes.json();
+      if (Array.isArray(rData.workflow_runs)) ghRuns = rData.workflow_runs;
+    }
 
-      for (let i = 0; i < localRuns.length; i++) {
-        const r = localRuns[i];
-        if (r.status === 'queued' || r.status === 'in_progress' || r.healthScore === '--' || (r.godFilesDetails && r.godFilesDetails.some(g => g.topFunction === 'scopePrincipal' || g.topFunction === 'godModule' || !g.topFunctionLine))) {
-          const matchingGhRun = ghRuns.find(g => g.status === 'completed' && (g.name || '').toLowerCase().includes('lucae'));
-          if (matchingGhRun) {
-            r.actionUrl = matchingGhRun.html_url;
-            modified = true;
+    const existingLocal = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
+    const syncedRuns = [];
 
-            if (latestAudit && (latestAudit.repo === r.repo || !r.repo)) {
-              applyAuditDataToRun(r, latestAudit, r.repo, r.branch);
-            } else {
-              r.status = matchingGhRun.conclusion === 'success' ? 'completed' : 'failed';
-            }
-          }
+    // 3. Process each audit from the vault
+    for (const af of auditFiles) {
+      try {
+        const contentRes = await fetch(af.url, { headers });
+        if (!contentRes.ok) continue;
+        const blob = await contentRes.json();
+        if (!blob.content) continue;
+        const auditData = JSON.parse(decodeBase64Utf8(blob.content));
+
+        const auditTime = new Date(auditData.timestamp).getTime();
+        const matchingGh = ghRuns.find(g => Math.abs(new Date(g.created_at).getTime() - auditTime) < 90000);
+
+        const runId = matchingGh ? ('action_' + matchingGh.id) : ('audit_' + af.name.replace('.json', ''));
+        const newRun = {
+          id: runId,
+          repo: auditData.repo || 'amglogicalis/pokemon-tcg-project',
+          branch: auditData.branch || 'main',
+          mode: '🚀 GitHub Actions (.sphexn-storage)',
+          status: matchingGh ? (matchingGh.conclusion === 'success' ? 'completed' : matchingGh.conclusion) : 'completed',
+          timestamp: auditData.timestamp,
+          actionUrl: matchingGh ? matchingGh.html_url : null
+        };
+
+        applyAuditDataToRun(newRun, auditData, newRun.repo, newRun.branch);
+        syncedRuns.push(newRun);
+      } catch (err) {
+        console.warn('Error parsing audit file ' + af.name, err);
+      }
+    }
+
+    // 4. Merge any local runs that are still in_progress or queued (not yet completed in vault)
+    for (const lr of existingLocal) {
+      if (lr.status === 'queued' || lr.status === 'in_progress') {
+        const alreadyInSynced = syncedRuns.some(sr => sr.repo === lr.repo && Math.abs(new Date(sr.timestamp).getTime() - new Date(lr.timestamp).getTime()) < 120000);
+        if (!alreadyInSynced) {
+          syncedRuns.push(lr);
         }
       }
     }
 
-    if (modified) {
-      localStorage.setItem('sphexn_lucae_runs', JSON.stringify(localRuns));
+    // 5. Sort newest first
+    syncedRuns.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    localStorage.setItem('sphexn_lucae_runs', JSON.stringify(syncedRuns.slice(0, 50)));
+    renderLucaeRunsInventory();
+
+    if (syncedRuns.length > 0) {
+      displayLucaeRun(syncedRuns[0].id);
     }
 
-    renderLucaeRunsInventory();
-    if (localRuns.length > 0) {
-      displayLucaeRun(localRuns[0].id);
-    }
-    if (statusPill) statusPill.textContent = 'Inventario sincronizado con GitHub Actions';
+    if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' ejecuciones en vault)';
   } catch (err) {
-    console.warn('Error syncing runs with GitHub:', err);
+    console.warn('Error syncing runs with vault:', err);
     renderLucaeRunsInventory();
   }
 }
