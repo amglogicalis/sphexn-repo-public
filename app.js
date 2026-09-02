@@ -2532,6 +2532,84 @@ async function handleDispatchLucaeAction() {
 }
 window.handleDispatchLucaeAction = handleDispatchLucaeAction;
 
+// ─── AUDIT MAPPER: BINDS ENTERPRISE DATA, REAL FUNCTIONS & INTER-MODULE MERMAID
+
+function applyAuditDataToRun(run, auditData, targetRepo, targetBranch) {
+  run.status = 'completed';
+  run.healthScore = auditData.score || 80;
+  run.totalFiles = auditData.totalFiles || 1;
+  run.totalLines = auditData.totalLines || 0;
+  run.avgComplexity = auditData.avgCC || 12;
+  run.recommendations = auditData.recommendations || [];
+  run.godFiles = (auditData.godFiles || []).map(g => typeof g === 'string' ? g : g.file);
+  run.godFilesDetails = (auditData.godFiles || []).map(g => ({
+    file: typeof g === 'string' ? g : g.file,
+    filePath: typeof g === 'string' ? g : g.file,
+    lines: g.lines || 500,
+    cc: g.cc || 45,
+    cyclomaticComplexityTotal: g.cc || 45,
+    topFunction: g.topFunction || 'scopePrincipal',
+    topFunctionLine: g.topFunctionLine || 1,
+    topFunctionCC: g.topFunctionCC || g.cc || 45
+  }));
+
+  // Build high quality inter-module Mermaid diagram
+  const edges = auditData.edges || [];
+  const files = auditData.files || [];
+  const godFiles = run.godFiles;
+
+  const mermaidLines = ['graph TD'];
+  const nodesMap = new Map();
+  const sanitizeId = (str) => {
+    if (!nodesMap.has(str)) {
+      nodesMap.set(str, 'n' + (nodesMap.size + 1));
+    }
+    return nodesMap.get(str);
+  };
+
+  const displayFiles = (files.length > 0 ? files : godFiles.map(g => ({ file: g, isGod: true }))).slice(0, 22);
+  for (const f of displayFiles) {
+    const fPath = f.file || f.filePath;
+    const bName = fPath.split('/').pop();
+    const isGod = godFiles.includes(fPath) || f.isGod;
+    const id = sanitizeId(fPath);
+    mermaidLines.push('  ' + id + '["' + bName + '"]' + (isGod ? ':::godFile' : ':::modFile'));
+  }
+
+  let edgesCount = 0;
+  for (const e of edges) {
+    if (edgesCount >= 30) break;
+    const fromBase = e.from.split('/').pop().replace(/\.[^/.]+$/, '');
+    const toBase = e.to.split('/').pop().replace(/\.[^/.]+$/, '');
+    
+    const matchFrom = displayFiles.find(df => (df.file || df.filePath).includes(fromBase));
+    const matchTo = displayFiles.find(df => (df.file || df.filePath).includes(toBase));
+
+    if (matchFrom && matchTo && matchFrom !== matchTo) {
+      const idFrom = sanitizeId(matchFrom.file || matchFrom.filePath);
+      const idTo = sanitizeId(matchTo.file || matchTo.filePath);
+      mermaidLines.push('  ' + idFrom + ' --> ' + idTo);
+      edgesCount++;
+    }
+  }
+
+  if (edgesCount === 0) {
+    const rootId = 'rootProj';
+    const projName = (targetRepo || run.repo).split('/')[1];
+    const branchName = targetBranch || run.branch;
+    mermaidLines.push('  ' + rootId + '["' + projName + ' (@' + branchName + ')"]:::rootNode');
+    for (const gf of godFiles.slice(0, 10)) {
+      const gfId = sanitizeId(gf);
+      mermaidLines.push('  ' + rootId + ' --> ' + gfId);
+    }
+  }
+
+  mermaidLines.push('  classDef rootNode fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff;');
+  mermaidLines.push('  classDef godFile fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff;');
+  mermaidLines.push('  classDef modFile fill:#1e293b,stroke:#475569,stroke-width:1px,color:#94a3b8;');
+  run.mermaidDiagram = mermaidLines.join('\n');
+}
+
 // Real-Time Live Poller for GitHub Actions Runs & Vault Audits
 async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBranch) {
   const token = getGitHubToken();
@@ -2544,7 +2622,7 @@ async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBran
 
   const statusPill = document.getElementById('lucae-status-text');
   let attempts = 0;
-  const maxAttempts = 35; // 35 * 4s = 140s max
+  const maxAttempts = 35;
 
   const interval = setInterval(async () => {
     attempts++;
@@ -2554,7 +2632,6 @@ async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBran
     }
 
     try {
-      // 1. Check latest GitHub Actions runs
       const runsRes = await fetch('https://api.github.com/repos/' + dispatchRepo + '/actions/runs?per_page=5', { headers });
       if (!runsRes.ok) return;
 
@@ -2583,7 +2660,6 @@ async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBran
         clearInterval(interval);
 
         if (ghRun.conclusion === 'success') {
-          // 2. Fetch the newly committed audit JSON from .sphexn-storage/audits/lucae
           let auditData = null;
           try {
             const auditsRes = await fetch('https://api.github.com/repos/' + dispatchRepo + '/contents/audits/lucae?ref=main', { headers });
@@ -2604,33 +2680,10 @@ async function pollLucaeActionStatus(runId, dispatchRepo, targetRepo, targetBran
             console.warn('Error reading audit file from vault:', e);
           }
 
-          runs[rIndex].status = 'completed';
           if (auditData) {
-            runs[rIndex].healthScore = auditData.score || 80;
-            runs[rIndex].totalFiles = auditData.totalFiles || 1;
-            runs[rIndex].totalLines = auditData.totalLines || 0;
-            runs[rIndex].avgComplexity = auditData.avgCC || 12;
-            runs[rIndex].godFiles = (auditData.godFiles || []).map(g => typeof g === 'string' ? g : g.file);
-            runs[rIndex].godFilesDetails = (auditData.godFiles || []).map(g => ({
-              filePath: typeof g === 'string' ? g : g.file,
-              lines: g.lines || 500,
-              cyclomaticComplexityTotal: g.cc || 45,
-              highestComplexityFunction: { name: 'godModule', cyclomaticComplexity: g.cc || 45 }
-            }));
-
-            // Generate clean Mermaid diagram
-            const mermaidLines = ['graph TD'];
-            const rootId = 'target';
-            mermaidLines.push('  ' + rootId + '["' + targetRepo.split('/')[1] + ' (@' + targetBranch + ')"]:::rootNode');
-            const topGf = runs[rIndex].godFiles.slice(0, 15);
-            for (let i = 0; i < topGf.length; i++) {
-              const bName = topGf[i].split('/').pop();
-              mermaidLines.push('  ' + rootId + ' --> g' + i + '["' + bName + '"]:::godFile');
-            }
-            mermaidLines.push('  classDef rootNode fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff;');
-            mermaidLines.push('  classDef godFile fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff;');
-            runs[rIndex].mermaidDiagram = mermaidLines.join('\n');
+            applyAuditDataToRun(runs[rIndex], auditData, targetRepo, targetBranch);
           } else {
+            runs[rIndex].status = 'completed';
             runs[rIndex].healthScore = 80;
             runs[rIndex].mermaidDiagram = 'graph TD\n  A["' + targetRepo + '"] --> B["Auditoría completada exitosamente en GitHub Actions (' + dispatchRepo + ')"]';
           }
@@ -2674,11 +2727,9 @@ async function syncLucaeRunsWithGitHub() {
       'Authorization': 'Bearer ' + token
     };
 
-    // 1. Fetch runs from vault
     const runsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/actions/runs?per_page=10', { headers });
     let latestAudit = null;
 
-    // 2. Fetch latest audit file from vault
     try {
       const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main', { headers });
       if (auditsRes.ok) {
@@ -2696,7 +2747,6 @@ async function syncLucaeRunsWithGitHub() {
       }
     } catch (e) {}
 
-    // Update local runs
     let localRuns = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
     let modified = false;
 
@@ -2706,37 +2756,16 @@ async function syncLucaeRunsWithGitHub() {
 
       for (let i = 0; i < localRuns.length; i++) {
         const r = localRuns[i];
-        if (r.status === 'queued' || r.status === 'in_progress' || r.healthScore === '--') {
+        if (r.status === 'queued' || r.status === 'in_progress' || r.healthScore === '--' || (r.godFilesDetails && r.godFilesDetails.some(g => g.topFunction === 'scopePrincipal' || g.topFunction === 'godModule' || !g.topFunctionLine))) {
           const matchingGhRun = ghRuns.find(g => g.status === 'completed' && (g.name || '').toLowerCase().includes('lucae'));
           if (matchingGhRun) {
-            r.status = matchingGhRun.conclusion === 'success' ? 'completed' : 'failed';
             r.actionUrl = matchingGhRun.html_url;
             modified = true;
 
-            if (r.status === 'completed' && latestAudit) {
-              r.healthScore = latestAudit.score || 80;
-              r.totalFiles = latestAudit.totalFiles || 1;
-              r.totalLines = latestAudit.totalLines || 0;
-              r.avgComplexity = latestAudit.avgCC || 12;
-              r.godFiles = (latestAudit.godFiles || []).map(g => typeof g === 'string' ? g : g.file);
-              r.godFilesDetails = (latestAudit.godFiles || []).map(g => ({
-                filePath: typeof g === 'string' ? g : g.file,
-                lines: g.lines || 500,
-                cyclomaticComplexityTotal: g.cc || 45,
-                highestComplexityFunction: { name: 'godModule', cyclomaticComplexity: g.cc || 45 }
-              }));
-
-              const mermaidLines = ['graph TD'];
-              const rootId = 'target';
-              mermaidLines.push('  ' + rootId + '["' + r.repo.split('/')[1] + ' (@' + r.branch + ')"]:::rootNode');
-              const topGf = r.godFiles.slice(0, 15);
-              for (let j = 0; j < topGf.length; j++) {
-                const bName = topGf[j].split('/').pop();
-                mermaidLines.push('  ' + rootId + ' --> g' + j + '["' + bName + '"]:::godFile');
-              }
-              mermaidLines.push('  classDef rootNode fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff;');
-              mermaidLines.push('  classDef godFile fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff;');
-              r.mermaidDiagram = mermaidLines.join('\n');
+            if (latestAudit && (latestAudit.repo === r.repo || !r.repo)) {
+              applyAuditDataToRun(r, latestAudit, r.repo, r.branch);
+            } else {
+              r.status = matchingGhRun.conclusion === 'success' ? 'completed' : 'failed';
             }
           }
         }
@@ -2748,6 +2777,9 @@ async function syncLucaeRunsWithGitHub() {
     }
 
     renderLucaeRunsInventory();
+    if (localRuns.length > 0) {
+      displayLucaeRun(localRuns[0].id);
+    }
     if (statusPill) statusPill.textContent = 'Inventario sincronizado con GitHub Actions';
   } catch (err) {
     console.warn('Error syncing runs with GitHub:', err);
@@ -2763,7 +2795,7 @@ function renderLucaeRunsInventory() {
 
   const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   if (!Array.isArray(runs) || runs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay ejecuciones registradas todavía. Selecciona un repositorio y pulsa <strong>"⚡ Análisis AST en Tiempo Real"</strong> o <strong>"🚀 Disparar Specie"</strong>.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay ejecuciones registradas todavía. Selecciona un repositorio y pulsa <strong>"🚀 Disparar Specie"</strong>.</td></tr>';
     return;
   }
 
@@ -2782,7 +2814,7 @@ function renderLucaeRunsInventory() {
       : '<span class="badge badge-amber">EN COLA</span>';
 
     const scoreBadge = r.healthScore !== '--' 
-      ? '<span class="badge ' + (r.healthScore >= 80 ? 'badge-green' : 'badge-amber') + '">' + r.healthScore + '/100</span>' 
+      ? '<span class="badge ' + (r.healthScore >= 80 ? 'badge-green' : (r.healthScore >= 50 ? 'badge-amber' : 'badge-red')) + '">' + r.healthScore + '/100</span>' 
       : '<span class="text-muted">--</span>';
 
     const dateStr = new Date(r.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
