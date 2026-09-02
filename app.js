@@ -9,6 +9,10 @@ try {
 
 
 function setFallbackMode(mode) {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  const specieId = specieSelect ? specieSelect.value : 'praedator';
+  const specieName = specieSelect ? specieSelect.options[specieSelect.selectedIndex].text : specieId;
+
   const btnDef = document.getElementById('btn-fallback-mode-default');
   const btnCust = document.getElementById('btn-fallback-mode-custom');
   if (btnDef && btnCust) {
@@ -20,7 +24,24 @@ function setFallbackMode(mode) {
       btnCust.classList.add('active');
     }
   }
-  toggleFallbackMode(mode);
+
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  if (!config[specieId]) config[specieId] = {};
+  config[specieId].mode = mode;
+
+  if (mode === 'default') {
+    delete config[specieId].order;
+    localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+    renderFallbackMatrixUI();
+    sphexnAlert('Modo Default activado. Se aplicará la jerarquía óptima automática (BYOK ➔ Terra ➔ Custom) para ' + specieName + '.', 'Modo Default', '⚡');
+  } else {
+    if (!config[specieId].order) {
+      config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
+    }
+    localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+    renderFallbackMatrixUI();
+    sphexnAlert('Modo Custom activado para ' + specieName + '. Ahora puedes arrastrar y soltar las tarjetas para reordenar.', 'Modo Custom', '🛠️');
+  }
 }
 window.setFallbackMode = setFallbackMode;
 
@@ -3695,40 +3716,29 @@ function saveFallbackMatrixConfig() {
   const specieId = specieSelect ? specieSelect.value : 'praedator';
   const specieName = specieSelect ? specieSelect.options[specieSelect.selectedIndex].text : specieId;
 
+  const btnDefault = document.getElementById('btn-fallback-mode-default');
+  const isDefault = btnDefault && btnDefault.classList.contains('active');
+
   let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
-  if (!config[specieId]) {
-    config[specieId] = {
-      mode: 'custom',
-      order: (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice()
-    };
+  if (!config[specieId]) config[specieId] = {};
+
+  if (isDefault) {
+    config[specieId].mode = 'default';
+    delete config[specieId].order;
+    localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+    renderFallbackMatrixUI();
+    sphexnAlert('Configuración guardada en modo Default (Óptimo Automático) para ' + specieName + '.', 'Modo Default Guardado', '⚡');
   } else {
     config[specieId].mode = 'custom';
     if (!config[specieId].order) {
       config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
     }
+    localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+    renderFallbackMatrixUI();
+    sphexnAlert('La matriz de fallback personalizada para ' + specieName + ' se ha guardado correctamente.', 'Matriz Custom Guardada', '💾');
   }
-
-  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
-  renderFallbackMatrixUI();
-
-  sphexnAlert('La matriz de fallback personalizada para ' + specieName + ' se ha guardado y persistido correctamente.', 'Matriz Guardada', '💾');
 }
-window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;
-
-function resetFallbackMatrixDefaults() {
-  const specieSelect = document.getElementById('fallback-specie-select');
-  const specieId = specieSelect ? specieSelect.value : 'praedator';
-  const specieName = specieSelect ? specieSelect.options[specieSelect.selectedIndex].text : specieId;
-
-  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
-  delete config[specieId];
-  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
-
-  renderFallbackMatrixUI();
-
-  sphexnAlert('Se han restablecido los valores predeterminados (Óptimo Automático) para ' + specieName + '.', 'Defaults Restaurados', '↺');
-}
-window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
+window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
 
 
 // ══════════════════════════════════════════════════════════════════════════════
