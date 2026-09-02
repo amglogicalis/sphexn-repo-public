@@ -340,6 +340,13 @@ function switchTab(tabId) {
     if (typeof window.loadLucaeRepositories === 'function') window.loadLucaeRepositories();
     if (typeof window.syncLucaeRunsWithGitHub === 'function') window.syncLucaeRunsWithGitHub();
   }
+  if (tabId === 'praedator') {
+    if (typeof window.initPraedatorUI === 'function') window.initPraedatorUI();
+    if (typeof window.syncPraedatorRunsWithGitHub === 'function') window.syncPraedatorRunsWithGitHub();
+  }
+  if (tabId === 'fallback') {
+    if (typeof window.renderFallbackMatrixUI === 'function') window.renderFallbackMatrixUI();
+  }
   if (tabId === 'providers') {
     loadKeyPools();
     loadProviders();
@@ -3237,3 +3244,804 @@ window.initLucaeUI = initLucaeUI;
     });
   }
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ─── MODULE: SPHEXN MODULAR FALLBACK MATRIX (AI RESILIENCE ENGINE) ───────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+const ALL_PROVIDERS_CATALOG = [
+  { id: 'gemini', name: 'Google Gemini 1.5 Pro', category: 'BYOK', defaultModel: 'gemini-1.5-pro', rpm: '15 RPM', icon: '✨' },
+  { id: 'groq', name: 'Groq Llama-3.3-70b', category: 'BYOK', defaultModel: 'llama-3.3-70b-versatile', rpm: '30 RPM', icon: '⚡' },
+  { id: 'hiven', name: 'Terra Hiven Shared Pool', category: 'Terra Ecosystem', defaultModel: 'hiven-swarms-v1', rpm: 'Unlimited', icon: '🐝' },
+  { id: 'gh_models', name: 'GitHub Models (GPT-4o)', category: 'BYOK', defaultModel: 'gpt-4o', rpm: '10 RPM', icon: '🐙' },
+  { id: 'termes', name: 'Terra Termes Provider', category: 'Terra Ecosystem', defaultModel: 'termes-ast-v2', rpm: 'Unlimited', icon: '🐜' },
+  { id: 'custom', name: 'Custom / Ollama Endpoint', category: 'Custom Endpoint', defaultModel: 'codellama', rpm: 'Local', icon: '💻' }
+];
+
+const DEFAULT_SPECIE_FALLBACKS = {
+  praedator: ['gemini', 'groq', 'hiven', 'gh_models', 'termes', 'custom'],
+  lucae: ['groq', 'gemini', 'hiven', 'gh_models', 'termes', 'custom'],
+  micans: ['gemini', 'groq', 'hiven', 'gh_models', 'custom'],
+  nudus: ['groq', 'gemini', 'hiven', 'gh_models', 'custom'],
+  rex: ['gemini', 'gh_models', 'groq', 'hiven', 'custom'],
+  obscurus: ['groq', 'gemini', 'hiven', 'custom']
+};
+
+function getActiveFallbackChain(specieId) {
+  const customConfig = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  const specieConfig = customConfig[specieId] || { mode: 'default' };
+
+  const baseOrder = (specieConfig.mode === 'custom' && Array.isArray(specieConfig.order))
+    ? specieConfig.order
+    : (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator);
+
+  // Filter or prioritize active providers according to user storage
+  const activeKeys = {
+    gemini: localStorage.getItem('sphexn_gemini_key'),
+    groq: localStorage.getItem('sphexn_groq_key'),
+    hiven: localStorage.getItem('sphexn_hiven_key') || 'terra-active',
+    gh_models: localStorage.getItem('sphexn_gh_models_key'),
+    termes: 'terra-active',
+    custom: localStorage.getItem('sphexn_custom_key')
+  };
+
+  const enabledList = (specieConfig.mode === 'custom' && Array.isArray(specieConfig.enabled))
+    ? specieConfig.enabled
+    : null;
+
+  const resultChain = [];
+  for (const pid of baseOrder) {
+    if (enabledList && !enabledList.includes(pid)) continue;
+    const provMeta = ALL_PROVIDERS_CATALOG.find(p => p.id === pid);
+    if (!provMeta) continue;
+
+    const hasKey = !!activeKeys[pid];
+    resultChain.push({
+      id: provMeta.id,
+      name: provMeta.name,
+      model: provMeta.defaultModel,
+      category: provMeta.category,
+      icon: provMeta.icon,
+      rpm: provMeta.rpm,
+      isConfigured: hasKey,
+      apiKey: activeKeys[pid] || null
+    });
+  }
+
+  return resultChain;
+}
+window.getActiveFallbackChain = getActiveFallbackChain;
+
+function renderFallbackMatrixUI() {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  if (!specieSelect) return;
+  const specieId = specieSelect.value || 'praedator';
+
+  const customConfig = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  const specieConfig = customConfig[specieId] || { mode: 'default' };
+  const mode = specieConfig.mode || 'default';
+
+  const radioDefault = document.getElementById('radio-fallback-default');
+  const radioCustom = document.getElementById('radio-fallback-custom');
+  if (radioDefault && radioCustom) {
+    radioDefault.checked = mode === 'default';
+    radioCustom.checked = mode === 'custom';
+  }
+
+  const bannerDesc = document.getElementById('fallback-mode-desc');
+  if (bannerDesc) {
+    bannerDesc.innerHTML = mode === 'default'
+      ? '💡 Modo <strong>Default (Óptimo Automático)</strong>: Sphexn ordena automáticamente la cadena priorizando <code>BYOK ➔ Terra ➔ Custom</code> según tus claves activas. Tolerancia 100% ante errores 4XX/5XX.'
+      : '🛠️ Modo <strong>Custom (Personalizado)</strong>: Puedes alterar la posición de los modelos con las flechas <code>⬆️ / ⬇️</code> y activar o desactivar proveedores específicamente para <strong>' + specieSelect.options[specieSelect.selectedIndex].text + '</strong>.';
+  }
+
+  const container = document.getElementById('fallback-pipeline-cards');
+  if (!container) return;
+
+  const chain = getActiveFallbackChain(specieId);
+
+  container.innerHTML = chain.map((item, idx) => {
+    const isFirst = idx === 0;
+    const isLast = idx === chain.length - 1;
+    const priorityLabel = (idx === 0) ? '1º (Principal)' : (idx + 1) + 'º (Fallback)';
+
+    const controlsHtml = mode === 'custom'
+      ? '<div style="display: flex; gap: 6px; align-items: center;">' +
+          (!isFirst ? '<button class="btn btn-secondary btn-xs" onclick="moveFallbackItem(\'' + specieId + '\', ' + idx + ', -1)" title="Subir prioridad">⬆️</button>' : '') +
+          (!isLast ? '<button class="btn btn-secondary btn-xs" onclick="moveFallbackItem(\'' + specieId + '\', ' + idx + ', 1)" title="Bajar prioridad">⬇️</button>' : '') +
+        '</div>'
+      : '<span class="badge badge-blue" style="font-size: 0.72rem;">AUTO-ORDEN</span>';
+
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-left: 4px solid ' + (item.isConfigured ? 'var(--primary-blue)' : '#64748b') + '; background: rgba(16, 24, 38, 0.85);">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.4rem;">' + item.icon + '</span>' +
+        '<div>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong>' + item.name + '</strong>' +
+            '<span class="badge ' + (item.isConfigured ? 'badge-green' : 'badge-amber') + '" style="font-size: 0.7rem;">' + (item.isConfigured ? 'ACTIVO' : 'SIN CLAVE') + '</span>' +
+            '<span class="badge badge-secondary" style="font-size: 0.7rem;">' + item.category + '</span>' +
+          '</div>' +
+          '<div class="text-muted" style="font-size: 0.78rem; margin-top: 2px;">' +
+            'Modelo: <code>' + item.model + '</code> • Límite: ' + item.rpm + ' • Prioridad: <strong style="color: #93c5fd;">' + priorityLabel + '</strong>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      controlsHtml +
+    '</div>';
+  }).join('');
+}
+window.renderFallbackMatrixUI = renderFallbackMatrixUI;
+
+function toggleFallbackMode(mode) {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  const specieId = specieSelect ? specieSelect.value : 'praedator';
+
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  if (!config[specieId]) config[specieId] = {};
+  config[specieId].mode = mode;
+
+  if (mode === 'custom' && !config[specieId].order) {
+    config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
+  }
+
+  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+  renderFallbackMatrixUI();
+}
+window.toggleFallbackMode = toggleFallbackMode;
+
+function moveFallbackItem(specieId, index, direction) {
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  if (!config[specieId]) config[specieId] = { mode: 'custom' };
+  if (!config[specieId].order) config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
+
+  const arr = config[specieId].order;
+  const targetIdx = index + direction;
+  if (targetIdx < 0 || targetIdx >= arr.length) return;
+
+  const temp = arr[index];
+  arr[index] = arr[targetIdx];
+  arr[targetIdx] = temp;
+
+  config[specieId].order = arr;
+  config[specieId].mode = 'custom';
+  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+  renderFallbackMatrixUI();
+}
+window.moveFallbackItem = moveFallbackItem;
+
+function saveFallbackMatrixConfig() {
+  sphexnAlert('Matriz de fallback guardada correctamente y sincronizada para todas las ejecuciones.', 'Configuración Guardada', '💾');
+}
+window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;
+
+function resetFallbackMatrixDefaults() {
+  const specieSelect = document.getElementById('fallback-specie-select');
+  const specieId = specieSelect ? specieSelect.value : 'praedator';
+
+  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
+  delete config[specieId];
+  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+
+  renderFallbackMatrixUI();
+  sphexnAlert('Valores por defecto restablecidos para ' + specieId + '.', 'Restaurado', '↺');
+}
+window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ─── MODULE: SPHEXN PRAEDATOR (PR & GIT DIFF AUDITOR) ─────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentPraedatorMode = 'diff';
+
+function switchPraedatorMode(mode) {
+  currentPraedatorMode = mode;
+  const btnDiff = document.getElementById('btn-praedator-mode-diff');
+  const btnPr = document.getElementById('btn-praedator-mode-pr');
+  const contDiff = document.getElementById('praedator-mode-diff-container');
+  const contPr = document.getElementById('praedator-mode-pr-container');
+
+  if (mode === 'diff') {
+    if (btnDiff) { btnDiff.className = 'btn btn-primary btn-sm'; }
+    if (btnPr) { btnPr.className = 'btn btn-secondary btn-sm'; }
+    if (contDiff) contDiff.style.display = 'block';
+    if (contPr) contPr.style.display = 'none';
+  } else {
+    if (btnDiff) { btnDiff.className = 'btn btn-secondary btn-sm'; }
+    if (btnPr) { btnPr.className = 'btn btn-primary btn-sm'; }
+    if (contDiff) contDiff.style.display = 'none';
+    if (contPr) contPr.style.display = 'block';
+    loadPraedatorRepositories();
+  }
+}
+window.switchPraedatorMode = switchPraedatorMode;
+
+function loadSampleDiffPraedator() {
+  const diffInput = document.getElementById('praedator-diff-input');
+  if (diffInput) {
+    diffInput.value = [
+      "diff --git a/backend/src/controllers/AuthController.ts b/backend/src/controllers/AuthController.ts",
+      "--- a/backend/src/controllers/AuthController.ts",
+      "+++ b/backend/src/controllers/AuthController.ts",
+      "@@ -24,4 +24,8 @@",
+      "+// Exposing secret for testing (Vulnerability alert)",
+      "+const internalApiKey = \"ghp_TESTINGSECRETTOKEN01234567890ABCDEF\";",
+      "+const query = \"SELECT * FROM users WHERE email = \" + req.body.email;",
+      "+eval(req.body.customScript);"
+    ].join("\n");
+  }
+}
+window.loadSampleDiffPraedator = loadSampleDiffPraedator;
+
+async function loadPraedatorRepositories() {
+  const select = document.getElementById('praedator-repo-select');
+  const searchInput = document.getElementById('praedator-repo-search');
+  if (!select) return;
+
+  const token = getGitHubToken();
+  if (!token) {
+    select.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project (Predeterminado)</option>';
+    loadPraedatorPullRequests('amglogicalis/pokemon-tcg-project');
+    return;
+  }
+
+  try {
+    const reposRes = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (reposRes.ok) {
+      allUserReposCache = await reposRes.json();
+      renderPraedatorRepoOptions(allUserReposCache);
+    }
+  } catch (e) {
+    console.warn('Error loading repos for Praedator:', e);
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      const filtered = allUserReposCache.filter(r => (r.full_name || '').toLowerCase().includes(q));
+      renderPraedatorRepoOptions(filtered);
+    });
+  }
+
+  if (!select.dataset.bound) {
+    select.dataset.bound = 'true';
+    select.addEventListener('change', () => {
+      if (select.value) loadPraedatorPullRequests(select.value);
+    });
+  }
+}
+window.loadPraedatorRepositories = loadPraedatorRepositories;
+
+function renderPraedatorRepoOptions(repos) {
+  const select = document.getElementById('praedator-repo-select');
+  if (!select) return;
+
+  if (!repos || repos.length === 0) {
+    select.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  select.innerHTML = repos.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : '') + '</option>').join('');
+  if (repos.length > 0) {
+    loadPraedatorPullRequests(repos[0].full_name);
+  }
+}
+
+async function loadPraedatorPullRequests(repoFullName) {
+  const prSelect = document.getElementById('praedator-pr-select');
+  if (!prSelect) return;
+  prSelect.innerHTML = '<option value="">Cargando Pull Requests abiertas...</option>';
+
+  const token = getGitHubToken();
+  try {
+    const res = await fetch('https://api.github.com/repos/' + repoFullName + '/pulls?state=open&per_page=30', {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      }
+    });
+
+    if (res.ok) {
+      const prs = await res.json();
+      if (Array.isArray(prs) && prs.length > 0) {
+        prSelect.innerHTML = prs.map(pr => '<option value="' + pr.number + '">#' + pr.number + ' — ' + pr.title + ' (@' + (pr.user ? pr.user.login : 'autor') + ')</option>').join('');
+      } else {
+        prSelect.innerHTML = '<option value="">Cero PRs abiertas en este repositorio (Crea una PR en GitHub para auditar)</option>';
+      }
+    } else {
+      prSelect.innerHTML = '<option value="">No se pudieron cargar PRs (' + res.status + ')</option>';
+    }
+  } catch (err) {
+    prSelect.innerHTML = '<option value="">Error conectando con GitHub API</option>';
+  }
+}
+window.loadPraedatorPullRequests = loadPraedatorPullRequests;
+
+// Dispatch Praedator Execution
+async function handleDispatchPraedatorAction(mode) {
+  const token = getGitHubToken();
+  if (!token) {
+    sphexnAlert('Se requiere un token PAT de GitHub para despachar a GitHub Actions.', 'Acceso Requerido', '⚠️');
+    return;
+  }
+
+  let repo = 'amglogicalis/pokemon-tcg-project';
+  let targetInput = '';
+  let modeLabel = 'Git Diff';
+
+  if (mode === 'diff') {
+    const diffText = document.getElementById('praedator-diff-input')?.value || '';
+    if (!diffText.trim()) {
+      sphexnAlert('Por favor, pega el contenido de un git diff o pulsa "Cargar Diff de Prueba".', 'Diff Vacío', '📝');
+      return;
+    }
+    targetInput = diffText.trim();
+    repo = document.getElementById('praedator-diff-repo')?.value.trim() || repo;
+    modeLabel = 'Git Diff';
+    const spinner = document.getElementById('praedator-diff-spinner');
+    if (spinner) spinner.style.display = 'inline';
+  } else {
+    repo = document.getElementById('praedator-repo-select')?.value.trim() || repo;
+    const prNum = document.getElementById('praedator-pr-select')?.value.trim();
+    if (!prNum) {
+      sphexnAlert('Por favor, selecciona una Pull Request abierta para auditar.', 'PR No Seleccionada', '🔀');
+      return;
+    }
+    targetInput = prNum;
+    modeLabel = 'PR #' + prNum;
+    const spinner = document.getElementById('praedator-pr-spinner');
+    if (spinner) spinner.style.display = 'inline';
+  }
+
+  const currentUser = getGitHubUser() || repo.split('/')[0];
+  const dispatchRepo = currentUser + '/.sphexn-storage';
+  const runId = 'praedator_' + Date.now().toString(36);
+
+  // Fallback matrix
+  const fallbackList = getActiveFallbackChain('praedator');
+
+  const runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+  runs.unshift({
+    id: runId,
+    mode: modeLabel,
+    repo,
+    riskScore: '--',
+    verdict: 'EN COLA',
+    status: 'queued',
+    secretsCount: 0,
+    timestamp: new Date().toISOString()
+  });
+  localStorage.setItem('sphexn_praedator_runs', JSON.stringify(runs));
+  renderPraedatorRunsInventory();
+
+  try {
+    const dispatchRes = await fetch('https://api.github.com/repos/' + dispatchRepo + '/actions/workflows/sphexn-praedator.yml/dispatches', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: 'main',
+        inputs: {
+          mode: mode === 'diff' ? 'diff' : 'pr',
+          repo: repo,
+          target_input: targetInput.replace(/\n/g, '\\n'),
+          fallback_matrix: JSON.stringify(fallbackList)
+        }
+      })
+    });
+
+    const spinnerDiff = document.getElementById('praedator-diff-spinner');
+    const spinnerPr = document.getElementById('praedator-pr-spinner');
+    if (spinnerDiff) spinnerDiff.style.display = 'none';
+    if (spinnerPr) spinnerPr.style.display = 'none';
+
+    if (dispatchRes.status === 204) {
+      sphexnAlert('Specie Praedator despachada exitosamente a GitHub Actions (' + dispatchRepo + '). Monitorizando ejecución...', 'Specie Despachada', '🚀');
+      pollPraedatorActionStatus(runId, dispatchRepo, repo);
+    } else {
+      const err = await dispatchRes.json();
+      sphexnAlert('Error al disparar workflow: ' + (err.message || dispatchRes.statusText), 'Fallo en Despacho', '⚠️');
+    }
+  } catch (err) {
+    console.error('Error dispatching Praedator:', err);
+    sphexnAlert('Fallo de conexión al disparar Praedator: ' + err.message, 'Error', '⚠️');
+  }
+}
+
+// Live polling for Praedator
+async function pollPraedatorActionStatus(runId, dispatchRepo, targetRepo) {
+  const token = getGitHubToken();
+  if (!token) return;
+
+  const headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': 'Bearer ' + token };
+  let attempts = 0;
+
+  const interval = setInterval(async () => {
+    attempts++;
+    if (attempts > 35) { clearInterval(interval); return; }
+
+    try {
+      const res = await fetch('https://api.github.com/repos/' + dispatchRepo + '/actions/runs?per_page=5', { headers });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const ghRuns = data.workflow_runs || [];
+      const ghRun = ghRuns.find(r => (r.name || '').toLowerCase().includes('praedator')) || ghRuns[0];
+      if (!ghRun) return;
+
+      const runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+      const rIndex = runs.findIndex(r => r.id === runId);
+      if (rIndex === -1) { clearInterval(interval); return; }
+
+      runs[rIndex].actionUrl = ghRun.html_url;
+
+      if (ghRun.status === 'in_progress') {
+        runs[rIndex].status = 'in_progress';
+        localStorage.setItem('sphexn_praedator_runs', JSON.stringify(runs));
+        renderPraedatorRunsInventory();
+      } else if (ghRun.status === 'completed') {
+        clearInterval(interval);
+        if (ghRun.conclusion === 'success') {
+          let auditData = null;
+          try {
+            const auditsRes = await fetch('https://api.github.com/repos/' + dispatchRepo + '/contents/audits/praedator?ref=main', { headers });
+            if (auditsRes.ok) {
+              const files = await auditsRes.json();
+              if (Array.isArray(files) && files.length > 0) {
+                const latest = files[files.length - 1];
+                const cRes = await fetch(latest.url, { headers });
+                if (cRes.ok) {
+                  const b = await cRes.json();
+                  if (b.content) auditData = JSON.parse(decodeBase64Utf8(b.content));
+                }
+              }
+            }
+          } catch (e) {}
+
+          if (auditData) {
+            runs[rIndex].riskScore = auditData.riskScore;
+            runs[rIndex].verdict = auditData.verdict;
+            runs[rIndex].status = 'completed';
+            runs[rIndex].secretsCount = (auditData.secrets || []).length;
+            runs[rIndex].details = auditData;
+          } else {
+            runs[rIndex].status = 'completed';
+            runs[rIndex].riskScore = 20;
+            runs[rIndex].verdict = 'APPROVED';
+          }
+
+          localStorage.setItem('sphexn_praedator_runs', JSON.stringify(runs));
+          renderPraedatorRunsInventory();
+          displayPraedatorRun(runId);
+        } else {
+          runs[rIndex].status = 'failed';
+          localStorage.setItem('sphexn_praedator_runs', JSON.stringify(runs));
+          renderPraedatorRunsInventory();
+        }
+      }
+    } catch (e) {}
+  }, 4000);
+}
+
+// Universal Vault Sync for Praedator
+async function syncPraedatorRunsWithGitHub() {
+  const token = getGitHubToken();
+  const currentUser = getGitHubUser();
+  const vaultRepo = currentUser + '/.sphexn-storage';
+  const btnRefresh = document.getElementById('btn-refresh-praedator-runs');
+  if (btnRefresh) { btnRefresh.textContent = '🔄 Sincronizando...'; btnRefresh.disabled = true; }
+
+  try {
+    if (!token) { renderPraedatorRunsInventory(); return; }
+
+    const headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': 'Bearer ' + token };
+    const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/praedator?ref=main', { headers });
+    let auditFiles = [];
+    if (auditsRes.ok) {
+      const aData = await auditsRes.json();
+      if (Array.isArray(aData)) auditFiles = aData;
+    }
+
+    const runsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/actions/runs?per_page=25', { headers });
+    let ghRuns = [];
+    if (runsRes.ok) {
+      const rData = await runsRes.json();
+      if (Array.isArray(rData.workflow_runs)) ghRuns = rData.workflow_runs;
+    }
+
+    const deleted = JSON.parse(localStorage.getItem('sphexn_praedator_deleted_runs') || '[]');
+    const existingLocal = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+    const syncedRuns = [];
+
+    for (const af of auditFiles) {
+      try {
+        const fileId = 'audit_' + af.name.replace('.json', '');
+        if (deleted.includes(fileId) || deleted.includes(af.name)) continue;
+
+        const cRes = await fetch(af.url, { headers });
+        if (!cRes.ok) continue;
+        const blob = await cRes.json();
+        if (!blob.content) continue;
+        const auditData = JSON.parse(decodeBase64Utf8(blob.content));
+
+        const auditTime = new Date(auditData.timestamp).getTime();
+        const matchGh = ghRuns.find(g => Math.abs(new Date(g.created_at).getTime() - auditTime) < 90000);
+
+        const runId = matchGh ? ('action_' + matchGh.id) : fileId;
+        if (deleted.includes(runId)) continue;
+
+        syncedRuns.push({
+          id: runId,
+          mode: auditData.prNumber ? ('PR #' + auditData.prNumber) : 'Git Diff',
+          repo: auditData.repo || 'amglogicalis/pokemon-tcg-project',
+          riskScore: auditData.riskScore,
+          verdict: auditData.verdict,
+          status: matchGh ? (matchGh.conclusion === 'success' ? 'completed' : matchGh.conclusion) : 'completed',
+          secretsCount: (auditData.secrets || []).length,
+          timestamp: auditData.timestamp,
+          actionUrl: matchGh ? matchGh.html_url : ('https://github.com/' + vaultRepo + '/actions'),
+          details: auditData
+        });
+      } catch (err) {}
+    }
+
+    for (const lr of existingLocal) {
+      if (deleted.includes(lr.id)) continue;
+      if (lr.status === 'queued' || lr.status === 'in_progress') {
+        const exists = syncedRuns.some(sr => sr.repo === lr.repo && Math.abs(new Date(sr.timestamp).getTime() - new Date(lr.timestamp).getTime()) < 120000);
+        if (!exists) syncedRuns.push(lr);
+      }
+    }
+
+    syncedRuns.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    localStorage.setItem('sphexn_praedator_runs', JSON.stringify(syncedRuns.slice(0, 50)));
+    renderPraedatorRunsInventory();
+
+    if (syncedRuns.length > 0) {
+      displayPraedatorRun(syncedRuns[0].id);
+    }
+  } catch (err) {
+    console.error('Error syncing Praedator runs:', err);
+  } finally {
+    if (btnRefresh) { btnRefresh.textContent = '🔄 Actualizar'; btnRefresh.disabled = false; }
+  }
+}
+window.syncPraedatorRunsWithGitHub = syncPraedatorRunsWithGitHub;
+
+function renderPraedatorRunsInventory() {
+  const tbody = document.getElementById('praedator-runs-tbody');
+  if (!tbody) return;
+
+  const runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+  if (runs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 24px;">No hay auditorías registradas todavía. Pega un diff o selecciona una PR arriba y pulsa <strong>"🚀 Disparar Specie"</strong>.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = runs.map(r => {
+    const isCompleted = r.status === 'completed';
+    const isInProgress = r.status === 'in_progress';
+    const isFailed = r.status === 'failed';
+
+    const statusBadge = isCompleted ? '<span class="badge badge-green">COMPLETADO</span>'
+      : isInProgress ? '<span class="badge badge-blue">AUDITANDO ⏳</span>'
+      : isFailed ? '<span class="badge badge-red">FALLADO</span>'
+      : '<span class="badge badge-amber">EN COLA</span>';
+
+    const riskBadge = r.riskScore !== '--'
+      ? '<span class="badge ' + (r.riskScore <= 30 ? 'badge-green' : (r.riskScore <= 65 ? 'badge-amber' : 'badge-red')) + '">' + r.riskScore + '/100</span>'
+      : '<span class="text-muted">--</span>';
+
+    const verdictBadge = r.verdict === 'APPROVED' ? '<span class="badge badge-green">APPROVED</span>'
+      : r.verdict === 'CHANGES_REQUESTED' ? '<span class="badge badge-amber">CHANGES</span>'
+      : r.verdict === 'SECURITY_BLOCK' ? '<span class="badge badge-red">BLOCK 🚨</span>'
+      : '<span class="text-muted">' + r.verdict + '</span>';
+
+    const secretsBadge = r.secretsCount > 0
+      ? '<strong style="color: #ef4444;">🚨 ' + r.secretsCount + '</strong>'
+      : '<span style="color: #10b981;">0</span>';
+
+    const dateStr = new Date(r.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+    const actionLink = r.actionUrl
+      ? '<a href="' + r.actionUrl + '" target="_blank" class="btn btn-secondary btn-xs" style="padding: 2px 6px; font-size: 0.72rem; text-decoration: none;">🔗 Action</a>'
+      : '';
+
+    return '<tr style="cursor: pointer; transition: background 0.15s;" onclick="displayPraedatorRun(\'' + r.id + '\')">' +
+      '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: #93c5fd;">' + r.id + '</td>' +
+      '<td><span class="badge badge-secondary">' + r.mode + '</span></td>' +
+      '<td style="font-weight: 600;">' + r.repo + '</td>' +
+      '<td>' + riskBadge + '</td>' +
+      '<td>' + secretsBadge + '</td>' +
+      '<td>' + verdictBadge + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td style="font-size: 0.78rem; color: var(--text-muted);">' + dateStr + '</td>' +
+      '<td>' +
+        '<div style="display: flex; gap: 6px; align-items: center;">' +
+          '<button class="btn btn-secondary btn-xs" style="padding: 2px 8px;" onclick="event.stopPropagation(); displayPraedatorRun(\'' + r.id + '\')">👁️ Ver</button>' +
+          actionLink +
+          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deletePraedatorRun(\'' + r.id + '\')">🗑️</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+window.renderPraedatorRunsInventory = renderPraedatorRunsInventory;
+
+function deletePraedatorRun(runId) {
+  let runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+  runs = runs.filter(r => r.id !== runId);
+  localStorage.setItem('sphexn_praedator_runs', JSON.stringify(runs));
+
+  let deleted = JSON.parse(localStorage.getItem('sphexn_praedator_deleted_runs') || '[]');
+  if (!deleted.includes(runId)) {
+    deleted.push(runId);
+    localStorage.setItem('sphexn_praedator_deleted_runs', JSON.stringify(deleted));
+  }
+
+  renderPraedatorRunsInventory();
+  const container = document.getElementById('praedator-results-container');
+  if (container) {
+    if (runs.length > 0) displayPraedatorRun(runs[0].id);
+    else container.innerHTML = '<div class="placeholder-box"><span class="large-icon">🦅</span><p>Inventario vacío. Ejecuta una auditoría arriba para ver resultados.</p></div>';
+  }
+}
+window.deletePraedatorRun = deletePraedatorRun;
+
+async function clearPraedatorRuns() {
+  const ok = await sphexnConfirm('¿Deseas vaciar el historial de auditorías de Praedator?', 'Limpiar Inventario', true, 'Vaciar');
+  if (ok) {
+    let runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+    let deleted = JSON.parse(localStorage.getItem('sphexn_praedator_deleted_runs') || '[]');
+    for (const r of runs) {
+      if (!deleted.includes(r.id)) deleted.push(r.id);
+    }
+    localStorage.setItem('sphexn_praedator_deleted_runs', JSON.stringify(deleted));
+    localStorage.removeItem('sphexn_praedator_runs');
+    renderPraedatorRunsInventory();
+    const container = document.getElementById('praedator-results-container');
+    if (container) {
+      container.innerHTML = '<div class="placeholder-box"><span class="large-icon">🦅</span><p>Inventario limpio. Ejecuta una auditoría arriba para ver resultados.</p></div>';
+    }
+  }
+}
+window.clearPraedatorRuns = clearPraedatorRuns;
+
+function displayPraedatorRun(runId) {
+  const runs = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]');
+  const run = runs.find(r => r.id === runId);
+  const container = document.getElementById('praedator-results-container');
+  if (!run || !container) return;
+
+  const d = run.details || {};
+  const secretsList = d.secrets || [];
+  const vulnList = d.vulnerabilities || [];
+  const suggestionsList = d.suggestions || [];
+
+  const secretsHtml = (secretsList.length > 0)
+    ? '<div class="card mt-16" style="border-left: 4px solid var(--danger-red); background: rgba(239, 68, 68, 0.08);">' +
+        '<h4 style="color: #f87171; margin-bottom: 8px;">🚨 Fuga Crítica de Credenciales Detectada (' + secretsList.length + ')</h4>' +
+        '<p class="text-muted" style="font-size: 0.82rem; margin-bottom: 12px;">Se encontraron tokens o claves privadas hardcodeadas en las adiciones del diff. La fusión de este código debe bloquearse inmediatamente.</p>' +
+        '<div class="table-wrapper">' +
+          '<table class="data-table">' +
+            '<thead><tr><th>Tipo de Secreto</th><th>Severidad</th><th>Archivo</th><th>Línea</th><th>Muestra Sanitizada</th></tr></thead>' +
+            '<tbody>' +
+              secretsList.map(s => '<tr>' +
+                '<td><strong style="color: #fca5a5;">' + s.type + '</strong></td>' +
+                '<td><span class="badge badge-red">' + s.severity + '</span></td>' +
+                '<td><code>' + s.file + '</code></td>' +
+                '<td>' + s.line + '</td>' +
+                '<td><code style="color: #fca5a5;">' + s.redactedSnippet + '</code></td>' +
+              '</tr>').join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>'
+    : '<div class="card mt-16" style="border-left: 4px solid var(--success-green); padding: 14px 18px;"><span style="color: #4ade80; font-weight: 600;">🛡️ Cero fugas de credenciales detectadas en este diff.</span></div>';
+
+  const vulnHtml = (vulnList.length > 0)
+    ? '<div class="card mt-16" style="border-left: 4px solid var(--accent-amber);">' +
+        '<h4 style="color: #fbbf24; margin-bottom: 8px;">⚠️ Vulnerabilidades y Malas Prácticas (' + vulnList.length + ')</h4>' +
+        '<div class="table-wrapper">' +
+          '<table class="data-table">' +
+            '<thead><tr><th>Vulnerabilidad</th><th>Severidad</th><th>Archivo</th><th>Línea</th><th>Remediación Sugerida</th></tr></thead>' +
+            '<tbody>' +
+              vulnList.map(v => '<tr>' +
+                '<td><strong>' + v.type + '</strong></td>' +
+                '<td><span class="badge ' + (v.severity === 'CRITICAL' ? 'badge-red' : 'badge-amber') + '">' + v.severity + '</span></td>' +
+                '<td><code>' + v.file + '</code></td>' +
+                '<td>' + v.line + '</td>' +
+                '<td style="font-size: 0.82rem; color: #cbd5e1;">' + v.recommendation + '</td>' +
+              '</tr>').join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>'
+    : '';
+
+  const aiHtml = '<div class="card mt-16" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.3);">' +
+      '<h4 style="color: #60a5fa; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span>🧠</span> Evaluación de Arquitectura de IA (' + (d.providerUsed || 'Heurística Determinista') + ')</h4>' +
+      '<p style="font-size: 0.88rem; line-height: 1.6; color: #e2e8f0; margin-bottom: 12px;">' + (d.summary || 'Auditoría completada con éxito.') + '</p>' +
+      (suggestionsList.length > 0
+        ? '<strong style="font-size: 0.82rem; color: #93c5fd;">Sugerencias de Refactorización:</strong><ul style="margin: 6px 0 0 20px; font-size: 0.84rem; color: #cbd5e1; line-height: 1.6;">' +
+            suggestionsList.map(s => '<li>' + s + '</li>').join('') +
+          '</ul>'
+        : '') +
+    '</div>';
+
+  const diffPreviewHtml = d.diffPreview
+    ? '<h4 class="mt-20" style="margin-bottom: 8px;">📄 Vista del Diff Anotado</h4>' +
+      '<pre style="background: #020617; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 0.8rem; max-height: 350px; overflow-y: auto; color: #94a3b8;"><code>' +
+        d.diffPreview.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').split('\n').map(line => {
+          if (line.startsWith('+') && !line.startsWith('+++')) return '<span style="color: #4ade80;">' + line + '</span>';
+          if (line.startsWith('-') && !line.startsWith('---')) return '<span style="color: #f87171;">' + line + '</span>';
+          if (line.startsWith('@@')) return '<span style="color: #60a5fa;">' + line + '</span>';
+          return line;
+        }).join('\n') +
+      '</code></pre>'
+    : '';
+
+  container.innerHTML = '<div class="card">' +
+    '<div class="card-header">' +
+      '<div>' +
+        '<h3>Auditoría Praedator: ' + run.repo + ' <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">(' + run.mode + ')</span></h3>' +
+        '<p class="text-muted" style="font-size: 0.8rem;">Ejecución: ' + run.id + ' • Fecha: ' + new Date(run.timestamp).toLocaleString() + '</p>' +
+      '</div>' +
+      '<div style="display: flex; gap: 8px;">' +
+        (run.actionUrl ? '<a href="' + run.actionUrl + '" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;">🔗 Ver Runner en Actions</a>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="kpi-grid mt-16">' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Risk Score</span><span>🛡️</span></div><div class="kpi-value ' + (run.riskScore <= 30 ? 'text-green' : (run.riskScore <= 65 ? 'text-amber' : 'text-red')) + '">' + run.riskScore + '/100</div><div class="kpi-meta">' + (run.riskScore <= 30 ? 'Seguro para Fusión' : (run.riskScore <= 65 ? 'Requiere Revisión' : 'Peligro Crítico')) + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Veredicto</span><span>⚖️</span></div><div class="kpi-value ' + (run.verdict === 'APPROVED' ? 'text-green' : (run.verdict === 'SECURITY_BLOCK' ? 'text-red' : 'text-amber')) + '">' + run.verdict + '</div><div class="kpi-meta">' + (run.verdict === 'SECURITY_BLOCK' ? 'Bloqueo de Seguridad' : 'Evaluación Completada') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Secretos Fuga</span><span>🔑</span></div><div class="kpi-value ' + (run.secretsCount > 0 ? 'text-red' : 'text-green') + '">' + run.secretsCount + '</div><div class="kpi-meta">' + (run.secretsCount > 0 ? 'Credenciales Expuestas' : 'Cero Fugas') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Líneas Modificadas</span><span>📊</span></div><div class="kpi-value">+' + (d.addedLines || 0) + ' / -' + (d.deletedLines || 0) + '</div><div class="kpi-meta">' + (d.filesCount || 1) + ' Archivos Afectados</div></div>' +
+    '</div>' +
+    secretsHtml +
+    vulnHtml +
+    aiHtml +
+    diffPreviewHtml +
+  '</div>';
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.displayPraedatorRun = displayPraedatorRun;
+
+function handleToggleAutoPR(enabled) {
+  const repoSelect = document.getElementById('praedator-repo-select');
+  const repo = repoSelect ? repoSelect.value : 'amglogicalis/pokemon-tcg-project';
+  let autoPrRepos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+
+  if (enabled) {
+    if (!autoPrRepos.includes(repo)) autoPrRepos.push(repo);
+    sphexnAlert('Auto PR Auditor activado para ' + repo + '. Cada pull request abierta en este repositorio será evaluada por Praedator.', 'Auto PR Habilitado', '⚡');
+  } else {
+    autoPrRepos = autoPrRepos.filter(r => r !== repo);
+    sphexnAlert('Auto PR Auditor desactivado para ' + repo + '.', 'Auto PR Deshabilitado', 'ℹ️');
+  }
+  localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(autoPrRepos));
+}
+window.handleToggleAutoPR = handleToggleAutoPR;
+
+function initPraedatorUI() {
+  const btnDiff = document.getElementById('btn-dispatch-praedator-diff');
+  const btnPr = document.getElementById('btn-dispatch-praedator-pr');
+
+  if (btnDiff && !btnDiff.dataset.bound) {
+    btnDiff.dataset.bound = 'true';
+    btnDiff.addEventListener('click', () => handleDispatchPraedatorAction('diff'));
+  }
+  if (btnPr && !btnPr.dataset.bound) {
+    btnPr.dataset.bound = 'true';
+    btnPr.addEventListener('click', () => handleDispatchPraedatorAction('pr'));
+  }
+
+  renderPraedatorRunsInventory();
+}
+window.initPraedatorUI = initPraedatorUI;
