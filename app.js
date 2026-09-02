@@ -2812,29 +2812,47 @@ function renderLucaeRunsInventory() {
 window.renderLucaeRunsInventory = renderLucaeRunsInventory;
 
 
-// Display Details & Mermaid for Specific Run
+// Display Details & Mermaid for Specific Run (Enterprise Quality)
 function displayLucaeRun(runId) {
   const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   const run = runs.find(r => r.id === runId);
   const container = document.getElementById('lucae-results-container');
   if (!run || !container) return;
 
-  const godFilesHtml = (run.godFilesDetails && run.godFilesDetails.length > 0)
+  const godFilesList = run.godFilesDetails || [];
+  const godFilesHtml = (godFilesList.length > 0)
     ? '<div class="card mt-16" style="border-left: 4px solid var(--danger-red);">' +
-        '<h4 style="margin-bottom: 8px; color: #f87171;">⚠️ God Files Detectados (' + run.godFilesDetails.length + ')</h4>' +
+        '<h4 style="margin-bottom: 8px; color: #f87171;">⚠️ God Files Detectados (' + godFilesList.length + ')</h4>' +
+        '<p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Archivos que acumulan responsabilidades excesivas (Líneas > ' + (run.threshold || 500) + ' o Complejidad Ciclomática > 45).</p>' +
         '<div class="table-wrapper">' +
           '<table class="data-table">' +
-            '<thead><tr><th>Archivo</th><th>Líneas</th><th>Complejidad Ciclomática</th><th>Función Más Compleja</th></tr></thead>' +
+            '<thead><tr><th>Archivo Monolítico</th><th>Líneas</th><th>Complejidad Total</th><th>Función / Método Crítico</th></tr></thead>' +
             '<tbody>' +
-              run.godFilesDetails.map(g => {
-                const fnStr = g.highestComplexityFunction ? (g.highestComplexityFunction.name + ' (CC ' + g.highestComplexityFunction.cyclomaticComplexity + ')') : 'N/A';
-                return '<tr><td><code>' + g.filePath + '</code></td><td><strong>' + g.lines + '</strong></td><td><span class="badge badge-amber">' + g.cyclomaticComplexityTotal + '</span></td><td><code>' + fnStr + '</code></td></tr>';
+              godFilesList.map(g => {
+                const fnName = g.topFunction || (g.highestComplexityFunction ? g.highestComplexityFunction.name : 'scopePrincipal');
+                const fnLine = g.topFunctionLine ? (' (Línea ' + g.topFunctionLine + ')') : '';
+                const fnCC = g.topFunctionCC || (g.highestComplexityFunction ? g.highestComplexityFunction.cyclomaticComplexity : g.cc);
+                return '<tr>' +
+                  '<td><code style="color: #fca5a5;">' + (g.file || g.filePath) + '</code></td>' +
+                  '<td><strong>' + g.lines + '</strong></td>' +
+                  '<td><span class="badge badge-amber">CC ' + (g.cc || g.cyclomaticComplexityTotal) + '</span></td>' +
+                  '<td><code style="color: #93c5fd;">' + fnName + fnLine + ' <span style="color: var(--text-muted);">[CC ' + fnCC + ']</span></code></td>' +
+                '</tr>';
               }).join('') +
             '</tbody>' +
           '</table>' +
         '</div>' +
       '</div>'
-    : '<div class="card mt-16" style="border-left: 4px solid var(--success-green); padding: 14px 18px;"><span style="color: #4ade80; font-weight: 600;">✅ Cero God Files detectados. La base de código respeta los principios de desacoplamiento modular de Terra.</span></div>';
+    : '<div class="card mt-16" style="border-left: 4px solid var(--success-green); padding: 16px 20px;"><span style="color: #4ade80; font-weight: 600;">✅ Cero God Files detectados. La base de código respeta los principios de desacoplamiento modular de Terra.</span></div>';
+
+  const recommendationsHtml = (run.recommendations && run.recommendations.length > 0)
+    ? '<div class="card mt-16" style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(59, 130, 246, 0.25);">' +
+        '<h4 style="margin-bottom: 10px; color: #60a5fa; display: flex; align-items: center; gap: 8px;"><span>📋</span> Recomendaciones de Modularización Sugeridas</h4>' +
+        '<ul style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1;">' +
+          run.recommendations.map(rec => '<li>' + rec + '</li>').join('') +
+        '</ul>' +
+      '</div>'
+    : '';
 
   container.innerHTML = '<div class="card">' +
     '<div class="card-header">' +
@@ -2843,16 +2861,18 @@ function displayLucaeRun(runId) {
         '<p class="text-muted" style="font-size: 0.8rem;">Ejecución: ' + run.id + ' • Modo: ' + run.mode + ' • Fecha: ' + new Date(run.timestamp).toLocaleString() + '</p>' +
       '</div>' +
       '<div style="display: flex; gap: 8px;">' +
+        (run.actionUrl ? '<a href="' + run.actionUrl + '" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;">🔗 Ver Runner en Actions</a>' : '') +
         '<button class="btn btn-secondary btn-xs" onclick="copyLucaeSummary(\'' + run.id + '\')">📋 Copiar Resumen</button>' +
       '</div>' +
     '</div>' +
     '<div class="kpi-grid mt-16">' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Health Score</span><span>🛡️</span></div><div class="kpi-value ' + (run.healthScore >= 80 ? 'text-green' : 'text-amber') + '">' + run.healthScore + '/100</div><div class="kpi-meta">' + (run.healthScore >= 80 ? 'Decoupled & Healthy' : 'Action Recommended') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Health Score</span><span>🛡️</span></div><div class="kpi-value ' + (run.healthScore >= 80 ? 'text-green' : (run.healthScore >= 50 ? 'text-amber' : 'text-red')) + '">' + run.healthScore + '/100</div><div class="kpi-meta">' + (run.healthScore >= 80 ? 'Decoupled & Healthy' : 'Action Recommended') + '</div></div>' +
       '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Archivos Analizados</span><span>📁</span></div><div class="kpi-value">' + run.totalFiles + '</div><div class="kpi-meta">' + run.totalLines + ' Líneas de Código</div></div>' +
       '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">God Files</span><span>⚠️</span></div><div class="kpi-value text-red">' + (run.godFiles ? run.godFiles.length : 0) + '</div><div class="kpi-meta">' + ((!run.godFiles || run.godFiles.length === 0) ? 'Estructura Óptima' : 'Requiere Refactor') + '</div></div>' +
       '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Complejidad Media</span><span>🌀</span></div><div class="kpi-value">' + run.avgComplexity + '</div><div class="kpi-meta">Índice Ciclomático de Ramas</div></div>' +
     '</div>' +
     godFilesHtml +
+    recommendationsHtml +
     '<h4 class="mt-24" style="margin-bottom: 8px;">🗺️ Grafo de Dependencias Interactivo (Mermaid)</h4>' +
     '<div class="mermaid-box" style="background: rgba(11, 17, 26, 0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; overflow-x: auto;">' +
       '<pre class="mermaid">' + run.mermaidDiagram + '</pre>' +
@@ -2937,9 +2957,7 @@ async function initLucaeUI() {
     });
   }
 
-  if (btnRunReal) {
-    btnRunReal.addEventListener('click', handleRunLucaeReal);
-  }
+
 
   if (btnDispatch) {
     btnDispatch.addEventListener('click', handleDispatchLucaeAction);

@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run Self-Contained Sphexn Lucae Analyzer
+      - name: Run Enterprise Sphexn Lucae Analyzer
         run: |
           node -e '
           const fs = require("fs");
@@ -49,7 +49,12 @@ jobs:
 
           const targetDir = path.join(process.cwd(), "target-code");
           const threshold = parseInt("${{ inputs.threshold }}", 10) || 500;
-          const validExts = [".ts", ".js", ".mjs", ".cjs", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp", ".cs", ".php", ".vue", ".svelte", ".rb", ".swift", ".kt", ".scala", ".sh", ".bash", ".html", ".css"];
+          const validExts = [
+            ".ts", ".js", ".mjs", ".cjs", ".jsx", ".tsx",
+            ".py", ".go", ".rs", ".java", ".c", ".cpp", ".h", ".hpp",
+            ".cs", ".php", ".vue", ".svelte", ".rb", ".swift", ".kt", ".scala",
+            ".sh", ".bash", ".html", ".css", ".scss", ".sql"
+          ];
           const excludeDirs = [".git", "node_modules", "vendor", "dist", "coverage", ".sphexn"];
 
           function scan(dir) {
@@ -70,7 +75,18 @@ jobs:
 
           function calcCC(code) {
             let cc = 1;
-            const patterns = [/\bif\s*\(/g, /\belse\s+if\s*\(/g, /\bfor\s*\(/g, /\bwhile\s*\(/g, /\bcase\s+[^:]+:/g, /\bcatch\s*\(/g, /\?\s*[^:]+\s*:/g, /&&/g, /\|\|/g, /\?\?/g];
+            const patterns = [
+              /\bif\s*\(/g,
+              /\belse\s+if\s*\(/g,
+              /\bfor\s*\(/g,
+              /\bwhile\s*\(/g,
+              /\bcase\s+[^:]+:/g,
+              /\bcatch\s*\(/g,
+              /\?\s*[^:]+\s*:/g,
+              /&&/g,
+              /\|\|/g,
+              /\?\?/g
+            ];
             for (const p of patterns) {
               const m = code.match(p);
               if (m) cc += m.length;
@@ -78,9 +94,44 @@ jobs:
             return cc;
           }
 
+          function extractFunctions(code) {
+            const funcs = [];
+            const lines = code.split("\n");
+            const fnRegex = /(?:function\s+([a-zA-Z0-9_$]+)|const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?\((.*?)\)\s*=>|def\s+([a-zA-Z0-9_]+)\((.*?)\)|(?:public|private|async|static)?\s*([a-zA-Z0-9_$]+)\s*\([^)]*\)\s*\{)/g;
+            let match;
+            while ((match = fnRegex.exec(code)) !== null) {
+              const name = match[1] || match[2] || match[4] || match[6];
+              if (!name || ["if", "for", "while", "switch", "catch", "return"].includes(name)) continue;
+              const beforeStr = code.substring(0, match.index);
+              const lineNum = beforeStr.split("\n").length;
+              const block = lines.slice(lineNum - 1, lineNum + 45).join("\n");
+              const cc = calcCC(block);
+              funcs.push({ name, line: lineNum, cc });
+            }
+            return funcs;
+          }
+
+          function extractImports(code) {
+            const imports = [];
+            const regexes = [
+              /import\s+(?:\{[^}]+\}|\*\s+as\s+[a-zA-Z0-9_$]+|[a-zA-Z0-9_$]+)?\s*from\s+['"]([^'"]+)['"]/g,
+              /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+            ];
+            for (const r of regexes) {
+              let m;
+              while ((m = r.exec(code)) !== null) {
+                if (m[1] && !m[1].startsWith("node:") && !["react", "express", "dotenv", "cors"].includes(m[1])) {
+                  imports.push(m[1]);
+                }
+              }
+            }
+            return imports;
+          }
+
           let totalLines = 0;
           let godFiles = [];
           let results = [];
+          let allEdges = [];
 
           for (const f of files.slice(0, 50)) {
             try {
@@ -89,24 +140,68 @@ jobs:
               totalLines += lines;
               const cc = calcCC(content);
               const rel = path.relative(targetDir, f).replace(/\\/g, "/");
-              const isGod = lines > threshold || cc > 45;
-              if (isGod) godFiles.push({ file: rel, lines, cc });
-              results.push({ file: rel, lines, cc, isGod });
+
+              const fns = extractFunctions(content);
+              const topFn = fns.length > 0
+                ? fns.reduce((p, c) => c.cc > p.cc ? c : p, fns[0])
+                : { name: "mainScope", line: 1, cc };
+
+              const imports = extractImports(content);
+              for (const imp of imports) {
+                allEdges.push({ from: rel, to: imp });
+              }
+
+              // Professional God File Criterion: > threshold OR (> 250 lines AND CC > 45)
+              const isGod = lines > threshold || (lines >= 250 && cc > 45);
+              if (isGod) {
+                godFiles.push({
+                  file: rel,
+                  lines,
+                  cc,
+                  topFunction: topFn.name,
+                  topFunctionLine: topFn.line,
+                  topFunctionCC: topFn.cc
+                });
+              }
+
+              results.push({
+                file: rel,
+                lines,
+                cc,
+                isGod,
+                topFunction: topFn.name,
+                topFunctionLine: topFn.line,
+                topFunctionCC: topFn.cc,
+                imports
+              });
             } catch (e) {}
           }
 
           const avgCC = results.length > 0 ? Number((results.reduce((a, b) => a + b.cc, 0) / results.length).toFixed(1)) : 0;
-          let score = 100 - Math.min(35, godFiles.length * 9);
+          let score = 100 - Math.min(40, godFiles.length * 8);
           if (avgCC > 25) score -= 15; else if (avgCC > 15) score -= 8;
           score = Math.max(10, Math.min(100, Math.round(score)));
 
+          // Generate tailored recommendations
+          const recommendations = [];
+          for (const gf of godFiles.slice(0, 4)) {
+            const base = gf.file.split("/").pop();
+            if (gf.lines > 800) {
+              recommendations.push("Extraer subcomponentes y hooks de " + base + " (" + gf.lines + " líneas) para reducir peso visual y desacoplar lógica.");
+            } else if (gf.cc > 50) {
+              recommendations.push("Simplificar bifurcaciones en " + base + " (Complejidad: " + gf.cc + ") dividiendo en servicios auxiliares.");
+            } else {
+              recommendations.push("Modularizar " + base + " (" + gf.lines + " líneas, CC " + gf.cc + ") siguiendo el principio de responsabilidad única.");
+            }
+          }
+
           console.log("=========================================");
-          console.log("=== SPHEXN LUCAE ARCHITECTURAL REPORT ===");
+          console.log("=== SPHEXN LUCAE ENTERPRISE ARCHITECTURAL REPORT ===");
           console.log("Repo: ${{ inputs.repo }} (@${{ inputs.branch }})");
           console.log("Health Score: " + score + "/100");
-          console.log("Files Analizados: " + results.length + " (" + totalLines + " lines)");
-          console.log("Complejidad Media: " + avgCC);
-          console.log("God Files (" + godFiles.length + "): " + (godFiles.map(g => g.file + " [" + g.lines + " lines, CC " + g.cc + "]").join(", ") || "None"));
+          console.log("Archivos Analizados: " + results.length + " (" + totalLines + " líneas)");
+          console.log("Complejidad Ciclomática Media: " + avgCC);
+          console.log("God Files Detectados: " + godFiles.length);
           console.log("=========================================");
 
           const outDir = path.join(process.cwd(), "audits", "lucae");
@@ -121,6 +216,9 @@ jobs:
             totalLines,
             avgCC,
             godFiles,
+            recommendations,
+            files: results.slice(0, 25),
+            edges: allEdges.slice(0, 40),
             timestamp: new Date().toISOString()
           }, null, 2));
           console.log("✔ Audit saved to " + auditFile);
