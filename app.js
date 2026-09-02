@@ -1968,89 +1968,10 @@ function setupSpeciesButtons() {
 // ─── SPHEXN LUCAE REAL IMPLEMENTATION & ACTIONS RUNS INVENTORY ───────────────
 
 let lucaeInitialized = false;
+let allUserReposCache = [];
+let allRepoBranchesCache = [];
 
-window.initLucaeUI = initLucaeUI;
-window.loadLucaeRepositories = loadLucaeRepositories;
-window.loadLucaeBranches = loadLucaeBranches;
-async function initLucaeUI() {
-  if (lucaeInitialized) return;
-  lucaeInitialized = true;
-
-  const repoSelect = document.getElementById('lucae-repo-select');
-  const repoCustom = document.getElementById('lucae-repo-custom');
-  const btnToggleCustom = document.getElementById('btn-toggle-custom-repo');
-  const btnRefreshRepos = document.getElementById('btn-refresh-repos');
-  const branchSelect = document.getElementById('lucae-branch-select');
-  const btnRunReal = document.getElementById('btn-run-lucae-real');
-  const btnDispatch = document.getElementById('btn-dispatch-lucae-action');
-  const btnRefreshRuns = document.getElementById('btn-refresh-lucae-runs');
-  const btnClearRuns = document.getElementById('btn-clear-lucae-runs');
-
-  // Toggle Custom Repo Input
-  if (btnToggleCustom && repoSelect && repoCustom) {
-    btnToggleCustom.addEventListener('click', () => {
-      const isCustom = repoCustom.style.display !== 'none';
-      if (isCustom) {
-        repoCustom.style.display = 'none';
-        repoSelect.style.display = 'block';
-        btnToggleCustom.textContent = 'Manual';
-      } else {
-        repoCustom.style.display = 'block';
-        repoSelect.style.display = 'none';
-        btnToggleCustom.textContent = 'Lista';
-      }
-    });
-  }
-
-  // Refresh Repositories Button
-  if (btnRefreshRepos) {
-    btnRefreshRepos.addEventListener('click', () => loadLucaeRepositories(true));
-  }
-
-  // Change Repo -> reload branches
-  if (repoSelect) {
-    repoSelect.addEventListener('change', () => {
-      const repo = repoSelect.value;
-      if (repo) loadLucaeBranches(repo);
-    });
-  }
-
-  // Real AST Analysis
-  if (btnRunReal) {
-    btnRunReal.addEventListener('click', handleRunLucaeReal);
-  }
-
-  // Dispatch GitHub Action
-  if (btnDispatch) {
-    btnDispatch.addEventListener('click', handleDispatchLucaeAction);
-  }
-
-  // Runs Inventory refresh & clear
-  if (btnRefreshRuns) {
-    btnRefreshRuns.addEventListener('click', renderLucaeRunsInventory);
-  }
-  if (btnClearRuns) {
-    btnClearRuns.addEventListener('click', async () => {
-      const ok = await sphexnConfirm('¿Deseas vaciar el historial de ejecuciones de Lucae?', 'Limpiar Inventario', true, 'Vaciar');
-      if (ok) {
-        localStorage.removeItem('sphexn_lucae_runs');
-        renderLucaeRunsInventory();
-        const resContainer = document.getElementById('lucae-results-container');
-        if (resContainer) {
-          resContainer.innerHTML = '<div class="placeholder-box"><span class="large-icon">🔍</span><p>Inventario limpio. Ejecuta un análisis arriba para ver resultados.</p></div>';
-        }
-      }
-    });
-  }
-
-  // Initial load
-  loadLucaeRepositories();
-  renderLucaeRunsInventory();
-}
-
-
-// ─── UTF-8 BASE64 DECODER FOR GITHUB BLOBS ───────────────────────────────────
-
+// UTF-8 Base64 Decoder for GitHub Git Blobs
 function decodeBase64Utf8(base64Str) {
   try {
     const cleanBase64 = (base64Str || '').replace(/\s/g, '');
@@ -2068,10 +1989,118 @@ function decodeBase64Utf8(base64Str) {
     }
   }
 }
+window.decodeBase64Utf8 = decodeBase64Utf8;
 
-let allUserReposCache = [];
-let allRepoBranchesCache = [];
+// Deterministic Cyclomatic Complexity Calculator
+function calculateCodeCyclomaticComplexity(code) {
+  let cc = 1;
+  const patterns = [
+    /\bif\s*\(/g,
+    /\belse\s+if\s*\(/g,
+    /\bfor\s*\(/g,
+    /\bwhile\s*\(/g,
+    /\bcase\s+[^:]+:/g,
+    /\bcatch\s*\(/g,
+    /\?\s*[^:]+\s*:/g,
+    /&&/g,
+    /\|\|/g,
+    /\?\?/g
+  ];
+  for (const p of patterns) {
+    const m = code.match(p);
+    if (m) cc += m.length;
+  }
+  return cc;
+}
+window.calculateCodeCyclomaticComplexity = calculateCodeCyclomaticComplexity;
 
+// AST Functions Extractor
+function extractCodeFunctions(code) {
+  const funcs = [];
+  const lines = code.split('\n');
+  const fnRegex = /(?:function\s+([a-zA-Z0-9_$]+)|const\s+([a-zA-Z0-9_$]+)s*=\s*(?:async\s*)?\((.*?)\)\s*=>|def\s+([a-zA-Z0-9_]+)\((.*?)\)|func\s+(?:\([^)]+\)\s*)?([a-zA-Z0-9_]+)\((.*?)\))/g;
+  let match;
+  while ((match = fnRegex.exec(code)) !== null) {
+    const name = match[1] || match[2] || match[4] || match[6] || 'anonymous';
+    const beforeStr = code.substring(0, match.index);
+    const lineNum = beforeStr.split('\n').length;
+    const block = lines.slice(lineNum - 1, lineNum + 35).join('\n');
+    const cc = calculateCodeCyclomaticComplexity(block);
+    funcs.push({
+      name,
+      line: lineNum,
+      cyclomaticComplexity: Math.min(cc, 35)
+    });
+  }
+  return funcs.slice(0, 30);
+}
+window.extractCodeFunctions = extractCodeFunctions;
+
+// AST Imports Extractor
+function extractCodeImports(code) {
+  const imports = new Set();
+  const regexes = [
+    /import\s+.*?from\s+['"]([^'"]+)['"]/g,
+    /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /from\s+([a-zA-Z0-9_.]+)\s+import/g
+  ];
+  for (const r of regexes) {
+    let m;
+    while ((m = r.exec(code)) !== null) {
+      if (m[1]) imports.add(m[1]);
+    }
+  }
+  return Array.from(imports);
+}
+window.extractCodeImports = extractCodeImports;
+
+// Mermaid Topology Graph Generator
+function generateMermaidDiagram(files, edges) {
+  const lines = ['graph TD'];
+  const nodesMap = new Map();
+
+  const sanitizeId = (pathStr) => {
+    if (!nodesMap.has(pathStr)) {
+      nodesMap.set(pathStr, 'n' + (nodesMap.size + 1));
+    }
+    return nodesMap.get(pathStr);
+  };
+
+  for (const f of files.slice(0, 25)) {
+    const id = sanitizeId(f.filePath);
+    const baseName = f.filePath.split('/').pop();
+    const styleClass = f.isGodFile ? ':::godFile' : '';
+    lines.push('  ' + id + '["' + baseName + '"]' + styleClass);
+  }
+
+  for (const e of edges.slice(0, 40)) {
+    const fromId = sanitizeId(e.from);
+    const toBase = e.to.split('/').pop().replace(/\.[^/.]+$/, '');
+    const matched = files.find(f => f.filePath.includes(toBase));
+    if (matched) {
+      const toId = sanitizeId(matched.filePath);
+      lines.push('  ' + fromId + ' --> ' + toId);
+    }
+  }
+
+  lines.push('  classDef godFile fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff;');
+  return lines.join('\n');
+}
+window.generateMermaidDiagram = generateMermaidDiagram;
+
+// Target Parameter Extractor
+function getSelectedLucaeTarget() {
+  const repoSelect = document.getElementById('lucae-repo-select');
+  const repoCustom = document.getElementById('lucae-repo-custom');
+  const isCustom = repoCustom && repoCustom.style.display !== 'none';
+  const repo = (isCustom ? repoCustom.value.trim() : (repoSelect ? repoSelect.value : '')) || 'amglogicalis/Sphexn';
+  const branch = document.getElementById('lucae-branch-select')?.value || 'main';
+  const threshold = parseInt(document.getElementById('lucae-threshold')?.value || '500', 10);
+  return { repo, branch, threshold };
+}
+window.getSelectedLucaeTarget = getSelectedLucaeTarget;
+
+// Repositories Loader via GitHub API
 async function loadLucaeRepositories(force = false) {
   const repoSelect = document.getElementById('lucae-repo-select');
   const searchInput = document.getElementById('lucae-repo-search');
@@ -2110,7 +2139,6 @@ async function loadLucaeRepositories(force = false) {
     allUserReposCache = repos;
     populateReposSelect(repos);
 
-    // Filter listener
     if (searchInput && !searchInput.dataset.listening) {
       searchInput.dataset.listening = 'true';
       searchInput.addEventListener('input', () => {
@@ -2128,6 +2156,7 @@ async function loadLucaeRepositories(force = false) {
     repoSelect.innerHTML = '<option value="">Error consultando GitHub API: ' + err.message + '</option>';
   }
 }
+window.loadLucaeRepositories = loadLucaeRepositories;
 
 function populateReposSelect(repos) {
   const repoSelect = document.getElementById('lucae-repo-select');
@@ -2151,7 +2180,9 @@ function populateReposSelect(repos) {
     if (preferred) repoSelect.value = preferred.full_name;
   }
 }
+window.populateReposSelect = populateReposSelect;
 
+// Branches Loader via GitHub API
 async function loadLucaeBranches(repoFullName) {
   const branchSelect = document.getElementById('lucae-branch-select');
   const searchBranch = document.getElementById('lucae-branch-search');
@@ -2184,7 +2215,6 @@ async function loadLucaeBranches(repoFullName) {
     allRepoBranchesCache = branches;
     populateBranchesSelect(branches);
 
-    // Branch search listener
     if (searchBranch && !searchBranch.dataset.listening) {
       searchBranch.dataset.listening = 'true';
       searchBranch.addEventListener('input', () => {
@@ -2198,6 +2228,7 @@ async function loadLucaeBranches(repoFullName) {
     branchSelect.innerHTML = '<option value="main">main (fallback: ' + err.message + ')</option>';
   }
 }
+window.loadLucaeBranches = loadLucaeBranches;
 
 function populateBranchesSelect(branches) {
   const branchSelect = document.getElementById('lucae-branch-select');
@@ -2215,20 +2246,9 @@ function populateBranchesSelect(branches) {
     branchSelect.value = defaultBranch.name;
   }
 }
+window.populateBranchesSelect = populateBranchesSelect;
 
-function getSelectedLucaeTarget() {
-  const repoSelect = document.getElementById('lucae-repo-select');
-  const repoCustom = document.getElementById('lucae-repo-custom');
-  const isCustom = repoCustom && repoCustom.style.display !== 'none';
-  const repo = (isCustom ? repoCustom.value.trim() : (repoSelect ? repoSelect.value : '')) || 'amglogicalis/Sphexn';
-  const branch = document.getElementById('lucae-branch-select')?.value || 'main';
-  const threshold = parseInt(document.getElementById('lucae-threshold')?.value || '500', 10);
-  return { repo, branch, threshold };
-}
-window.getSelectedLucaeTarget = getSelectedLucaeTarget;
-
-// ─── REAL AST EXECUTION (VIA GITHUB API BLOBS WITH CORS & AUTH) ──────────────
-
+// Real AST Execution Handler
 async function handleRunLucaeReal() {
   const { repo, branch, threshold } = getSelectedLucaeTarget();
   const btnRun = document.getElementById('btn-run-lucae-real');
@@ -2274,7 +2294,6 @@ async function handleRunLucaeReal() {
       throw new Error('No se encontraron archivos de código fuente (.ts, .js, etc.) en ' + repo + ' (' + branch + ')');
     }
 
-    // Process top 30 source files
     const targetFiles = codeFiles.slice(0, 30);
     const filesComplexity = [];
     const allEdges = [];
@@ -2283,7 +2302,6 @@ async function handleRunLucaeReal() {
     for (const tf of targetFiles) {
       try {
         let content = '';
-        // Use GitHub Blobs API directly (always works with auth and CORS on private repos)
         const blobUrl = tf.url || ('https://api.github.com/repos/' + repo + '/git/blobs/' + tf.sha);
         const blobRes = await fetch(blobUrl, { headers });
         if (blobRes.ok) {
@@ -2338,7 +2356,6 @@ async function handleRunLucaeReal() {
       ? Number((filesComplexity.reduce((acc, f) => acc + f.cyclomaticComplexityTotal, 0) / filesComplexity.length).toFixed(1))
       : 0;
 
-    // Calculate Health Score (0 - 100)
     let healthScore = 100;
     healthScore -= Math.min(35, godFiles.length * 9);
     if (avgRepoCC > 25) healthScore -= 15;
@@ -2348,7 +2365,6 @@ async function handleRunLucaeReal() {
     const mermaidDiagram = generateMermaidDiagram(filesComplexity, allEdges);
     const durationMs = Date.now() - startTime;
 
-    // Build Run Object
     const run = {
       id: 'lucae_' + Date.now().toString(36),
       repo,
@@ -2367,16 +2383,13 @@ async function handleRunLucaeReal() {
       mermaidDiagram
     };
 
-    // Save to localStorage
     const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
     runs.unshift(run);
     localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs.slice(0, 50)));
 
-    // Update Telemetry & KPI on Dashboard
     const kpiHealth = document.getElementById('kpi-health');
     if (kpiHealth) kpiHealth.textContent = healthScore + '/100';
 
-    // Render in UI
     renderLucaeRunsInventory();
     displayLucaeRun(run.id);
 
@@ -2393,9 +2406,9 @@ async function handleRunLucaeReal() {
     if (spinner) spinner.style.display = 'none';
   }
 }
+window.handleRunLucaeReal = handleRunLucaeReal;
 
-// ─── DISPATCH SPECIE IN GITHUB ACTIONS RUNNER (UNIVERSAL ORCHESTRATOR) ────────
-
+// Dispatch Specie in GitHub Actions Handler
 async function handleDispatchLucaeAction() {
   const { repo, branch, threshold } = getSelectedLucaeTarget();
   const btnDispatch = document.getElementById('btn-dispatch-lucae-action');
@@ -2427,7 +2440,6 @@ async function handleDispatchLucaeAction() {
       'Content-Type': 'application/json'
     };
 
-    // First check if target repo has sphexn-lucae.yml
     let dispatchRepo = repo;
     let dispatchInputs = {
       branch,
@@ -2437,7 +2449,6 @@ async function handleDispatchLucaeAction() {
     const checkWorkflow = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/sphexn-lucae.yml', { headers });
     
     if (!checkWorkflow.ok) {
-      // If target repo doesn't have the workflow file, dispatch to Sphexn central orchestrator passing target repo!
       dispatchRepo = 'amglogicalis/Sphexn';
       dispatchInputs = {
         repo: repo,
@@ -2502,9 +2513,9 @@ async function handleDispatchLucaeAction() {
     }
   }
 }
+window.handleDispatchLucaeAction = handleDispatchLucaeAction;
 
-// ─── INVENTORY WITH INDIVIDUAL DELETE BUTTONS ────────────────────────────────
-
+// Runs Inventory Renderer
 function renderLucaeRunsInventory() {
   const tbody = document.getElementById('lucae-runs-tbody');
   if (!tbody) return;
@@ -2547,29 +2558,162 @@ function renderLucaeRunsInventory() {
     '</tr>';
   }).join('');
 }
+window.renderLucaeRunsInventory = renderLucaeRunsInventory;
 
-window.deleteLucaeRun = function(runId) {
+// Display Details & Mermaid for Specific Run
+function displayLucaeRun(runId) {
+  const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
+  const run = runs.find(r => r.id === runId);
+  const container = document.getElementById('lucae-results-container');
+  if (!run || !container) return;
+
+  const godFilesHtml = (run.godFilesDetails && run.godFilesDetails.length > 0)
+    ? '<div class="card mt-16" style="border-left: 4px solid var(--danger-red);">' +
+        '<h4 style="margin-bottom: 8px; color: #f87171;">⚠️ God Files Detectados (' + run.godFilesDetails.length + ')</h4>' +
+        '<div class="table-wrapper">' +
+          '<table class="data-table">' +
+            '<thead><tr><th>Archivo</th><th>Líneas</th><th>Complejidad Ciclomática</th><th>Función Más Compleja</th></tr></thead>' +
+            '<tbody>' +
+              run.godFilesDetails.map(g => {
+                const fnStr = g.highestComplexityFunction ? (g.highestComplexityFunction.name + ' (CC ' + g.highestComplexityFunction.cyclomaticComplexity + ')') : 'N/A';
+                return '<tr><td><code>' + g.filePath + '</code></td><td><strong>' + g.lines + '</strong></td><td><span class="badge badge-amber">' + g.cyclomaticComplexityTotal + '</span></td><td><code>' + fnStr + '</code></td></tr>';
+              }).join('') +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>'
+    : '<div class="card mt-16" style="border-left: 4px solid var(--success-green); padding: 14px 18px;"><span style="color: #4ade80; font-weight: 600;">✅ Cero God Files detectados. La base de código respeta los principios de desacoplamiento modular de Terra.</span></div>';
+
+  container.innerHTML = '<div class="card">' +
+    '<div class="card-header">' +
+      '<div>' +
+        '<h3>Informe Arquitectónico: ' + run.repo + ' <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">(Rama: ' + run.branch + ')</span></h3>' +
+        '<p class="text-muted" style="font-size: 0.8rem;">Ejecución: ' + run.id + ' • Modo: ' + run.mode + ' • Fecha: ' + new Date(run.timestamp).toLocaleString() + '</p>' +
+      '</div>' +
+      '<div style="display: flex; gap: 8px;">' +
+        '<button class="btn btn-secondary btn-xs" onclick="copyLucaeSummary(\'' + run.id + '\')">📋 Copiar Resumen</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="kpi-grid mt-16">' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Health Score</span><span>🛡️</span></div><div class="kpi-value ' + (run.healthScore >= 80 ? 'text-green' : 'text-amber') + '">' + run.healthScore + '/100</div><div class="kpi-meta">' + (run.healthScore >= 80 ? 'Decoupled & Healthy' : 'Action Recommended') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Archivos Analizados</span><span>📁</span></div><div class="kpi-value">' + run.totalFiles + '</div><div class="kpi-meta">' + run.totalLines + ' Líneas de Código</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">God Files</span><span>⚠️</span></div><div class="kpi-value text-red">' + (run.godFiles ? run.godFiles.length : 0) + '</div><div class="kpi-meta">' + ((!run.godFiles || run.godFiles.length === 0) ? 'Estructura Óptima' : 'Requiere Refactor') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Complejidad Media</span><span>🌀</span></div><div class="kpi-value">' + run.avgComplexity + '</div><div class="kpi-meta">Índice Ciclomático de Ramas</div></div>' +
+    '</div>' +
+    godFilesHtml +
+    '<h4 class="mt-24" style="margin-bottom: 8px;">🗺️ Grafo de Dependencias Interactivo (Mermaid)</h4>' +
+    '<div class="mermaid-box" style="background: rgba(11, 17, 26, 0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; overflow-x: auto;">' +
+      '<pre class="mermaid">' + run.mermaidDiagram + '</pre>' +
+    '</div>' +
+  '</div>';
+
+  if (window.mermaid) {
+    try {
+      window.mermaid.run();
+    } catch (e) {
+      console.warn('Mermaid render error:', e);
+    }
+  }
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.displayLucaeRun = displayLucaeRun;
+
+// Delete Run
+function deleteLucaeRun(runId) {
   let runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   runs = runs.filter(r => r.id !== runId);
   localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs));
   renderLucaeRunsInventory();
-};
+}
+window.deleteLucaeRun = deleteLucaeRun;
 
-
-window.copyLucaeSummary = function(runId) {
+// Copy Summary
+function copyLucaeSummary(runId) {
   const runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   const run = runs.find(r => r.id === runId);
   if (!run) return;
-  const summary = `# Sphexn Lucae Architectural Report
-Repo: ${run.repo} @ ${run.branch}
-Health Score: ${run.healthScore}/100
-Total Files: ${run.totalFiles} (${run.totalLines} lines)
-Avg Cyclomatic Complexity: ${run.avgComplexity}
-God Files (${run.godFiles ? run.godFiles.length : 0}): ${(run.godFiles || []).join(', ') || 'None'}
-Generated via SPHEXN ($0 Infrastructure)`;
+  const summary = '# Sphexn Lucae Architectural Report\n' +
+    'Repo: ' + run.repo + ' @ ' + run.branch + '\n' +
+    'Health Score: ' + run.healthScore + '/100\n' +
+    'Total Files: ' + run.totalFiles + ' (' + run.totalLines + ' lines)\n' +
+    'Avg Cyclomatic Complexity: ' + run.avgComplexity + '\n' +
+    'God Files (' + (run.godFiles ? run.godFiles.length : 0) + '): ' + ((run.godFiles || []).join(', ') || 'None') + '\n' +
+    'Generated via SPHEXN ($0 Infrastructure)';
   navigator.clipboard.writeText(summary);
   sphexnAlert('Resumen copiado al portapapeles.', 'Copiado', '📋');
-};
+}
+window.copyLucaeSummary = copyLucaeSummary;
+
+// Lucae UI Initializer
+async function initLucaeUI() {
+  if (lucaeInitialized) return;
+  lucaeInitialized = true;
+
+  const repoSelect = document.getElementById('lucae-repo-select');
+  const repoCustom = document.getElementById('lucae-repo-custom');
+  const btnToggleCustom = document.getElementById('btn-toggle-custom-repo');
+  const btnRefreshRepos = document.getElementById('btn-refresh-repos');
+  const btnRunReal = document.getElementById('btn-run-lucae-real');
+  const btnDispatch = document.getElementById('btn-dispatch-lucae-action');
+  const btnRefreshRuns = document.getElementById('btn-refresh-lucae-runs');
+  const btnClearRuns = document.getElementById('btn-clear-lucae-runs');
+
+  if (btnToggleCustom && repoSelect && repoCustom) {
+    btnToggleCustom.addEventListener('click', () => {
+      const isCustom = repoCustom.style.display !== 'none';
+      if (isCustom) {
+        repoCustom.style.display = 'none';
+        repoSelect.style.display = 'block';
+        btnToggleCustom.textContent = 'Manual';
+      } else {
+        repoCustom.style.display = 'block';
+        repoSelect.style.display = 'none';
+        btnToggleCustom.textContent = 'Lista';
+      }
+    });
+  }
+
+  if (btnRefreshRepos) {
+    btnRefreshRepos.addEventListener('click', () => loadLucaeRepositories(true));
+  }
+
+  if (repoSelect) {
+    repoSelect.addEventListener('change', () => {
+      const repo = repoSelect.value;
+      if (repo) loadLucaeBranches(repo);
+    });
+  }
+
+  if (btnRunReal) {
+    btnRunReal.addEventListener('click', handleRunLucaeReal);
+  }
+
+  if (btnDispatch) {
+    btnDispatch.addEventListener('click', handleDispatchLucaeAction);
+  }
+
+  if (btnRefreshRuns) {
+    btnRefreshRuns.addEventListener('click', renderLucaeRunsInventory);
+  }
+  if (btnClearRuns) {
+    btnClearRuns.addEventListener('click', async () => {
+      const ok = await sphexnConfirm('¿Deseas vaciar el historial de ejecuciones de Lucae?', 'Limpiar Inventario', true, 'Vaciar');
+      if (ok) {
+        localStorage.removeItem('sphexn_lucae_runs');
+        renderLucaeRunsInventory();
+        const resContainer = document.getElementById('lucae-results-container');
+        if (resContainer) {
+          resContainer.innerHTML = '<div class="placeholder-box"><span class="large-icon">🔍</span><p>Inventario limpio. Ejecuta un análisis arriba para ver resultados.</p></div>';
+        }
+      }
+    });
+  }
+
+  loadLucaeRepositories();
+  renderLucaeRunsInventory();
+}
+window.initLucaeUI = initLucaeUI;
 
   // 2. PRAEDATOR HANDLER
   const btnPraedator = document.getElementById('btn-run-praedator');
