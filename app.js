@@ -1,4 +1,15 @@
 
+function getGitHubUser() {
+  const userElem = document.getElementById('user-display') || document.getElementById('user-name') || document.querySelector('.user-name');
+  let name = (userElem ? userElem.textContent : '').replace('@', '').trim();
+  if (!name || name === 'user' || name === '') {
+    name = sessionStorage.getItem('sphexn_gh_user') || localStorage.getItem('sphexn_gh_user') || 'amglogicalis';
+  }
+  return name;
+}
+window.getGitHubUser = getGitHubUser;
+
+
 function getGitHubToken() {
   return sessionStorage.getItem('sphexn_gh_token') || 
          sessionStorage.getItem('sphexn_pat') || 
@@ -245,6 +256,8 @@ async function authenticate(token) {
 
     // Persist in session
     sessionStorage.setItem('sphexn_gh_token', token);
+    sessionStorage.setItem('sphexn_gh_user', userData.login);
+    localStorage.setItem('sphexn_gh_user', userData.login);
 
     // Update UI profile
     if (userDisplay) userDisplay.textContent = `@${userData.login}`;
@@ -321,6 +334,7 @@ function switchTab(tabId) {
   if (tabId === 'lucae') {
     if (typeof window.initLucaeUI === 'function') window.initLucaeUI();
     if (typeof window.loadLucaeRepositories === 'function') window.loadLucaeRepositories();
+    if (typeof window.syncLucaeRunsWithGitHub === 'function') window.syncLucaeRunsWithGitHub();
   }
   if (tabId === 'providers') {
     loadKeyPools();
@@ -2462,8 +2476,7 @@ async function handleDispatchLucaeAction() {
     const checkWorkflow = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/sphexn-lucae.yml', { headers });
     
     if (!checkWorkflow.ok) {
-      const userDisplay = document.getElementById('user-name');
-      const currentUser = (userDisplay ? userDisplay.textContent : '').replace('@', '').trim() || repo.split('/')[0];
+      const currentUser = getGitHubUser() || repo.split('/')[0];
       dispatchRepo = currentUser + '/.sphexn-storage';
     }
 
@@ -2709,30 +2722,43 @@ window.pollLucaeActionStatus = pollLucaeActionStatus;
 
 // Actively Sync Local Inventory with Vault and GitHub Actions Runs (Universal Sync)
 async function syncLucaeRunsWithGitHub() {
+  console.log('🔄 Iniciando sincronización de ejecuciones con el Vault...');
+  const btnRefresh = document.getElementById('btn-refresh-lucae-runs');
+  if (btnRefresh) {
+    btnRefresh.textContent = '🔄 Sincronizando...';
+    btnRefresh.disabled = true;
+  }
+
   const token = getGitHubToken();
   const statusPill = document.getElementById('lucae-status-text');
-  if (statusPill) statusPill.textContent = 'Sincronizando inventario con .sphexn-storage...';
+  const currentUser = getGitHubUser();
+  const vaultRepo = currentUser + '/.sphexn-storage';
+
+  console.log('👤 Usuario detectado:', currentUser, '| Bóveda target:', vaultRepo);
+  if (statusPill) statusPill.textContent = 'Sincronizando con ' + vaultRepo + '...';
 
   try {
-    const userDisplay = document.getElementById('user-name');
-    const currentUser = (userDisplay ? userDisplay.textContent : '').replace('@', '').trim();
-    if (!token || !currentUser) {
+    if (!token) {
+      console.warn('No hay token de GitHub en sesión.');
       renderLucaeRunsInventory();
       return;
     }
 
-    const vaultRepo = currentUser + '/.sphexn-storage';
     const headers = {
       'Accept': 'application/vnd.github.v3+json',
       'Authorization': 'Bearer ' + token
     };
 
     // 1. Fetch all audit files from .sphexn-storage/audits/lucae
+    console.log('Fetching audits from https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main');
     const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main', { headers });
     let auditFiles = [];
     if (auditsRes.ok) {
       const aData = await auditsRes.json();
       if (Array.isArray(aData)) auditFiles = aData;
+      console.log('Encontrados ' + auditFiles.length + ' archivos de auditoría en el vault.');
+    } else {
+      console.warn('No se pudo acceder a audits/lucae:', auditsRes.status);
     }
 
     // 2. Fetch all workflow runs from vault
@@ -2741,6 +2767,7 @@ async function syncLucaeRunsWithGitHub() {
     if (runsRes.ok) {
       const rData = await runsRes.json();
       if (Array.isArray(rData.workflow_runs)) ghRuns = rData.workflow_runs;
+      console.log('Encontradas ' + ghRuns.length + ' ejecuciones de Actions en el vault.');
     }
 
     const existingLocal = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
@@ -2766,7 +2793,7 @@ async function syncLucaeRunsWithGitHub() {
           mode: '🚀 GitHub Actions (.sphexn-storage)',
           status: matchingGh ? (matchingGh.conclusion === 'success' ? 'completed' : matchingGh.conclusion) : 'completed',
           timestamp: auditData.timestamp,
-          actionUrl: matchingGh ? matchingGh.html_url : null
+          actionUrl: matchingGh ? matchingGh.html_url : ('https://github.com/' + vaultRepo + '/actions')
         };
 
         applyAuditDataToRun(newRun, auditData, newRun.repo, newRun.branch);
@@ -2796,10 +2823,16 @@ async function syncLucaeRunsWithGitHub() {
       displayLucaeRun(syncedRuns[0].id);
     }
 
-    if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' ejecuciones en vault)';
+    if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' auditorías en vault)';
+    console.log('✅ Sincronización completa. Registros en tabla:', syncedRuns.length);
   } catch (err) {
-    console.warn('Error syncing runs with vault:', err);
+    console.error('Error syncing runs with vault:', err);
     renderLucaeRunsInventory();
+  } finally {
+    if (btnRefresh) {
+      btnRefresh.textContent = '🔄 Actualizar';
+      btnRefresh.disabled = false;
+    }
   }
 }
 window.syncLucaeRunsWithGitHub = syncLucaeRunsWithGitHub;

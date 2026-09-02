@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260902_11">
+  <link rel="stylesheet" href="style.css?v=20260902_12">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -316,7 +316,7 @@
                   <p class="text-muted" style="font-size: 0.8rem;">Registro de auditorías. Haz clic en cualquier ejecución para cargar su informe y grafo de arquitectura.</p>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                  <button class="btn btn-secondary btn-xs" id="btn-refresh-lucae-runs">🔄 Actualizar</button>
+                  <button class="btn btn-secondary btn-xs" id="btn-refresh-lucae-runs" onclick="syncLucaeRunsWithGitHub()">🔄 Actualizar</button>
                   <button class="btn btn-danger btn-xs" id="btn-clear-lucae-runs">🗑️ Limpiar</button>
                 </div>
               </div>
@@ -743,6 +743,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260902_11"></script>
+  <script src="app.js?v=20260902_12"></script>
 </body>
 </html>
