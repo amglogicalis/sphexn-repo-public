@@ -2143,6 +2143,38 @@ function getSelectedLucaeTarget() {
 }
 window.getSelectedLucaeTarget = getSelectedLucaeTarget;
 
+// Universal Unified Repositories Fetcher (Single Source of Truth)
+async function getOrFetchAllUserRepos(force = false) {
+  if (!force && Array.isArray(allUserReposCache) && allUserReposCache.length > 0) {
+    return allUserReposCache;
+  }
+
+  const token = getGitHubToken();
+  if (!token) {
+    console.warn('getOrFetchAllUserRepos: no token found');
+    return [];
+  }
+
+  try {
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': 'Bearer ' + token
+    };
+    const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', { headers });
+    if (res.ok) {
+      const repos = await res.json();
+      if (Array.isArray(repos) && repos.length > 0) {
+        allUserReposCache = repos;
+        return repos;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching repositories:', err);
+  }
+  return allUserReposCache || [];
+}
+window.getOrFetchAllUserRepos = getOrFetchAllUserRepos;
+
 // Repositories Loader via GitHub API
 async function loadLucaeRepositories(force = false) {
   const repoSelect = document.getElementById('lucae-repo-select');
@@ -3513,41 +3545,36 @@ function toggleMasterAutoPraedator(enabled) {
 }
 window.toggleMasterAutoPraedator = toggleMasterAutoPraedator;
 
-async function loadAutoPrRepoOptions() {
+async function loadAutoPrRepoOptions(force = false) {
   const picker = document.getElementById('autopr-repo-picker');
   if (!picker) return;
 
-  const token = getGitHubToken();
-  if (!token) {
-    picker.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project</option>';
-    return;
-  }
+  picker.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
 
-  if (allUserReposCache.length === 0) {
-    try {
-      const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
-      });
-      if (res.ok) allUserReposCache = await res.json();
-    } catch (e) {}
+  if (!repos || repos.length === 0) {
+    picker.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project (Predeterminado)</option>';
+    return;
   }
 
   filterAutoPrRepos('');
 }
+window.loadAutoPrRepoOptions = loadAutoPrRepoOptions;
 
 function filterAutoPrRepos(q) {
   const picker = document.getElementById('autopr-repo-picker');
   if (!picker) return;
 
   const query = (q || '').toLowerCase().trim();
-  const filtered = allUserReposCache.filter(r => (r.full_name || '').toLowerCase().includes(query));
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
 
   if (filtered.length === 0) {
     picker.innerHTML = '<option value="">No se encontraron repositorios</option>';
     return;
   }
 
-  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : '') + '</option>').join('');
+  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
 }
 window.filterAutoPrRepos = filterAutoPrRepos;
 
@@ -3582,29 +3609,35 @@ window.removeRepoFromAutoPraedator = removeRepoFromAutoPraedator;
 
 function renderAutoPrMonitoredRepos() {
   const container = document.getElementById('autopr-monitored-list');
+  const countBadge = document.getElementById('autopr-monitored-count');
   if (!container) return;
 
   const repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  if (countBadge) {
+    countBadge.textContent = repos.length + ' Repositorio' + (repos.length === 1 ? '' : 's');
+  }
+
   if (repos.length === 0) {
-    container.innerHTML = '<div class="placeholder-box" style="padding: 16px; margin: 0;">' +
-      '<p class="text-muted" style="margin: 0; font-size: 0.84rem;">Cero repositorios en monitoreo. Selecciona uno arriba y pulsa "➕ Añadir Repositorio".</p>' +
+    container.innerHTML = '<div class="placeholder-box" style="padding: 24px; margin: 0; background: rgba(11, 17, 26, 0.4);">' +
+      '<span class="large-icon" style="font-size: 1.8rem;">📦</span>' +
+      '<p class="text-muted" style="margin: 8px 0 0 0; font-size: 0.86rem;">Cero repositorios en vigilancia. Selecciona uno arriba y pulsa "➕ Añadir a Vigilancia Activa".</p>' +
     '</div>';
     return;
   }
 
   container.innerHTML = repos.map(repo => {
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin: 0; background: rgba(16, 24, 38, 0.8); border: 1px solid rgba(59, 130, 246, 0.2);">' +
-      '<div style="display: flex; align-items: center; gap: 12px;">' +
-        '<span style="font-size: 1.2rem;">📦</span>' +
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.3rem;">📦</span>' +
         '<div>' +
-          '<strong style="font-size: 0.9rem; color: #f8fafc;">' + repo + '</strong>' +
-          '<div style="display: flex; gap: 8px; align-items: center; margin-top: 3px;">' +
+          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + repo + '</strong>' +
+          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">' +
             '<span class="badge badge-green" style="font-size: 0.7rem;">MONITOREO ACTIVO ⚡</span>' +
-            '<span class="text-muted" style="font-size: 0.76rem;">Audita cada pull_request [opened, synchronize]</span>' +
+            '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>pull_request [opened, synchronize]</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoPraedator(\'' + repo + '\')" title="Quitar de monitoreo">✕ Quitar</button>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoPraedator(\'' + repo + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de monitoreo">✕ Quitar</button>' +
     '</div>';
   }).join('');
 }

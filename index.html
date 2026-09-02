@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260902_17">
+  <link rel="stylesheet" href="style.css?v=20260902_18">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -569,28 +569,35 @@ continue-on-error: true
           </section>
           <!-- 8. GLOBAL CONFIGURATION TAB (FALLBACK MATRIX & AUTO-PRAEDATOR) -->
           <section id="tab-config" class="tab-pane">
-            <div class="card">
-              <div class="card-header">
+            <!-- CONFIGURATION HEADER & SUBTAB NAVIGATION -->
+            <div class="card" style="padding: 22px 28px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                 <div>
-                  <h2>⚙️ Configuración Global de Sphexn</h2>
-                  <p class="text-muted">Gestiona la tolerancia a caídas de IA por Specie y la automatización de auditorías continuas.</p>
+                  <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+                    <span>⚙️</span> Configuración Global de Sphexn
+                  </h2>
+                  <p class="text-muted" style="font-size: 0.86rem; margin: 0;">
+                    Gestiona la tolerancia a caídas de IA por Specie y la automatización de auditorías continuas.
+                  </p>
                 </div>
                 <!-- SUBTAB SWITCHER -->
-                <div class="segmented-control">
-                  <button type="button" class="segmented-item active" id="btn-cfg-subtab-fallback" onclick="switchConfigSubtab('fallback')">
+                <div class="segmented-control" style="padding: 4px; background: rgba(11, 17, 26, 0.95);">
+                  <button type="button" class="segmented-item active" id="btn-cfg-subtab-fallback" onclick="switchConfigSubtab('fallback')" style="padding: 8px 18px; font-size: 0.86rem;">
                     <span>🧠</span> Fallback de Species
                   </button>
-                  <button type="button" class="segmented-item" id="btn-cfg-subtab-autopr" onclick="switchConfigSubtab('autopr')">
+                  <button type="button" class="segmented-item" id="btn-cfg-subtab-autopr" onclick="switchConfigSubtab('autopr')" style="padding: 8px 18px; font-size: 0.86rem;">
                     <span>⚡</span> Auto-Praedator
                   </button>
                 </div>
               </div>
+            </div>
 
-              <!-- SUBTAB 1: FALLBACK DE SPECIES -->
-              <div id="cfg-subtab-fallback-container" class="mt-16">
-                <div class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <!-- SUBTAB 1: FALLBACK DE SPECIES (DRAG & DROP) -->
+            <div id="cfg-subtab-fallback-container">
+              <div class="card" style="padding: 22px 28px;">
+                <div class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                   <div class="form-group">
-                    <label for="fallback-specie-select">Specie a Configurar:</label>
+                    <label for="fallback-specie-select" style="font-weight: 600; margin-bottom: 8px; display: block;">Specie a Configurar:</label>
                     <select id="fallback-specie-select" class="form-control" onchange="renderFallbackMatrixUI()">
                       <option value="praedator">🦅 Sphexn Praedator (PR & Git Diff Auditor)</option>
                       <option value="lucae">🔬 Sphexn Lucae (Architectural Synthesizer & AST)</option>
@@ -601,29 +608,29 @@ continue-on-error: true
                     </select>
                   </div>
                   <div class="form-group">
-                    <label>Modo de Fallback:</label>
-                    <div class="segmented-control" style="margin-top: 6px;">
-                      <button type="button" class="segmented-item active" id="btn-fallback-mode-default" onclick="setFallbackMode('default')">
+                    <label style="font-weight: 600; margin-bottom: 8px; display: block;">Modo de Fallback:</label>
+                    <div class="segmented-control" style="width: 100%; display: flex;">
+                      <button type="button" class="segmented-item active" id="btn-fallback-mode-default" onclick="setFallbackMode('default')" style="flex: 1; justify-content: center; padding: 8px 14px;">
                         <span>⚡</span> Default (Óptimo Automático)
                       </button>
-                      <button type="button" class="segmented-item" id="btn-fallback-mode-custom" onclick="setFallbackMode('custom')">
+                      <button type="button" class="segmented-item" id="btn-fallback-mode-custom" onclick="setFallbackMode('custom')" style="flex: 1; justify-content: center; padding: 8px 14px;">
                         <span>🛠️</span> Custom (Personalizado)
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div id="fallback-mode-banner" class="card mt-16" style="background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.25); padding: 12px 16px;">
-                  <span id="fallback-mode-desc" style="font-size: 0.85rem; color: #93c5fd;">
+                <div id="fallback-mode-banner" class="card mt-16" style="background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.25); padding: 14px 18px; margin-top: 18px;">
+                  <span id="fallback-mode-desc" style="font-size: 0.85rem; color: #93c5fd; line-height: 1.5;">
                     💡 Modo <strong>Default</strong>: La cadena se calcula dinámicamente según tus proveedores activos. Ante un fallo 429/500, salta al siguiente de forma inmediata.
                   </span>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; margin-bottom: 10px;">
-                  <h4 style="margin: 0;">🔗 Cadena Prioritaria de Fallback (Arrastra para reordenar en Custom):</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; margin-bottom: 14px;">
+                  <h4 style="margin: 0; font-size: 0.96rem;">🔗 Cadena Prioritaria de Fallback (Arrastra para reordenar en Custom):</h4>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-xs" onclick="resetFallbackMatrixDefaults()">↺ Restaurar Defaults</button>
-                    <button class="btn btn-primary btn-xs" onclick="saveFallbackMatrixConfig()">💾 Guardar Matriz</button>
+                    <button class="btn btn-secondary btn-xs" onclick="resetFallbackMatrixDefaults()" style="padding: 5px 12px;">↺ Restaurar Defaults</button>
+                    <button class="btn btn-primary btn-xs" onclick="saveFallbackMatrixConfig()" style="padding: 5px 14px;">💾 Guardar Matriz</button>
                   </div>
                 </div>
 
@@ -631,47 +638,77 @@ continue-on-error: true
                   <!-- Dynamically rendered with drag and drop by renderFallbackMatrixUI -->
                 </div>
               </div>
+            </div>
 
-              <!-- SUBTAB 2: AUTO-PRAEDATOR CONTINUOUS MONITORING -->
-              <div id="cfg-subtab-autopr-container" class="mt-16" style="display: none;">
-                <div class="card" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25); padding: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <h4 style="color: #60a5fa; margin-bottom: 6px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                        <span>⚡</span> Monitoreo Continuo con Auto-Praedator
-                      </h4>
-                      <p class="text-muted" style="font-size: 0.82rem; margin: 0; line-height: 1.5;">
-                        Audita e informa automáticamente en cada Pull Request abierta o actualizada en los repositorios seleccionados, sin requerir disparo manual.
-                      </p>
-                    </div>
-                    <label class="sphexn-switch">
-                      <input type="checkbox" id="master-toggle-auto-praedator" onchange="toggleMasterAutoPraedator(this.checked)">
-                      <span class="sphexn-slider"></span>
-                    </label>
+            <!-- SUBTAB 2: AUTO-PRAEDATOR CONTINUOUS MONITORING -->
+            <div id="cfg-subtab-autopr-container" style="display: none;">
+              <!-- MASTER TOGGLE CARD -->
+              <div class="card" style="padding: 22px 28px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                  <div>
+                    <h3 style="color: #60a5fa; margin-bottom: 6px; font-size: 1.15rem; display: flex; align-items: center; gap: 10px;">
+                      <span>⚡</span> Monitoreo Continuo con Auto-Praedator
+                    </h3>
+                    <p class="text-muted" style="font-size: 0.86rem; margin: 0; line-height: 1.5;">
+                      Audita e informa automáticamente en cada Pull Request abierta o sincronizada en los repositorios seleccionados con $0 Compute.
+                    </p>
                   </div>
-                </div>
-
-                <!-- REPO ADDER BAR (VISIBLE WHEN ACTIVE) -->
-                <div id="autopr-management-panel" class="mt-20">
-                  <h4 style="margin-bottom: 10px; font-size: 0.92rem;">➕ Añadir Repositorio a Monitoreo Continuo:</h4>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center;">
-                    <input type="text" id="autopr-repo-search" class="form-control" placeholder="🔍 Filtrar repositorios..." oninput="filterAutoPrRepos(this.value)">
-                    <select id="autopr-repo-picker" class="form-control">
-                      <option value="">Cargando repositorios...</option>
-                    </select>
-                    <button class="btn btn-primary btn-sm" onclick="addRepoToAutoPraedator()" style="white-space: nowrap; padding: 9px 16px;">
-                      ➕ Añadir Repositorio
-                    </button>
-                  </div>
-
-                  <h4 class="mt-24" style="margin-bottom: 10px; font-size: 0.92rem;">📋 Repositorios con Monitoreo Activo:</h4>
-                  <div id="autopr-monitored-list" style="display: flex; flex-direction: column; gap: 8px;">
-                    <!-- Rendered by renderAutoPrMonitoredRepos -->
-                  </div>
+                  <label class="sphexn-switch" style="transform: scale(1.15); margin-right: 8px;">
+                    <input type="checkbox" id="master-toggle-auto-praedator" onchange="toggleMasterAutoPraedator(this.checked)">
+                    <span class="sphexn-slider"></span>
+                  </label>
                 </div>
               </div>
 
+              <!-- REPO MANAGEMENT PANEL -->
+              <div id="autopr-management-panel" class="card mt-20" style="padding: 24px 28px;">
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
+                  <div>
+                    <h3 style="font-size: 1.05rem; margin-bottom: 4px;">➕ Añadir Repositorio a Monitoreo Continuo</h3>
+                    <p class="text-muted" style="font-size: 0.82rem; margin: 0;">Selecciona o busca entre tus repositorios sincronizados de GitHub.</p>
+                  </div>
+                  <button class="btn btn-secondary btn-xs" onclick="loadAutoPrRepoOptions(true)" title="Forzar refresco con GitHub API">🔄 Refrescar Repositorios</button>
+                </div>
+
+                <!-- SPACIOUS 2-COLUMN INPUT FORM -->
+                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 18px; align-items: end;">
+                  <div class="form-group" style="margin: 0;">
+                    <label for="autopr-repo-search" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                      🔍 Filtrar por Nombre:
+                    </label>
+                    <input type="text" id="autopr-repo-search" class="form-control" placeholder="Escribe para filtrar (ej: pokemon, terra)..." oninput="filterAutoPrRepos(this.value)">
+                  </div>
+                  <div class="form-group" style="margin: 0;">
+                    <label for="autopr-repo-picker" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                      📦 Repositorio Detectado:
+                    </label>
+                    <select id="autopr-repo-picker" class="form-control">
+                      <option value="">Consultando repositorios en GitHub API...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 18px;">
+                  <button class="btn btn-primary" onclick="addRepoToAutoPraedator()" style="padding: 9px 20px; font-weight: 600;">
+                    ➕ Añadir a Vigilancia Activa
+                  </button>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 26px 0 20px 0;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                  <h4 style="margin: 0; font-size: 0.98rem; display: flex; align-items: center; gap: 8px;">
+                    <span>📋</span> Repositorios en Vigilancia Activa
+                  </h4>
+                  <span id="autopr-monitored-count" class="badge badge-blue" style="font-size: 0.74rem;">0 Repositorios</span>
+                </div>
+
+                <div id="autopr-monitored-list" style="display: flex; flex-direction: column; gap: 10px;">
+                  <!-- Rendered by renderAutoPrMonitoredRepos -->
+                </div>
+              </div>
             </div>
+
           </section>
 
 
@@ -948,6 +985,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260902_17"></script>
+  <script src="app.js?v=20260902_18"></script>
 </body>
 </html>
