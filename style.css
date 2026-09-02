@@ -1224,3 +1224,81 @@ body {
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ─── SPHEXN UNIFIED DARK FORM SYSTEM (NO MORE WHITE INPUTS) ─────────────────
+   ══════════════════════════════════════════════════════════════════════════════ */
+.form-control,
+select.form-control,
+input.form-control,
+select,
+input[type="text"],
+input[type="search"],
+input[type="password"],
+input[type="number"],
+textarea {
+  background-color: #0b111a !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 12px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.85rem !important;
+  outline: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+.form-control:focus,
+select:focus,
+input:focus,
+textarea:focus {
+  background-color: #0f172a !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+.form-control::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Force dark styling on dropdown options */
+select option {
+  background-color: #0b111a !important;
+  color: #f1f5f9 !important;
+  padding: 8px 10px !important;
+}
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #1e293b !important;
+  color: #60a5fa !important;
+}
+
+/* DRAG & DROP PIPELINE CARDS */
+.pipeline-item {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  user-select: none;
+}
+.pipeline-item.drag-over {
+  border-top: 2px solid #3b82f6 !important;
+  background: rgba(37, 99, 235, 0.18) !important;
+  transform: translateY(-2px);
+}
+.pipeline-item.dragging {
+  opacity: 0.35;
+}
+.drag-handle {
+  cursor: grab;
+  color: #64748b;
+  font-size: 1.1rem;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}

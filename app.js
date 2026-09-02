@@ -361,7 +361,8 @@ function switchTab(tabId) {
     if (typeof window.initPraedatorUI === 'function') window.initPraedatorUI();
     if (typeof window.syncPraedatorRunsWithGitHub === 'function') window.syncPraedatorRunsWithGitHub();
   }
-  if (tabId === 'fallback') {
+  if (tabId === 'config') {
+    if (typeof window.initConfigurationTab === 'function') window.initConfigurationTab();
     if (typeof window.renderFallbackMatrixUI === 'function') window.renderFallbackMatrixUI();
   }
   if (tabId === 'providers') {
@@ -3330,6 +3331,36 @@ function getActiveFallbackChain(specieId) {
 }
 window.getActiveFallbackChain = getActiveFallbackChain;
 
+let draggedFallbackIndex = null;
+
+function switchConfigSubtab(subtab) {
+  const btnFb = document.getElementById('btn-cfg-subtab-fallback');
+  const btnAp = document.getElementById('btn-cfg-subtab-autopr');
+  const contFb = document.getElementById('cfg-subtab-fallback-container');
+  const contAp = document.getElementById('cfg-subtab-autopr-container');
+
+  if (subtab === 'fallback') {
+    if (btnFb) btnFb.className = 'segmented-item active';
+    if (btnAp) btnAp.className = 'segmented-item';
+    if (contFb) contFb.style.display = 'block';
+    if (contAp) contAp.style.display = 'none';
+    renderFallbackMatrixUI();
+  } else {
+    if (btnFb) btnFb.className = 'segmented-item';
+    if (btnAp) btnAp.className = 'segmented-item active';
+    if (contFb) contFb.style.display = 'none';
+    if (contAp) contAp.style.display = 'block';
+    initAutoPraedatorConfigUI();
+  }
+}
+window.switchConfigSubtab = switchConfigSubtab;
+
+function initConfigurationTab() {
+  renderFallbackMatrixUI();
+  initAutoPraedatorConfigUI();
+}
+window.initConfigurationTab = initConfigurationTab;
+
 function renderFallbackMatrixUI() {
   const specieSelect = document.getElementById('fallback-specie-select');
   if (!specieSelect) return;
@@ -3339,18 +3370,23 @@ function renderFallbackMatrixUI() {
   const specieConfig = customConfig[specieId] || { mode: 'default' };
   const mode = specieConfig.mode || 'default';
 
-  const radioDefault = document.getElementById('radio-fallback-default');
-  const radioCustom = document.getElementById('radio-fallback-custom');
-  if (radioDefault && radioCustom) {
-    radioDefault.checked = mode === 'default';
-    radioCustom.checked = mode === 'custom';
+  const btnDefault = document.getElementById('btn-fallback-mode-default');
+  const btnCustom = document.getElementById('btn-fallback-mode-custom');
+  if (btnDefault && btnCustom) {
+    if (mode === 'default') {
+      btnDefault.className = 'segmented-item active';
+      btnCustom.className = 'segmented-item';
+    } else {
+      btnDefault.className = 'segmented-item';
+      btnCustom.className = 'segmented-item active';
+    }
   }
 
   const bannerDesc = document.getElementById('fallback-mode-desc');
   if (bannerDesc) {
     bannerDesc.innerHTML = mode === 'default'
       ? '💡 Modo <strong>Default (Óptimo Automático)</strong>: Sphexn ordena automáticamente la cadena priorizando <code>BYOK ➔ Terra ➔ Custom</code> según tus claves activas. Tolerancia 100% ante errores 4XX/5XX.'
-      : '🛠️ Modo <strong>Custom (Personalizado)</strong>: Puedes alterar la posición de los modelos con las flechas <code>⬆️ / ⬇️</code> y activar o desactivar proveedores específicamente para <strong>' + specieSelect.options[specieSelect.selectedIndex].text + '</strong>.';
+      : '🛠️ Modo <strong>Custom (Personalizado)</strong>: <strong>Arrastra y suelta (Drag & Drop)</strong> las tarjetas para cambiar su orden de prioridad para <strong>' + specieSelect.options[specieSelect.selectedIndex].text + '</strong>.';
   }
 
   const container = document.getElementById('fallback-pipeline-cards');
@@ -3359,19 +3395,22 @@ function renderFallbackMatrixUI() {
   const chain = getActiveFallbackChain(specieId);
 
   container.innerHTML = chain.map((item, idx) => {
-    const isFirst = idx === 0;
-    const isLast = idx === chain.length - 1;
     const priorityLabel = (idx === 0) ? '1º (Principal)' : (idx + 1) + 'º (Fallback)';
+    const isDraggable = mode === 'custom';
 
-    const controlsHtml = mode === 'custom'
-      ? '<div style="display: flex; gap: 6px; align-items: center;">' +
-          (!isFirst ? '<button class="btn btn-secondary btn-xs" onclick="moveFallbackItem(\'' + specieId + '\', ' + idx + ', -1)" title="Subir prioridad">⬆️</button>' : '') +
-          (!isLast ? '<button class="btn btn-secondary btn-xs" onclick="moveFallbackItem(\'' + specieId + '\', ' + idx + ', 1)" title="Bajar prioridad">⬇️</button>' : '') +
-        '</div>'
+    const dragHandleHtml = isDraggable
+      ? '<span class="drag-handle" title="Arrastrar para reordenar">☰</span>'
+      : '';
+
+    const controlsHtml = isDraggable
+      ? '<span class="badge badge-secondary" style="font-size: 0.72rem; cursor: grab;">🖐️ Arrastra</span>'
       : '<span class="badge badge-blue" style="font-size: 0.72rem;">AUTO-ORDEN</span>';
 
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-left: 4px solid ' + (item.isConfigured ? 'var(--primary-blue)' : '#64748b') + '; background: rgba(16, 24, 38, 0.85);">' +
+    return '<div class="card pipeline-item" ' +
+      (isDraggable ? 'draggable="true" ondragstart="handleFallbackDragStart(event, ' + idx + ')" ondragover="handleFallbackDragOver(event)" ondragleave="handleFallbackDragLeave(event)" ondrop="handleFallbackDrop(event, ' + idx + ')" ondragend="handleFallbackDragEnd(event)"' : '') +
+      ' style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-left: 4px solid ' + (item.isConfigured ? 'var(--primary-blue)' : '#64748b') + '; background: rgba(16, 24, 38, 0.85); cursor: ' + (isDraggable ? 'grab' : 'default') + ';">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
+        dragHandleHtml +
         '<span style="font-size: 1.4rem;">' + item.icon + '</span>' +
         '<div>' +
           '<div style="display: flex; align-items: center; gap: 8px;">' +
@@ -3390,61 +3429,186 @@ function renderFallbackMatrixUI() {
 }
 window.renderFallbackMatrixUI = renderFallbackMatrixUI;
 
-function toggleFallbackMode(mode) {
+// HTML5 Drag & Drop handlers for Fallback Matrix
+function handleFallbackDragStart(e, index) {
+  draggedFallbackIndex = index;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+window.handleFallbackDragStart = handleFallbackDragStart;
+
+function handleFallbackDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const card = e.currentTarget.closest('.pipeline-item');
+  if (card) card.classList.add('drag-over');
+}
+window.handleFallbackDragOver = handleFallbackDragOver;
+
+function handleFallbackDragLeave(e) {
+  const card = e.currentTarget.closest('.pipeline-item');
+  if (card) card.classList.remove('drag-over');
+}
+window.handleFallbackDragLeave = handleFallbackDragLeave;
+
+function handleFallbackDragEnd(e) {
+  document.querySelectorAll('.pipeline-item').forEach(c => {
+    c.classList.remove('dragging');
+    c.classList.remove('drag-over');
+  });
+}
+window.handleFallbackDragEnd = handleFallbackDragEnd;
+
+function handleFallbackDrop(e, targetIndex) {
+  e.preventDefault();
+  document.querySelectorAll('.pipeline-item').forEach(c => c.classList.remove('drag-over'));
+
+  if (draggedFallbackIndex === null || draggedFallbackIndex === targetIndex) return;
+
   const specieSelect = document.getElementById('fallback-specie-select');
   const specieId = specieSelect ? specieSelect.value : 'praedator';
 
-  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
-  if (!config[specieId]) config[specieId] = {};
-  config[specieId].mode = mode;
-
-  if (mode === 'custom' && !config[specieId].order) {
-    config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
-  }
-
-  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
-  renderFallbackMatrixUI();
-}
-window.toggleFallbackMode = toggleFallbackMode;
-
-function moveFallbackItem(specieId, index, direction) {
   let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
   if (!config[specieId]) config[specieId] = { mode: 'custom' };
   if (!config[specieId].order) config[specieId].order = (DEFAULT_SPECIE_FALLBACKS[specieId] || DEFAULT_SPECIE_FALLBACKS.praedator).slice();
 
   const arr = config[specieId].order;
-  const targetIdx = index + direction;
-  if (targetIdx < 0 || targetIdx >= arr.length) return;
-
-  const temp = arr[index];
-  arr[index] = arr[targetIdx];
-  arr[targetIdx] = temp;
+  const [movedItem] = arr.splice(draggedFallbackIndex, 1);
+  arr.splice(targetIndex, 0, movedItem);
 
   config[specieId].order = arr;
   config[specieId].mode = 'custom';
   localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
+
+  draggedFallbackIndex = null;
   renderFallbackMatrixUI();
 }
-window.moveFallbackItem = moveFallbackItem;
+window.handleFallbackDrop = handleFallbackDrop;
 
-function saveFallbackMatrixConfig() {
-  sphexnAlert('Matriz de fallback guardada correctamente y sincronizada para todas las ejecuciones.', 'Configuración Guardada', '💾');
+// ─── AUTO-PRAEDATOR CONFIGURATION ENGINE ───
+function initAutoPraedatorConfigUI() {
+  const isMasterActive = localStorage.getItem('sphexn_master_auto_praedator') === 'true';
+  const masterToggle = document.getElementById('master-toggle-auto-praedator');
+  if (masterToggle) masterToggle.checked = isMasterActive;
+
+  const panel = document.getElementById('autopr-management-panel');
+  if (panel) panel.style.display = isMasterActive ? 'block' : 'none';
+
+  loadAutoPrRepoOptions();
+  renderAutoPrMonitoredRepos();
 }
-window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;
+window.initAutoPraedatorConfigUI = initAutoPraedatorConfigUI;
 
-function resetFallbackMatrixDefaults() {
-  const specieSelect = document.getElementById('fallback-specie-select');
-  const specieId = specieSelect ? specieSelect.value : 'praedator';
+function toggleMasterAutoPraedator(enabled) {
+  localStorage.setItem('sphexn_master_auto_praedator', enabled ? 'true' : 'false');
+  const panel = document.getElementById('autopr-management-panel');
+  if (panel) panel.style.display = enabled ? 'block' : 'none';
 
-  let config = JSON.parse(localStorage.getItem('sphexn_fallback_matrix_config') || '{}');
-  delete config[specieId];
-  localStorage.setItem('sphexn_fallback_matrix_config', JSON.stringify(config));
-
-  renderFallbackMatrixUI();
-  sphexnAlert('Valores por defecto restablecidos para ' + specieId + '.', 'Restaurado', '↺');
+  if (enabled) {
+    sphexnAlert('Monitoreo Continuo activado. Añade abajo los repositorios donde deseas que Praedator audite cada PR.', 'Auto-Praedator Activado', '⚡');
+    loadAutoPrRepoOptions();
+  } else {
+    sphexnAlert('Monitoreo Continuo pausado globalmente.', 'Auto-Praedator Pausado', 'ℹ️');
+  }
 }
-window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
+window.toggleMasterAutoPraedator = toggleMasterAutoPraedator;
 
+async function loadAutoPrRepoOptions() {
+  const picker = document.getElementById('autopr-repo-picker');
+  if (!picker) return;
+
+  const token = getGitHubToken();
+  if (!token) {
+    picker.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project</option>';
+    return;
+  }
+
+  if (allUserReposCache.length === 0) {
+    try {
+      const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (res.ok) allUserReposCache = await res.json();
+    } catch (e) {}
+  }
+
+  filterAutoPrRepos('');
+}
+
+function filterAutoPrRepos(q) {
+  const picker = document.getElementById('autopr-repo-picker');
+  if (!picker) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const filtered = allUserReposCache.filter(r => (r.full_name || '').toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    picker.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : '') + '</option>').join('');
+}
+window.filterAutoPrRepos = filterAutoPrRepos;
+
+function addRepoToAutoPraedator() {
+  const picker = document.getElementById('autopr-repo-picker');
+  const repo = picker ? picker.value : null;
+  if (!repo) {
+    sphexnAlert('Selecciona un repositorio válido para añadir.', 'Aviso', '⚠️');
+    return;
+  }
+
+  let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  if (repos.includes(repo)) {
+    sphexnAlert('El repositorio ' + repo + ' ya se encuentra en la lista de monitoreo.', 'Ya Añadido', 'ℹ️');
+    return;
+  }
+
+  repos.push(repo);
+  localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos));
+  renderAutoPrMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' añadido al monitoreo continuo de Praedator.', 'Repositorio Añadido', '➕');
+}
+window.addRepoToAutoPraedator = addRepoToAutoPraedator;
+
+function removeRepoFromAutoPraedator(repo) {
+  let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  repos = repos.filter(r => r !== repo);
+  localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos));
+  renderAutoPrMonitoredRepos();
+}
+window.removeRepoFromAutoPraedator = removeRepoFromAutoPraedator;
+
+function renderAutoPrMonitoredRepos() {
+  const container = document.getElementById('autopr-monitored-list');
+  if (!container) return;
+
+  const repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  if (repos.length === 0) {
+    container.innerHTML = '<div class="placeholder-box" style="padding: 16px; margin: 0;">' +
+      '<p class="text-muted" style="margin: 0; font-size: 0.84rem;">Cero repositorios en monitoreo. Selecciona uno arriba y pulsa "➕ Añadir Repositorio".</p>' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = repos.map(repo => {
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin: 0; background: rgba(16, 24, 38, 0.8); border: 1px solid rgba(59, 130, 246, 0.2);">' +
+      '<div style="display: flex; align-items: center; gap: 12px;">' +
+        '<span style="font-size: 1.2rem;">📦</span>' +
+        '<div>' +
+          '<strong style="font-size: 0.9rem; color: #f8fafc;">' + repo + '</strong>' +
+          '<div style="display: flex; gap: 8px; align-items: center; margin-top: 3px;">' +
+            '<span class="badge badge-green" style="font-size: 0.7rem;">MONITOREO ACTIVO ⚡</span>' +
+            '<span class="text-muted" style="font-size: 0.76rem;">Audita cada pull_request [opened, synchronize]</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoPraedator(\'' + repo + '\')" title="Quitar de monitoreo">✕ Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoPrMonitoredRepos = renderAutoPrMonitoredRepos;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ─── MODULE: SPHEXN PRAEDATOR (PR & GIT DIFF AUDITOR) ─────────────────────────
