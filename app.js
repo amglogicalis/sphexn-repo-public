@@ -1,3 +1,13 @@
+
+function getGitHubToken() {
+  return sessionStorage.getItem('sphexn_gh_token') || 
+         sessionStorage.getItem('sphexn_pat') || 
+         localStorage.getItem('sphexn_gh_token') || 
+         localStorage.getItem('sphexn_github_token') || 
+         '';
+}
+window.getGitHubToken = getGitHubToken;
+
 // SPHEXN NEST STUDIO — Client Application Logic v2.0
 // Real-Time BYOAI Telemetry & GitHub PAT Authentication Gate
 // Part of the Terra Ecosystem ($0 Infrastructure)
@@ -658,7 +668,7 @@ window.handlePingTerraProvider = async (id) => {
   if (item) {
     const start = Date.now();
     try {
-      const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
+      const pat = getGitHubToken();
       const headers = { 'Accept': 'application/vnd.github.v3+json' };
       if (pat) headers['Authorization'] = 'Bearer ' + pat;
 
@@ -2042,66 +2052,97 @@ async function loadLucaeRepositories(force = false) {
   const repoSelect = document.getElementById('lucae-repo-select');
   if (!repoSelect) return;
 
-  const currentVal = repoSelect.value;
-  const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
-  const headers = { 'Accept': 'application/vnd.github.v3+json' };
-  if (pat) headers['Authorization'] = 'Bearer ' + pat;
+  const token = getGitHubToken();
+  if (!token) {
+    repoSelect.innerHTML = '<option value="">No hay sesión activa. Conecta tu GitHub PAT para listar repositorios.</option>';
+    return;
+  }
+
+  // If already loaded and not forced, do not wipe
+  if (!force && repoSelect.options.length > 1 && repoSelect.value) {
+    return;
+  }
+
+  repoSelect.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
 
   try {
-    let repos = [];
-    if (pat) {
-      const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator', { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          repos = data;
-        }
-      }
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': 'Bearer ' + token
+    };
+
+    // Real call to GitHub API to list all user repositories
+    const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member', { headers });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || ('HTTP ' + res.status));
     }
 
-    if (Array.isArray(repos) && repos.length > 0) {
-      repoSelect.innerHTML = repos.map(r => `<option value="${r.full_name}">${r.full_name}</option>`).join('');
-      if (currentVal && repos.some(r => r.full_name === currentVal)) {
-        repoSelect.value = currentVal;
-      } else {
-        const sphexnRepo = repos.find(r => r.full_name.toLowerCase().includes('sphexn'));
-        repoSelect.value = sphexnRepo ? sphexnRepo.full_name : repos[0].full_name;
-      }
+    const repos = await res.json();
+    if (!Array.isArray(repos) || repos.length === 0) {
+      repoSelect.innerHTML = '<option value="">No se encontraron repositorios en tu cuenta de GitHub.</option>';
+      return;
     }
 
-    if (repoSelect.value) {
-      loadLucaeBranches(repoSelect.value);
+    // Populate with real detected repositories
+    repoSelect.innerHTML = repos.map(r => {
+      const lock = r.private ? '🔒 ' : '';
+      return '<option value="' + r.full_name + '">' + lock + r.full_name + '</option>';
+    }).join('');
+
+    // Default to Sphexn or first repo
+    const preferred = repos.find(r => r.full_name.toLowerCase().includes('sphexn')) || repos[0];
+    if (preferred) {
+      repoSelect.value = preferred.full_name;
     }
+
+    // Fetch branches for the selected repository
+    await loadLucaeBranches(repoSelect.value);
   } catch (err) {
-    console.warn('Could not fetch live GitHub repos, using available options:', err);
-    if (repoSelect.value) {
-      loadLucaeBranches(repoSelect.value);
-    }
+    console.error('Error fetching repositories from GitHub API:', err);
+    repoSelect.innerHTML = '<option value="">Error consultando GitHub API: ' + err.message + '</option>';
   }
 }
 
 async function loadLucaeBranches(repoFullName) {
   const branchSelect = document.getElementById('lucae-branch-select');
-  if (!branchSelect || !repoFullName) return;
+  if (!branchSelect) return;
 
-  const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
+  if (!repoFullName) {
+    branchSelect.innerHTML = '<option value="">Selecciona un repositorio primero</option>';
+    return;
+  }
+
+  branchSelect.innerHTML = '<option value="">Cargando ramas de ' + repoFullName.split('/')[1] + '...</option>';
+
+  const token = getGitHubToken();
   const headers = { 'Accept': 'application/vnd.github.v3+json' };
-  if (pat) headers['Authorization'] = 'Bearer ' + pat;
+  if (token) headers['Authorization'] = 'Bearer ' + token;
 
   try {
-    const res = await fetch(`https://api.github.com/repos/${repoFullName}/branches?per_page=50`, { headers });
-    if (res.ok) {
-      const branches = await res.json();
-      if (Array.isArray(branches) && branches.length > 0) {
-        branchSelect.innerHTML = branches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
-        const mainBranch = branches.find(b => b.name === 'main' || b.name === 'master');
-        if (mainBranch) branchSelect.value = mainBranch.name;
-        return;
-      }
+    // Real call to GitHub API to get branches of the repository
+    const res = await fetch('https://api.github.com/repos/' + repoFullName + '/branches?per_page=100', { headers });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || ('HTTP ' + res.status));
     }
-  } catch {}
 
-  branchSelect.innerHTML = '<option value="main">main</option><option value="master">master</option>';
+    const branches = await res.json();
+    if (!Array.isArray(branches) || branches.length === 0) {
+      branchSelect.innerHTML = '<option value="main">main</option>';
+      return;
+    }
+
+    branchSelect.innerHTML = branches.map(b => '<option value="' + b.name + '">🌿 ' + b.name + '</option>').join('');
+
+    const defaultBranch = branches.find(b => b.name === 'main') || branches.find(b => b.name === 'master') || branches[0];
+    if (defaultBranch) {
+      branchSelect.value = defaultBranch.name;
+    }
+  } catch (err) {
+    console.error('Error fetching branches from GitHub API:', err);
+    branchSelect.innerHTML = '<option value="main">main (fallback: ' + err.message + ')</option>';
+  }
 }
 
 function getSelectedLucaeTarget() {
@@ -2224,7 +2265,7 @@ async function handleRunLucaeReal() {
   const startTime = Date.now();
 
   try {
-    const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
+    const pat = getGitHubToken();
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
     if (pat) headers['Authorization'] = 'Bearer ' + pat;
 
@@ -2375,7 +2416,7 @@ async function handleDispatchLucaeAction() {
   const btnDispatch = document.getElementById('btn-dispatch-lucae-action');
   const statusPill = document.getElementById('lucae-status-text');
 
-  const pat = sessionStorage.getItem('sphexn_pat') || localStorage.getItem('sphexn_github_token');
+  const pat = getGitHubToken();
   if (!pat) {
     await sphexnAlert('Se requiere una sesión con GitHub PAT para disparar GitHub Actions.', 'Acción no permitida', '🔑');
     return;
