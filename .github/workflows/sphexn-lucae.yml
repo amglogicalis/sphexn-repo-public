@@ -5,8 +5,8 @@ on:
     inputs:
       repo:
         description: 'Target repository to analyze (owner/repo)'
-        required: false
-        default: 'amglogicalis/Sphexn'
+        required: true
+        default: 'amglogicalis/pokemon-tcg-project'
       branch:
         description: 'Branch to analyze'
         required: false
@@ -15,25 +15,25 @@ on:
         description: 'Max lines threshold for God Files'
         required: false
         default: '500'
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
+  actions: read
 
 jobs:
   lucae-analysis:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Vault
+        uses: actions/checkout@v4
+
       - name: Checkout Target Code
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repo || github.repository }}
-          ref: ${{ inputs.branch || github.ref }}
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: target-code
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -41,8 +41,99 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run Sphexn Lucae AST Analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Self-Contained Sphexn Lucae Analyzer
         run: |
-          npx --yes terra-sphexn lucae --threshold ${{ inputs.threshold || 500 }}
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          const targetDir = path.join(process.cwd(), "target-code");
+          const threshold = parseInt("${{ inputs.threshold }}", 10) || 500;
+          const validExts = [".ts", ".js", ".mjs", ".cjs", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp", ".cs", ".php", ".vue", ".svelte", ".rb", ".swift", ".kt", ".scala", ".sh", ".bash", ".html", ".css"];
+          const excludeDirs = [".git", "node_modules", "vendor", "dist", "coverage", ".sphexn"];
+
+          function scan(dir) {
+            let files = [];
+            try {
+              for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+                if (excludeDirs.includes(ent.name)) continue;
+                const full = path.join(dir, ent.name);
+                if (ent.isDirectory()) files = files.concat(scan(full));
+                else if (ent.isFile() && validExts.some(x => ent.name.endsWith(x))) files.push(full);
+              }
+            } catch (e) {}
+            return files;
+          }
+
+          const files = scan(targetDir);
+          console.log("Found " + files.length + " source files to analyze in ${{ inputs.repo }}.");
+
+          function calcCC(code) {
+            let cc = 1;
+            const patterns = [/\bif\s*\(/g, /\belse\s+if\s*\(/g, /\bfor\s*\(/g, /\bwhile\s*\(/g, /\bcase\s+[^:]+:/g, /\bcatch\s*\(/g, /\?\s*[^:]+\s*:/g, /&&/g, /\|\|/g, /\?\?/g];
+            for (const p of patterns) {
+              const m = code.match(p);
+              if (m) cc += m.length;
+            }
+            return cc;
+          }
+
+          let totalLines = 0;
+          let godFiles = [];
+          let results = [];
+
+          for (const f of files.slice(0, 50)) {
+            try {
+              const content = fs.readFileSync(f, "utf8");
+              const lines = content.split("\n").length;
+              totalLines += lines;
+              const cc = calcCC(content);
+              const rel = path.relative(targetDir, f).replace(/\\/g, "/");
+              const isGod = lines > threshold || cc > 45;
+              if (isGod) godFiles.push({ file: rel, lines, cc });
+              results.push({ file: rel, lines, cc, isGod });
+            } catch (e) {}
+          }
+
+          const avgCC = results.length > 0 ? Number((results.reduce((a, b) => a + b.cc, 0) / results.length).toFixed(1)) : 0;
+          let score = 100 - Math.min(35, godFiles.length * 9);
+          if (avgCC > 25) score -= 15; else if (avgCC > 15) score -= 8;
+          score = Math.max(10, Math.min(100, Math.round(score)));
+
+          console.log("=========================================");
+          console.log("=== SPHEXN LUCAE ARCHITECTURAL REPORT ===");
+          console.log("Repo: ${{ inputs.repo }} (@${{ inputs.branch }})");
+          console.log("Health Score: " + score + "/100");
+          console.log("Files Analizados: " + results.length + " (" + totalLines + " lines)");
+          console.log("Complejidad Media: " + avgCC);
+          console.log("God Files (" + godFiles.length + "): " + (godFiles.map(g => g.file + " [" + g.lines + " lines, CC " + g.cc + "]").join(", ") || "None"));
+          console.log("=========================================");
+
+          const outDir = path.join(process.cwd(), "audits", "lucae");
+          fs.mkdirSync(outDir, { recursive: true });
+          const auditFile = path.join(outDir, "audit-" + Date.now() + ".json");
+          fs.writeFileSync(auditFile, JSON.stringify({
+            repo: "${{ inputs.repo }}",
+            branch: "${{ inputs.branch }}",
+            threshold,
+            score,
+            totalFiles: results.length,
+            totalLines,
+            avgCC,
+            godFiles,
+            timestamp: new Date().toISOString()
+          }, null, 2));
+          console.log("✔ Audit saved to " + auditFile);
+          '
+
+      - name: Commit and Push Audit Results to Vault
+        run: |
+          git config --global user.name "Sphexn Lucae [Bot]"
+          git config --global user.email "bot@sphexn.terra"
+          git add audits/
+          if git diff --staged --quiet; then
+            echo "No audit changes to commit"
+          else
+            git commit -m "chore(lucae): record architectural audit for ${{ inputs.repo }}"
+            git push origin main || echo "Audit pushed or up-to-date"
+          fi

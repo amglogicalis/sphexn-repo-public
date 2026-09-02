@@ -2279,9 +2279,14 @@ async function handleRunLucaeReal() {
     const treeData = await treeRes.json();
     const allTreeItems = treeData.tree || [];
 
-    // Filter code files
-    const validExts = ['.ts', '.js', '.mjs', '.cjs', '.jsx', '.tsx', '.py', '.go', '.rs'];
-    const excludePatterns = ['node_modules', '.git', 'dist', 'build', 'coverage', 'assets', 'package-lock.json', '.sphexn'];
+    // Filter code files across all major languages
+    const validExts = [
+      '.ts', '.js', '.mjs', '.cjs', '.jsx', '.tsx',
+      '.py', '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp',
+      '.cs', '.php', '.vue', '.svelte', '.rb', '.swift', '.kt', '.scala',
+      '.sh', '.bash', '.html', '.css', '.scss', '.sql'
+    ];
+    const excludePatterns = ['node_modules', '.git', 'coverage', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
 
     const codeFiles = allTreeItems.filter(item => {
       if (item.type !== 'blob') return false;
@@ -2291,7 +2296,13 @@ async function handleRunLucaeReal() {
     });
 
     if (codeFiles.length === 0) {
-      throw new Error('No se encontraron archivos de código fuente (.ts, .js, etc.) en ' + repo + ' (' + branch + ')');
+      await sphexnAlert(
+        'No se detectaron archivos de código fuente (.ts, .js, .py, etc.) en ' + repo + ' (@' + branch + ').\n\nPuede tratarse de un repositorio de documentación, especificaciones Markdown o enlaces.',
+        'Repositorio de Documentación',
+        'ℹ️'
+      );
+      if (statusPill) statusPill.textContent = 'Sin código ejecutable';
+      return;
     }
 
     const targetFiles = codeFiles.slice(0, 30);
@@ -2440,21 +2451,21 @@ async function handleDispatchLucaeAction() {
       'Content-Type': 'application/json'
     };
 
+    // Determine runner repository: target repo or user vault (.sphexn-storage)
     let dispatchRepo = repo;
     let dispatchInputs = {
-      branch,
+      repo: repo,
+      branch: branch,
       threshold: String(threshold)
     };
 
     const checkWorkflow = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/sphexn-lucae.yml', { headers });
     
     if (!checkWorkflow.ok) {
-      dispatchRepo = 'amglogicalis/Sphexn';
-      dispatchInputs = {
-        repo: repo,
-        branch: branch,
-        threshold: String(threshold)
-      };
+      // Get logged in GitHub user
+      const userDisplay = document.getElementById('user-name');
+      const currentUser = (userDisplay ? userDisplay.textContent : '').replace('@', '').trim() || repo.split('/')[0];
+      dispatchRepo = currentUser + '/.sphexn-storage';
     }
 
     const res = await fetch('https://api.github.com/repos/' + dispatchRepo + '/actions/workflows/sphexn-lucae.yml/dispatches', {
