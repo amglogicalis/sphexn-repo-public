@@ -3738,7 +3738,12 @@ function saveFallbackMatrixConfig() {
     sphexnAlert('La matriz de fallback personalizada para ' + specieName + ' se ha guardado correctamente.', 'Matriz Custom Guardada', '💾');
   }
 }
-window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
+window.saveFallbackMatrixConfig = saveFallbackMatrixConfig;
+
+function resetFallbackMatrixDefaults() {
+  setFallbackMode('default');
+}
+window.resetFallbackMatrixDefaults = resetFallbackMatrixDefaults;
 
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3786,35 +3791,27 @@ function loadSampleDiffPraedator() {
 }
 window.loadSampleDiffPraedator = loadSampleDiffPraedator;
 
-async function loadPraedatorRepositories() {
+async function loadPraedatorRepositories(force = false) {
   const select = document.getElementById('praedator-repo-select');
   const searchInput = document.getElementById('praedator-repo-search');
   if (!select) return;
 
-  const token = getGitHubToken();
-  if (!token) {
+  select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+
+  if (!repos || repos.length === 0) {
     select.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project (Predeterminado)</option>';
     loadPraedatorPullRequests('amglogicalis/pokemon-tcg-project');
     return;
   }
 
-  try {
-    const reposRes = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
-    });
-    if (reposRes.ok) {
-      allUserReposCache = await reposRes.json();
-      renderPraedatorRepoOptions(allUserReposCache);
-    }
-  } catch (e) {
-    console.warn('Error loading repos for Praedator:', e);
-  }
+  renderPraedatorRepoOptions(repos);
 
   if (searchInput && !searchInput.dataset.bound) {
     searchInput.dataset.bound = 'true';
     searchInput.addEventListener('input', () => {
       const q = searchInput.value.toLowerCase().trim();
-      const filtered = allUserReposCache.filter(r => (r.full_name || '').toLowerCase().includes(q));
+      const filtered = repos.filter(r => (r.full_name || '').toLowerCase().includes(q));
       renderPraedatorRepoOptions(filtered);
     });
   }
