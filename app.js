@@ -2754,15 +2754,11 @@ async function syncLucaeRunsWithGitHub() {
     };
 
     // 1. Fetch all audit files from .sphexn-storage/audits/lucae
-    console.log('Fetching audits from https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main');
     const auditsRes = await fetch('https://api.github.com/repos/' + vaultRepo + '/contents/audits/lucae?ref=main', { headers });
     let auditFiles = [];
     if (auditsRes.ok) {
       const aData = await auditsRes.json();
       if (Array.isArray(aData)) auditFiles = aData;
-      console.log('Encontrados ' + auditFiles.length + ' archivos de auditoría en el vault.');
-    } else {
-      console.warn('No se pudo acceder a audits/lucae:', auditsRes.status);
     }
 
     // 2. Fetch all workflow runs from vault
@@ -2771,15 +2767,18 @@ async function syncLucaeRunsWithGitHub() {
     if (runsRes.ok) {
       const rData = await runsRes.json();
       if (Array.isArray(rData.workflow_runs)) ghRuns = rData.workflow_runs;
-      console.log('Encontradas ' + ghRuns.length + ' ejecuciones de Actions en el vault.');
     }
 
     const existingLocal = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
+    const deletedRuns = JSON.parse(localStorage.getItem('sphexn_lucae_deleted_runs') || '[]');
     const syncedRuns = [];
 
     // 3. Process each audit from the vault
     for (const af of auditFiles) {
       try {
+        const fileId = 'audit_' + af.name.replace('.json', '');
+        if (deletedRuns.includes(fileId) || deletedRuns.includes(af.name)) continue;
+
         const contentRes = await fetch(af.url, { headers });
         if (!contentRes.ok) continue;
         const blob = await contentRes.json();
@@ -2789,7 +2788,9 @@ async function syncLucaeRunsWithGitHub() {
         const auditTime = new Date(auditData.timestamp).getTime();
         const matchingGh = ghRuns.find(g => Math.abs(new Date(g.created_at).getTime() - auditTime) < 90000);
 
-        const runId = matchingGh ? ('action_' + matchingGh.id) : ('audit_' + af.name.replace('.json', ''));
+        const runId = matchingGh ? ('action_' + matchingGh.id) : fileId;
+        if (deletedRuns.includes(runId)) continue;
+
         const newRun = {
           id: runId,
           repo: auditData.repo || 'amglogicalis/pokemon-tcg-project',
@@ -2809,6 +2810,7 @@ async function syncLucaeRunsWithGitHub() {
 
     // 4. Merge any local runs that are still in_progress or queued (not yet completed in vault)
     for (const lr of existingLocal) {
+      if (deletedRuns.includes(lr.id)) continue;
       if (lr.status === 'queued' || lr.status === 'in_progress') {
         const alreadyInSynced = syncedRuns.some(sr => sr.repo === lr.repo && Math.abs(new Date(sr.timestamp).getTime() - new Date(lr.timestamp).getTime()) < 120000);
         if (!alreadyInSynced) {
@@ -2827,7 +2829,7 @@ async function syncLucaeRunsWithGitHub() {
       displayLucaeRun(syncedRuns[0].id);
     }
 
-    if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' auditorías en vault)';
+    if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' auditorías)';
     console.log('✅ Sincronización completa. Registros en tabla:', syncedRuns.length);
   } catch (err) {
     console.error('Error syncing runs with vault:', err);
@@ -2976,12 +2978,30 @@ function displayLucaeRun(runId) {
 }
 window.displayLucaeRun = displayLucaeRun;
 
-// Delete Run
+// Delete Run (Persistent Tombstone)
 function deleteLucaeRun(runId) {
   let runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
   runs = runs.filter(r => r.id !== runId);
   localStorage.setItem('sphexn_lucae_runs', JSON.stringify(runs));
-  syncLucaeRunsWithGitHub();
+
+  // Mark as deleted in tombstones so vault sync respects deletion
+  let deleted = JSON.parse(localStorage.getItem('sphexn_lucae_deleted_runs') || '[]');
+  if (!deleted.includes(runId)) {
+    deleted.push(runId);
+    localStorage.setItem('sphexn_lucae_deleted_runs', JSON.stringify(deleted));
+  }
+
+  renderLucaeRunsInventory();
+
+  // If the deleted run was the one being viewed, display next or placeholder
+  const resContainer = document.getElementById('lucae-results-container');
+  if (resContainer) {
+    if (runs.length > 0) {
+      displayLucaeRun(runs[0].id);
+    } else {
+      resContainer.innerHTML = '<div class="placeholder-box"><span class="large-icon">🔍</span><p>Inventario vacío. Ejecuta un análisis arriba para ver resultados.</p></div>';
+    }
+  }
 }
 window.deleteLucaeRun = deleteLucaeRun;
 
@@ -3055,6 +3075,12 @@ async function initLucaeUI() {
     btnClearRuns.addEventListener('click', async () => {
       const ok = await sphexnConfirm('¿Deseas vaciar el historial de ejecuciones de Lucae?', 'Limpiar Inventario', true, 'Vaciar');
       if (ok) {
+        let runs = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]');
+        let deleted = JSON.parse(localStorage.getItem('sphexn_lucae_deleted_runs') || '[]');
+        for (const r of runs) {
+          if (!deleted.includes(r.id)) deleted.push(r.id);
+        }
+        localStorage.setItem('sphexn_lucae_deleted_runs', JSON.stringify(deleted));
         localStorage.removeItem('sphexn_lucae_runs');
         renderLucaeRunsInventory();
         const resContainer = document.getElementById('lucae-results-container');
