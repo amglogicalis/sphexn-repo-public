@@ -4384,6 +4384,55 @@ function initMicansUI() {
 }
 window.initMicansUI = initMicansUI;
 
+const repoBranchesCache = {};
+
+async function fetchRepoBranches(repoFullName, targetSelectId, defaultBranch = 'main') {
+  const branchSelect = document.getElementById(targetSelectId);
+  if (!branchSelect) return;
+
+  if (repoBranchesCache[repoFullName] && repoBranchesCache[repoFullName].length > 0) {
+    populateBranchSelect(branchSelect, repoBranchesCache[repoFullName], defaultBranch);
+    return;
+  }
+
+  branchSelect.innerHTML = '<option value="">Detectando ramas en GitHub...</option>';
+  const token = getGitHubToken();
+
+  try {
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('https://api.github.com/repos/' + repoFullName + '/branches?per_page=100', { headers });
+    if (res.ok) {
+      const branches = await res.json();
+      if (Array.isArray(branches) && branches.length > 0) {
+        repoBranchesCache[repoFullName] = branches;
+        populateBranchSelect(branchSelect, branches, defaultBranch);
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn('Error fetching branches for', repoFullName, err);
+  }
+
+  branchSelect.innerHTML = '<option value="main">🌿 main (Predeterminada)</option><option value="develop">🌿 develop</option><option value="master">🌿 master</option>';
+}
+window.fetchRepoBranches = fetchRepoBranches;
+
+function populateBranchSelect(selectEl, branches, defaultBranch) {
+  let hasDefault = false;
+  selectEl.innerHTML = branches.map(b => {
+    const isSelected = b.name === defaultBranch;
+    if (isSelected) hasDefault = true;
+    return '<option value="' + b.name + '" ' + (isSelected ? 'selected' : '') + '>🌿 ' + b.name + (b.protected ? ' 🔒' : '') + '</option>';
+  }).join('');
+
+  if (!hasDefault && branches.length > 0) {
+    selectEl.selectedIndex = 0;
+  }
+}
+window.populateBranchSelect = populateBranchSelect;
+
 async function loadMicansRepositories(force = false) {
   const select = document.getElementById('micans-repo-select');
   const searchInput = document.getElementById('micans-repo-search');
@@ -4405,6 +4454,10 @@ async function loadMicansRepositories(force = false) {
   }
 
   filterMicansRepos(searchInput ? searchInput.value : '');
+  const firstRepo = select.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'micans-branch-select');
+  }
 }
 window.loadMicansRepositories = loadMicansRepositories;
 
@@ -4425,11 +4478,11 @@ function filterMicansRepos(q) {
 }
 window.filterMicansRepos = filterMicansRepos;
 
-function onMicansRepoChanged() {
+async function onMicansRepoChanged() {
   const select = document.getElementById('micans-repo-select');
-  const branchInput = document.getElementById('micans-branch-input');
-  if (branchInput && !branchInput.value) {
-    branchInput.value = 'main';
+  const selectedRepo = select ? select.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'micans-branch-select');
   }
   syncMicansRunsWithGitHub();
 }
@@ -4438,12 +4491,13 @@ window.onMicansRepoChanged = onMicansRepoChanged;
 async function dispatchMicans(action) {
   const token = getGitHubToken();
   const repoSelect = document.getElementById('micans-repo-select');
+  const branchSelect = document.getElementById('micans-branch-select');
   const branchInput = document.getElementById('micans-branch-input');
   const docFilesInput = document.getElementById('micans-doc-files-input');
   const spinner = document.getElementById('micans-spinner');
 
   const repo = repoSelect ? repoSelect.value : '';
-  const branch = (branchInput ? branchInput.value : 'main').trim() || 'main';
+  const branch = (branchSelect ? branchSelect.value : (branchInput ? branchInput.value : 'main')).trim() || 'main';
   const docFiles = (docFilesInput ? docFilesInput.value : 'README.md').trim() || 'README.md';
 
   if (!repo) {
@@ -5136,7 +5190,20 @@ async function loadAutoMicansRepoOptions(force = false) {
   }
 
   filterAutoMicansRepos(searchInput ? searchInput.value : '');
+  const firstRepo = picker.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'automicans-branch-select');
+  }
 }
+
+async function onAutoMicansRepoChanged() {
+  const picker = document.getElementById('automicans-repo-picker');
+  const selectedRepo = picker ? picker.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'automicans-branch-select');
+  }
+}
+window.onAutoMicansRepoChanged = onAutoMicansRepoChanged;
 window.loadAutoMicansRepoOptions = loadAutoMicansRepoOptions;
 
 function filterAutoMicansRepos(q) {
@@ -5158,11 +5225,12 @@ window.filterAutoMicansRepos = filterAutoMicansRepos;
 
 function addRepoToAutoMicans() {
   const picker = document.getElementById('automicans-repo-picker');
+  const branchSelect = document.getElementById('automicans-branch-select');
   const branchInput = document.getElementById('automicans-branch-input');
   const docsInput = document.getElementById('automicans-docs-input');
 
   const repo = picker ? picker.value : null;
-  const branch = (branchInput ? branchInput.value : 'main').trim() || 'main';
+  const branch = (branchSelect ? branchSelect.value : (branchInput ? branchInput.value : 'main')).trim() || 'main';
   const docs = (docsInput ? docsInput.value : 'README.md').trim() || 'README.md';
 
   if (!repo) {
@@ -5171,21 +5239,32 @@ function addRepoToAutoMicans() {
   }
 
   let list = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
-  if (list.some(item => (typeof item === 'string' ? item : item.repo) === repo)) {
-    sphexnAlert('El repositorio ' + repo + ' ya se encuentra en la lista de sincronización continua.', 'Ya Añadido', 'ℹ️');
+  // Composite check: allows multiple branches of the same repo!
+  const alreadyExists = list.some(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return itemRepo === repo && itemBranch === branch;
+  });
+
+  if (alreadyExists) {
+    sphexnAlert('La rama ' + branch + ' del repositorio ' + repo + ' ya se encuentra en la lista de sincronización continua.', 'Ya Añadido', 'ℹ️');
     return;
   }
 
   list.push({ repo, branch, docs });
   localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(list));
   renderAutoMicansMonitoredRepos();
-  sphexnAlert('Repositorio ' + repo + ' (' + branch + ') añadido a la sincronización continua de Micans.', 'Repositorio Añadido', '➕');
+  sphexnAlert('Repositorio ' + repo + ' [Rama: ' + branch + '] añadido a la sincronización continua de Micans.', 'Rama Añadida a Vigilancia', '➕');
 }
 window.addRepoToAutoMicans = addRepoToAutoMicans;
 
-function removeRepoFromAutoMicans(repo) {
+function removeRepoFromAutoMicans(repo, branch = 'main') {
   let list = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
-  list = list.filter(item => (typeof item === 'string' ? item : item.repo) !== repo);
+  list = list.filter(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return !(itemRepo === repo && itemBranch === branch);
+  });
   localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(list));
   renderAutoMicansMonitoredRepos();
 }
@@ -5224,7 +5303,7 @@ function renderAutoMicansMonitoredRepos() {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoMicans(\'' + item.repo + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de sincronización">✕ Quitar</button>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoMicans(\'' + item.repo + '\', \'' + item.branch + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de sincronización">✕ Quitar</button>' +
     '</div>';
   }).join('');
 }

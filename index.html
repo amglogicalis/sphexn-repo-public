@@ -501,12 +501,14 @@
                     </select>
                   </div>
 
-                  <!-- COL 2: BRANCH PICKER -->
+                  <!-- COL 2: DYNAMIC BRANCH PICKER -->
                   <div class="form-group" style="margin: 0; min-width: 0;">
-                    <label for="micans-branch-input" style="font-size: 0.86rem; font-weight: 600; margin-bottom: 8px; display: block; color: #e2e8f0;">
-                      🌿 Rama de Código:
+                    <label for="micans-branch-select" style="font-size: 0.86rem; font-weight: 600; margin-bottom: 8px; display: block; color: #e2e8f0;">
+                      🌿 Rama Detectada:
                     </label>
-                    <input type="text" id="micans-branch-input" class="form-control" value="main" placeholder="ej: main, develop, staging" style="font-size: 0.88rem; padding: 10px 14px; width: 100%; box-sizing: border-box; height: 42px;">
+                    <select id="micans-branch-select" class="form-control" style="font-size: 0.88rem; padding: 10px 14px; width: 100%; box-sizing: border-box; height: 42px;">
+                      <option value="main">🌿 main</option>
+                    </select>
                   </div>
 
                   <!-- COL 3: DOC FILES TO AUDIT -->
@@ -847,7 +849,7 @@ continue-on-error: true
                       <label for="automicans-repo-picker" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
                         📦 Repositorio Detectado:
                       </label>
-                      <select id="automicans-repo-picker" class="form-control" style="width: 100%; box-sizing: border-box;">
+                      <select id="automicans-repo-picker" class="form-control" onchange="onAutoMicansRepoChanged()" style="width: 100%; box-sizing: border-box;">
                         <option value="">Consultando repositorios en GitHub API...</option>
                       </select>
                     </div>
@@ -856,10 +858,12 @@ continue-on-error: true
                   <!-- ROW 2: TARGET BRANCH & DOC FILES -->
                   <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
                     <div class="form-group" style="margin: 0; min-width: 0;">
-                      <label for="automicans-branch-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                      <label for="automicans-branch-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
                         🌿 Rama Vigilada:
                       </label>
-                      <input type="text" id="automicans-branch-input" class="form-control" value="main" placeholder="main" style="width: 100%; box-sizing: border-box;">
+                      <select id="automicans-branch-select" class="form-control" style="width: 100%; box-sizing: border-box; font-size: 0.88rem; padding: 9px 12px; height: 40px;">
+                        <option value="main">🌿 main</option>
+                      </select>
                     </div>
                     <div class="form-group" style="margin: 0; min-width: 0;">
                       <label for="automicans-docs-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
@@ -1167,6 +1171,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260903_05"></script>
+  <script src="app.js?v=20260903_06"></script>
 </body>
 </html>
