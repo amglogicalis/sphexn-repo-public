@@ -391,6 +391,11 @@ function switchTab(tabId) {
     if (typeof window.initPraedatorUI === 'function') window.initPraedatorUI();
     if (typeof window.syncPraedatorRunsWithGitHub === 'function') window.syncPraedatorRunsWithGitHub();
   }
+  if (tabId === 'micans') {
+    if (typeof window.initMicansUI === 'function') window.initMicansUI();
+    if (typeof window.loadMicansRepositories === 'function') window.loadMicansRepositories();
+    if (typeof window.loadMicansAudits === 'function') window.loadMicansAudits();
+  }
   if (tabId === 'config') {
     if (typeof window.initConfigurationTab === 'function') window.initConfigurationTab();
     if (typeof window.renderFallbackMatrixUI === 'function') window.renderFallbackMatrixUI();
@@ -3426,21 +3431,30 @@ let draggedFallbackIndex = null;
 function switchConfigSubtab(subtab) {
   const btnFb = document.getElementById('btn-cfg-subtab-fallback');
   const btnAp = document.getElementById('btn-cfg-subtab-autopr');
+  const btnAm = document.getElementById('btn-cfg-subtab-automicans');
   const contFb = document.getElementById('cfg-subtab-fallback-container');
   const contAp = document.getElementById('cfg-subtab-autopr-container');
+  const contAm = document.getElementById('cfg-subtab-automicans-container');
+
+  if (btnFb) btnFb.className = 'segmented-item';
+  if (btnAp) btnAp.className = 'segmented-item';
+  if (btnAm) btnAm.className = 'segmented-item';
+  if (contFb) contFb.style.display = 'none';
+  if (contAp) contAp.style.display = 'none';
+  if (contAm) contAm.style.display = 'none';
 
   if (subtab === 'fallback') {
     if (btnFb) btnFb.className = 'segmented-item active';
-    if (btnAp) btnAp.className = 'segmented-item';
     if (contFb) contFb.style.display = 'block';
-    if (contAp) contAp.style.display = 'none';
     renderFallbackMatrixUI();
-  } else {
-    if (btnFb) btnFb.className = 'segmented-item';
+  } else if (subtab === 'autopr') {
     if (btnAp) btnAp.className = 'segmented-item active';
-    if (contFb) contFb.style.display = 'none';
     if (contAp) contAp.style.display = 'block';
     initAutoPraedatorConfigUI();
+  } else if (subtab === 'automicans') {
+    if (btnAm) btnAm.className = 'segmented-item active';
+    if (contAm) contAm.style.display = 'block';
+    initAutoMicansConfigUI();
   }
 }
 window.switchConfigSubtab = switchConfigSubtab;
@@ -3448,6 +3462,7 @@ window.switchConfigSubtab = switchConfigSubtab;
 function initConfigurationTab() {
   renderFallbackMatrixUI();
   initAutoPraedatorConfigUI();
+  initAutoMicansConfigUI();
 }
 window.initConfigurationTab = initConfigurationTab;
 
@@ -4354,3 +4369,439 @@ function initPraedatorUI() {
   renderPraedatorRunsInventory();
 }
 window.initPraedatorUI = initPraedatorUI;
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ─── MODULE: SPHEXN MICANS (DOCUMENTATION SYNCHRONIZER & AUTO-MICANS) ─────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentMicansResultsCache = null;
+
+function initMicansUI() {
+  loadMicansRepositories();
+  loadMicansAudits();
+}
+window.initMicansUI = initMicansUI;
+
+async function loadMicansRepositories(force = false) {
+  const select = document.getElementById('micans-repo-select');
+  const searchInput = document.getElementById('micans-repo-search');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+
+  if (!repos || repos.length === 0) {
+    select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterMicansRepos(searchInput.value);
+    });
+  }
+
+  filterMicansRepos(searchInput ? searchInput.value : '');
+}
+window.loadMicansRepositories = loadMicansRepositories;
+
+function filterMicansRepos(q) {
+  const select = document.getElementById('micans-repo-select');
+  if (!select) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    select.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  select.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+}
+window.filterMicansRepos = filterMicansRepos;
+
+function onMicansRepoChanged() {
+  const select = document.getElementById('micans-repo-select');
+  const branchInput = document.getElementById('micans-branch-input');
+  if (branchInput && !branchInput.value) {
+    branchInput.value = 'main';
+  }
+}
+window.onMicansRepoChanged = onMicansRepoChanged;
+
+async function dispatchMicans(action) {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('micans-repo-select');
+  const branchInput = document.getElementById('micans-branch-input');
+  const docFilesInput = document.getElementById('micans-doc-files-input');
+  const spinner = document.getElementById('micans-spinner');
+
+  const repo = repoSelect ? repoSelect.value : '';
+  const branch = (branchInput ? branchInput.value : 'main').trim() || 'main';
+  const docFiles = (docFilesInput ? docFilesInput.value : 'README.md').trim() || 'README.md';
+
+  if (!repo) {
+    sphexnAlert('Por favor, selecciona un repositorio destino para auditar con Micans.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  if (!token) {
+    sphexnAlert('Se requiere un GitHub Personal Access Token con permisos repo para despachar Micans.', 'Token Requerido', '🔑');
+    return;
+  }
+
+  if (spinner) spinner.style.display = 'block';
+
+  const actionLabels = {
+    drift: 'Auditoría de Discrepancias (Drift)',
+    patch: 'Generación de Parche Quirúrgico',
+    sync: 'Sincronización Automática (Auto-PR)'
+  };
+
+  try {
+    const activeChain = getActiveFallbackChain('micans');
+    const workflowFile = 'sphexn-micans.yml';
+
+    const dispatchUrl = 'https://api.github.com/repos/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
+    const res = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs: {
+          mode: action,
+          repo: repo,
+          branch: branch,
+          doc_files: docFiles,
+          fallback_matrix: JSON.stringify(activeChain)
+        }
+      })
+    });
+
+    if (spinner) spinner.style.display = 'none';
+
+    if (res.status === 204 || res.status === 200 || res.status === 201) {
+      sphexnAlert('Disparo exitoso de Sphexn Micans (' + actionLabels[action] + ') en ' + repo + ' (' + branch + '). El runner está ejecutándose en GitHub Actions con $0 Compute.', 'Micans Despachado 🚀', '📝');
+
+      // Record simulated initial item
+      const newAudit = {
+        id: 'micans_' + Date.now(),
+        repo: repo,
+        branch: branch,
+        mode: action,
+        docFiles: docFiles,
+        timestamp: new Date().toISOString(),
+        discrepanciesCount: 0,
+        status: 'DISPATCHED',
+        provider: activeChain[0] ? activeChain[0].name : 'Groq Cloud'
+      };
+
+      saveMicansAuditToLocal(newAudit);
+      loadMicansAudits();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      if (spinner) spinner.style.display = 'none';
+      sphexnAlert('Error ' + res.status + ' al despachar workflow: ' + (err.message || 'Verifica que .github/workflows/sphexn-micans.yml exista en la rama ' + branch), 'Fallo en Despacho', '❌');
+    }
+  } catch (e) {
+    if (spinner) spinner.style.display = 'none';
+    sphexnAlert('Error de conexión con GitHub API: ' + e.message, 'Error de Red', '❌');
+  }
+}
+window.dispatchMicans = dispatchMicans;
+
+function saveMicansAuditToLocal(audit) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+  audits.unshift(audit);
+  if (audits.length > 50) audits = audits.slice(0, 50);
+  localStorage.setItem('sphexn_micans_audits', JSON.stringify(audits));
+}
+
+function loadMicansAudits() {
+  const tbody = document.getElementById('micans-tbody');
+  if (!tbody) return;
+
+  const audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+
+  if (audits.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay registros de sincronización de Micans aún. Selecciona un repositorio arriba y pulsa Auditar Drift.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = audits.map((a, idx) => {
+    const isDispatched = a.status === 'DISPATCHED';
+    return '<tr>' +
+      '<td><code>' + a.id + '</code></td>' +
+      '<td><strong>' + a.repo + '</strong> <span style="font-size: 0.78rem; color: var(--text-muted);">(' + (a.branch || 'main') + ')</span></td>' +
+      '<td><code>' + (a.docFiles || 'README.md') + '</code></td>' +
+      '<td>' + (isDispatched ? '<span class="badge badge-blue">⏳ Ejecutando</span>' : '<span class="badge ' + (a.discrepanciesCount > 0 ? 'badge-amber' : 'badge-green') + '">' + (a.discrepanciesCount || 0) + ' discrepancias</span>') + '</td>' +
+      '<td>' + (a.patchesApplied ? '<span class="badge badge-green">✔ ' + a.patchesApplied + ' aplicados</span>' : '<span class="text-muted">0</span>') + '</td>' +
+      '<td><span style="font-size: 0.8rem;">' + (a.provider || 'Groq Cloud') + '</span></td>' +
+      '<td>' + new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+      '<td>' +
+        '<button class="btn btn-secondary btn-xs" onclick="viewMicansAuditDetail(' + idx + ')" style="padding: 4px 10px;">👁️ Ver Detalle</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+window.loadMicansAudits = loadMicansAudits;
+
+function viewMicansAuditDetail(index) {
+  const audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+  const audit = audits[index];
+  if (!audit) return;
+
+  renderMicansDriftReport(audit);
+}
+window.viewMicansAuditDetail = viewMicansAuditDetail;
+
+function renderMicansDriftReport(report) {
+  const container = document.getElementById('micans-results');
+  if (!container) return;
+
+  currentMicansResultsCache = report;
+
+  const discrepancies = report.discrepancies || [];
+  const patches = report.patches || [];
+
+  const discHtml = discrepancies.length === 0
+    ? '<div class="p-16 text-muted text-center" style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px;">✔ Cero discrepancias. La documentación refleja fielmente las firmas del código.</div>'
+    : discrepancies.map(d => {
+        return '<div class="card" style="padding: 12px 16px; margin-bottom: 8px; background: rgba(16, 24, 38, 0.85); border-left: 3px solid #f59e0b;">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+            '<strong style="font-size: 0.88rem; color: #f8fafc;"><code>' + d.symbol + '</code></strong>' +
+            '<span class="badge badge-amber" style="font-size: 0.68rem;">' + d.type + '</span>' +
+          '</div>' +
+          '<p style="margin: 6px 0 0 0; font-size: 0.8rem; color: #cbd5e1;">' + d.message + '</p>' +
+          (d.file ? '<span class="text-muted" style="font-size: 0.72rem; display: block; margin-top: 4px;">Ubicación: <code>' + d.file + '</code></span>' : '') +
+        '</div>';
+      }).join('');
+
+  const patchHtml = patches.length === 0
+    ? '<div class="p-16 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados para esta ejecución.</div>'
+    : patches.map(p => {
+        return '<div class="card" style="padding: 14px 16px; margin-bottom: 12px; background: rgba(11, 17, 26, 0.9); border: 1px solid var(--border-subtle);">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+            '<span style="font-size: 0.82rem; font-weight: 600; color: #60a5fa;">' + (p.section || 'Surgical Patch Block') + '</span>' +
+            '<span class="badge badge-blue" style="font-size: 0.68rem;">SEARCH / REPLACE</span>' +
+          '</div>' +
+          (p.search ? '<div style="margin-bottom: 8px;"><span style="font-size: 0.72rem; color: #f87171; font-weight: 600;"><<<< SEARCH (Original)</span><pre style="background: rgba(239, 68, 68, 0.08); color: #fca5a5; padding: 8px; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; margin: 4px 0;">' + escapeHtml(p.search) + '</pre></div>' : '') +
+          '<div><span style="font-size: 0.72rem; color: #34d399; font-weight: 600;">>>>> REPLACE (Sincronizado)</span><pre style="background: rgba(16, 185, 129, 0.08); color: #86efac; padding: 8px; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; margin: 4px 0;">' + escapeHtml(p.replace) + '</pre></div>' +
+        '</div>';
+      }).join('');
+
+  container.innerHTML = '<div class="card" style="padding: 20px 24px; border: 1px solid rgba(59, 130, 246, 0.3);">' +
+    '<div class="card-header" style="padding: 0 0 14px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">' +
+      '<div>' +
+        '<h3 style="margin: 0; font-size: 1.1rem;">Informe Micans: ' + report.repo + ' <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">(' + (report.branch || 'main') + ')</span></h3>' +
+        '<p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.8rem;">Modo: <code>' + report.mode + '</code> • Proveedor IA: ' + (report.provider || 'Motor Heurístico AST') + ' • Fecha: ' + new Date(report.timestamp).toLocaleString() + '</p>' +
+      '</div>' +
+      '<button class="btn btn-secondary btn-xs" onclick="copyMicansPatches()" style="display: flex; align-items: center; gap: 6px;">' +
+        '<span>📋</span> Copiar Parche Completo' +
+      '</button>' +
+    '</div>' +
+    '<div class="kpi-grid mb-20">' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Discrepancias</span><span>🔍</span></div><div class="kpi-value ' + (discrepancies.length > 0 ? 'text-amber' : 'text-green') + '">' + discrepancies.length + '</div><div class="kpi-meta">' + (discrepancies.length > 0 ? 'Requieren sincronización' : 'Documentación al día') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Parches Quirúrgicos</span><span>📝</span></div><div class="kpi-value text-blue">' + patches.length + '</div><div class="kpi-meta">Bloques SEARCH/REPLACE</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Estado de Sincronización</span><span>⚡</span></div><div class="kpi-value text-green">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div><div class="kpi-meta">' + (report.patchesApplied ? report.patchesApplied + ' parches integrados' : 'Listo para aplicar') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Cómputo Incurrido</span><span>💰</span></div><div class="kpi-value text-green">$0.00</div><div class="kpi-meta">Arquitectura Soberana Terra</div></div>' +
+    '</div>' +
+    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">' +
+      '<div>' +
+        '<h4 style="margin: 0 0 10px 0; font-size: 0.94rem; display: flex; align-items: center; gap: 8px;">' +
+          '<span>⚠️</span> Discrepancias Detectadas (' + discrepancies.length + ')' +
+        '</h4>' +
+        '<div style="max-height: 480px; overflow-y: auto; padding-right: 6px;">' + discHtml + '</div>' +
+      '</div>' +
+      '<div>' +
+        '<h4 style="margin: 0 0 10px 0; font-size: 0.94rem; display: flex; align-items: center; gap: 8px;">' +
+          '<span>📝</span> Previsualización del Parche Quirúrgico (' + patches.length + ')' +
+        '</h4>' +
+        '<div style="max-height: 480px; overflow-y: auto; padding-right: 6px;">' + patchHtml + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.renderMicansDriftReport = renderMicansDriftReport;
+
+function copyMicansPatches() {
+  if (!currentMicansResultsCache || !currentMicansResultsCache.patches) {
+    sphexnAlert('No hay parches generados para copiar.', 'Sin Datos', 'ℹ️');
+    return;
+  }
+
+  const patchText = currentMicansResultsCache.patches.map(p => {
+    return '<<<< SEARCH\n' + p.search + '\n====\n' + p.replace + '\n>>>>\n';
+  }).join('\n');
+
+  navigator.clipboard.writeText(patchText).then(() => {
+    sphexnAlert('Parche quirúrgico SEARCH/REPLACE copiado al portapapeles.', 'Copiado', '📋');
+  }).catch(() => {
+    sphexnAlert('No se pudo acceder al portapapeles.', 'Error', '❌');
+  });
+}
+window.copyMicansPatches = copyMicansPatches;
+
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ─── AUTO-MICANS CONTINUOUS DOCUMENTATION SYNCHRONIZATION ENGINE ───
+
+function initAutoMicansConfigUI() {
+  const isMasterActive = localStorage.getItem('sphexn_master_auto_micans') === 'true';
+  const masterToggle = document.getElementById('master-toggle-auto-micans');
+  if (masterToggle) masterToggle.checked = isMasterActive;
+
+  const panel = document.getElementById('automicans-management-panel');
+  if (panel) panel.style.display = isMasterActive ? 'block' : 'none';
+
+  loadAutoMicansRepoOptions();
+  renderAutoMicansMonitoredRepos();
+}
+window.initAutoMicansConfigUI = initAutoMicansConfigUI;
+
+function toggleMasterAutoMicans(enabled) {
+  localStorage.setItem('sphexn_master_auto_micans', enabled ? 'true' : 'false');
+  const panel = document.getElementById('automicans-management-panel');
+  if (panel) panel.style.display = enabled ? 'block' : 'none';
+
+  if (enabled) {
+    sphexnAlert('Sincronización Continua Auto-Micans activada. Cada push a código en los repositorios seleccionados auditará y actualizará la documentación automáticamente.', 'Auto-Micans Activado', '📝');
+    loadAutoMicansRepoOptions();
+  } else {
+    sphexnAlert('Sincronización Continua Auto-Micans pausada globalmente.', 'Auto-Micans Pausado', 'ℹ️');
+  }
+}
+window.toggleMasterAutoMicans = toggleMasterAutoMicans;
+
+async function loadAutoMicansRepoOptions(force = false) {
+  const picker = document.getElementById('automicans-repo-picker');
+  const searchInput = document.getElementById('automicans-repo-search');
+  if (!picker) return;
+
+  picker.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+
+  if (!repos || repos.length === 0) {
+    picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project</option>';
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterAutoMicansRepos(searchInput.value);
+    });
+  }
+
+  filterAutoMicansRepos(searchInput ? searchInput.value : '');
+}
+window.loadAutoMicansRepoOptions = loadAutoMicansRepoOptions;
+
+function filterAutoMicansRepos(q) {
+  const picker = document.getElementById('automicans-repo-picker');
+  if (!picker) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    picker.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+}
+window.filterAutoMicansRepos = filterAutoMicansRepos;
+
+function addRepoToAutoMicans() {
+  const picker = document.getElementById('automicans-repo-picker');
+  const branchInput = document.getElementById('automicans-branch-input');
+  const docsInput = document.getElementById('automicans-docs-input');
+
+  const repo = picker ? picker.value : null;
+  const branch = (branchInput ? branchInput.value : 'main').trim() || 'main';
+  const docs = (docsInput ? docsInput.value : 'README.md').trim() || 'README.md';
+
+  if (!repo) {
+    sphexnAlert('Selecciona un repositorio válido para añadir.', 'Aviso', '⚠️');
+    return;
+  }
+
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
+  if (list.some(item => (typeof item === 'string' ? item : item.repo) === repo)) {
+    sphexnAlert('El repositorio ' + repo + ' ya se encuentra en la lista de sincronización continua.', 'Ya Añadido', 'ℹ️');
+    return;
+  }
+
+  list.push({ repo, branch, docs });
+  localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(list));
+  renderAutoMicansMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' (' + branch + ') añadido a la sincronización continua de Micans.', 'Repositorio Añadido', '➕');
+}
+window.addRepoToAutoMicans = addRepoToAutoMicans;
+
+function removeRepoFromAutoMicans(repo) {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
+  list = list.filter(item => (typeof item === 'string' ? item : item.repo) !== repo);
+  localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(list));
+  renderAutoMicansMonitoredRepos();
+}
+window.removeRepoFromAutoMicans = removeRepoFromAutoMicans;
+
+function renderAutoMicansMonitoredRepos() {
+  const container = document.getElementById('automicans-monitored-list');
+  const countBadge = document.getElementById('automicans-monitored-count');
+  if (!container) return;
+
+  const rawList = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
+  const list = rawList.map(item => typeof item === 'string' ? { repo: item, branch: 'main', docs: 'README.md' } : item);
+
+  if (countBadge) {
+    countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="placeholder-box" style="padding: 24px; margin: 0; background: rgba(11, 17, 26, 0.4);">' +
+      '<span class="large-icon" style="font-size: 1.8rem;">📝</span>' +
+      '<p class="text-muted" style="margin: 8px 0 0 0; font-size: 0.86rem;">Cero repositorios configurados. Añade uno arriba para sincronizar automáticamente su documentación en cada push.</p>' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(item => {
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.3rem;">📝</span>' +
+        '<div>' +
+          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + item.repo + '</strong>' +
+          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + item.branch + '</span>' +
+            '<span class="badge badge-green" style="font-size: 0.7rem;">DOCS: ' + item.docs + '</span>' +
+            '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push [src/**, docs/**, README.md]</code></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoMicans(\'' + item.repo + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de sincronización">✕ Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoMicansMonitoredRepos = renderAutoMicansMonitoredRepos;
