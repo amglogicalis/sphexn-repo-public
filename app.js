@@ -4705,6 +4705,52 @@ function viewMicansAuditDetail(index) {
 }
 window.viewMicansAuditDetail = viewMicansAuditDetail;
 
+let currentMicansActiveFilter = 'all';
+let currentMicansPatchViewMode = 'rendered';
+
+function filterMicansDiscrepanciesUI(filterType) {
+  currentMicansActiveFilter = filterType;
+  const items = document.querySelectorAll('.micans-disc-item');
+  items.forEach(el => {
+    if (filterType === 'all' || el.dataset.cat === filterType) {
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+
+  const buttons = ['all', 'fns', 'eps', 'cli', 'vars'];
+  buttons.forEach(b => {
+    const btn = document.getElementById('btn-micans-f-' + b);
+    if (btn) {
+      if (b === filterType) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+}
+window.filterMicansDiscrepanciesUI = filterMicansDiscrepanciesUI;
+
+function switchMicansPatchView(mode) {
+  currentMicansPatchViewMode = mode;
+  const renderedBox = document.getElementById('micans-patch-rendered-view');
+  const diffBox = document.getElementById('micans-patch-diff-view');
+  const btnR = document.getElementById('btn-micans-pv-rendered');
+  const btnD = document.getElementById('btn-micans-pv-diff');
+
+  if (mode === 'rendered') {
+    if (renderedBox) renderedBox.style.display = 'block';
+    if (diffBox) diffBox.style.display = 'none';
+    if (btnR) btnR.classList.add('active');
+    if (btnD) btnD.classList.remove('active');
+  } else {
+    if (renderedBox) renderedBox.style.display = 'none';
+    if (diffBox) diffBox.style.display = 'block';
+    if (btnR) btnR.classList.remove('active');
+    if (btnD) btnD.classList.add('active');
+  }
+}
+window.switchMicansPatchView = switchMicansPatchView;
+
 function renderMicansDriftReport(report) {
   const container = document.getElementById('micans-results');
   if (!container) return;
@@ -4714,60 +4760,145 @@ function renderMicansDriftReport(report) {
   const discrepancies = report.discrepancies || [];
   const patches = report.patches || [];
 
+  const countFns = discrepancies.filter(d => d.type === 'MISSING_FUNCTION_IN_DOCS').length;
+  const countEps = discrepancies.filter(d => d.type === 'MISSING_ENDPOINT').length;
+  const countCli = discrepancies.filter(d => d.type === 'MISSING_CLI_FLAG').length;
+  const countVars = discrepancies.filter(d => d.type === 'MISSING_ENV_VAR').length;
+
   const discHtml = discrepancies.length === 0
-    ? '<div class="p-16 text-muted text-center" style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px;">✔ Cero discrepancias. La documentación refleja fielmente las firmas del código.</div>'
+    ? '<div class="p-24 text-muted text-center" style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.25); border-radius: 8px;"><span style="font-size: 1.5rem; display: block; margin-bottom: 6px;">✔</span><strong>¡Documentación 100% Sincronizada!</strong><p style="margin: 4px 0 0 0; font-size: 0.82rem;">Todas las firmas de código coinciden fielmente con los archivos documentados.</p></div>'
     : discrepancies.map(d => {
-        return '<div class="card" style="padding: 12px 16px; margin-bottom: 8px; background: rgba(16, 24, 38, 0.85); border-left: 3px solid #f59e0b;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: center;">' +
-            '<strong style="font-size: 0.88rem; color: #f8fafc;"><code>' + d.symbol + '</code></strong>' +
-            '<span class="badge badge-amber" style="font-size: 0.68rem;">' + d.type + '</span>' +
+        const isFn = d.type === 'MISSING_FUNCTION_IN_DOCS';
+        const isEp = d.type === 'MISSING_ENDPOINT';
+        const isCli = d.type === 'MISSING_CLI_FLAG';
+        const isVar = d.type === 'MISSING_ENV_VAR';
+        const cat = isFn ? 'fns' : (isEp ? 'eps' : (isCli ? 'cli' : (isVar ? 'vars' : 'other')));
+        const icon = isFn ? '⚡' : (isEp ? '🌐' : (isCli ? '💻' : (isVar ? '🔑' : '📝')));
+        const typeBadge = isFn ? 'badge-blue' : (isEp ? 'badge-green' : (isVar ? 'badge-amber' : 'badge-secondary'));
+
+        return '<div class="card micans-disc-item" data-cat="' + cat + '" style="padding: 14px 16px; margin-bottom: 10px; background: rgba(16, 24, 38, 0.9); border-left: 3px solid ' + (isVar ? '#f59e0b' : '#3b82f6') + '; transition: transform 0.15s, border-color 0.15s;">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">' +
+            '<div style="display: flex; align-items: center; gap: 8px;">' +
+              '<span style="font-size: 1rem;">' + icon + '</span>' +
+              '<strong style="font-size: 0.9rem; color: #f8fafc; font-family: var(--font-mono);">' + d.symbol + '</strong>' +
+            '</div>' +
+            '<span class="badge ' + typeBadge + '" style="font-size: 0.68rem;">' + d.type.replace(/_/g, ' ') + '</span>' +
           '</div>' +
-          '<p style="margin: 6px 0 0 0; font-size: 0.8rem; color: #cbd5e1;">' + d.message + '</p>' +
-          (d.file ? '<span class="text-muted" style="font-size: 0.72rem; display: block; margin-top: 4px;">Ubicación: <code>' + d.file + '</code></span>' : '') +
+          '<p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">' + d.message + '</p>' +
+          (d.file ? '<div style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.74rem; color: var(--text-muted);">' +
+            '<span>📂 Origen:</span> <code style="color: #93c5fd;">' + d.file + '</code>' +
+            (d.params && d.params.length > 0 ? '<span style="margin-left: 8px;">(params: ' + d.params.join(', ') + ')</span>' : '') +
+          '</div>' : '') +
         '</div>';
       }).join('');
 
-  const patchHtml = patches.length === 0
-    ? '<div class="p-16 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados para esta ejecución.</div>'
-    : patches.map(p => {
-        return '<div class="card" style="padding: 14px 16px; margin-bottom: 12px; background: rgba(11, 17, 26, 0.9); border: 1px solid var(--border-subtle);">' +
-          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
-            '<span style="font-size: 0.82rem; font-weight: 600; color: #60a5fa;">' + (p.section || 'Surgical Patch Block') + '</span>' +
-            '<span class="badge badge-blue" style="font-size: 0.68rem;">SEARCH / REPLACE</span>' +
-          '</div>' +
-          (p.search ? '<div style="margin-bottom: 8px;"><span style="font-size: 0.72rem; color: #f87171; font-weight: 600;"><<<< SEARCH (Original)</span><pre style="background: rgba(239, 68, 68, 0.08); color: #fca5a5; padding: 8px; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; margin: 4px 0;">' + escapeHtml(p.search) + '</pre></div>' : '') +
-          '<div><span style="font-size: 0.72rem; color: #34d399; font-weight: 600;">>>>> REPLACE (Sincronizado)</span><pre style="background: rgba(16, 185, 129, 0.08); color: #86efac; padding: 8px; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; margin: 4px 0;">' + escapeHtml(p.replace) + '</pre></div>' +
-        '</div>';
-      }).join('');
+  // 1. Rendered Documentation Table Preview
+  let renderedDocHtml = '';
+  if (patches.length === 0) {
+    renderedDocHtml = '<div class="p-24 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados para esta corrida.</div>';
+  } else {
+    // Generate styled markdown table from replace fragments
+    renderedDocHtml = patches.map(p => {
+      const text = p.replace || '';
+      return '<div class="card" style="padding: 16px; margin-bottom: 14px; background: rgba(11, 17, 26, 0.95); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">' +
+          '<span style="font-size: 0.86rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 8px;">' +
+            '<span>📄</span> ' + (p.section || 'Sección Documentada') +
+          '</span>' +
+          '<button class="btn btn-secondary btn-xs" onclick="copyIndividualPatch(' + escapeHtml(JSON.stringify(p.replace)) + ')" style="padding: 2px 8px; font-size: 0.72rem;">📋 Copiar Sección</button>' +
+        '</div>' +
+        renderMarkdownToHtml(text) +
+      '</div>';
+    }).join('');
+  }
 
-  container.innerHTML = '<div class="card" style="padding: 20px 24px; border: 1px solid rgba(59, 130, 246, 0.3);">' +
-    '<div class="card-header" style="padding: 0 0 14px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">' +
+  // 2. Diff SEARCH/REPLACE Blocks
+  let diffBlocksHtml = '';
+  if (patches.length === 0) {
+    diffBlocksHtml = '<div class="p-24 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados.</div>';
+  } else {
+    diffBlocksHtml = patches.map((p, idx) => {
+      return '<div class="card" style="padding: 14px 16px; margin-bottom: 12px; background: rgba(11, 17, 26, 0.95); border: 1px solid var(--border-subtle); border-radius: 8px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+          '<span style="font-size: 0.82rem; font-weight: 600; color: #60a5fa;">Parche #' + (idx + 1) + ' — ' + (p.section || 'Surgical Block') + '</span>' +
+          '<span class="badge badge-blue" style="font-size: 0.68rem;">SEARCH / REPLACE</span>' +
+        '</div>' +
+        (p.search ? '<div style="margin-bottom: 10px;">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">' +
+            '<span style="font-size: 0.72rem; color: #f87171; font-weight: 700;">&lt;&lt;&lt;&lt; SEARCH (Original a Reemplazar)</span>' +
+          '</div>' +
+          '<pre style="background: rgba(239, 68, 68, 0.08); color: #fca5a5; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(239, 68, 68, 0.2);">' + escapeHtml(p.search) + '</pre>' +
+        '</div>' : '') +
+        '<div>' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">' +
+            '<span style="font-size: 0.72rem; color: #34d399; font-weight: 700;">&gt;&gt;&gt;&gt; REPLACE (Documentación Sincronizada)</span>' +
+          '</div>' +
+          '<pre style="background: rgba(16, 185, 129, 0.08); color: #86efac; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(16, 185, 129, 0.2);">' + escapeHtml(p.replace) + '</pre>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  container.innerHTML = '<div class="card" style="padding: 22px 26px; border: 1px solid rgba(59, 130, 246, 0.35); box-sizing: border-box; width: 100%;">' +
+    '<!-- HEADER -->' +
+    '<div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">' +
       '<div>' +
-        '<h3 style="margin: 0; font-size: 1.1rem;">Informe Micans: ' + report.repo + ' <span style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">(' + (report.branch || 'main') + ')</span></h3>' +
-        '<p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.8rem;">Modo: <code>' + report.mode + '</code> • Proveedor IA: ' + (report.provider || 'Motor Heurístico AST') + ' • Fecha: ' + new Date(report.timestamp).toLocaleString() + '</p>' +
+        '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">' +
+          '<h3 style="margin: 0; font-size: 1.15rem; color: #f8fafc;">Informe Micans: <strong>' + report.repo + '</strong></h3>' +
+          '<span class="badge badge-blue" style="font-size: 0.72rem;">RAMA: ' + (report.branch || 'main') + '</span>' +
+          '<span class="badge badge-green" style="font-size: 0.72rem;">' + (report.docFiles || 'README.md') + '</span>' +
+        '</div>' +
+        '<p class="text-muted" style="margin: 0; font-size: 0.82rem;">' +
+          'Modo: <code>' + report.mode + '</code> • Proveedor IA: <strong>' + (report.provider || 'Motor Heurístico AST') + '</strong> • Fecha: ' + new Date(report.timestamp).toLocaleString() +
+        '</p>' +
       '</div>' +
-      '<button class="btn btn-secondary btn-xs" onclick="copyMicansPatches()" style="display: flex; align-items: center; gap: 6px;">' +
+      '<button class="btn btn-primary btn-sm" id="btn-copy-micans-all" onclick="copyMicansPatches()" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">' +
         '<span>📋</span> Copiar Parche Completo' +
       '</button>' +
     '</div>' +
-    '<div class="kpi-grid mb-20">' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Discrepancias</span><span>🔍</span></div><div class="kpi-value ' + (discrepancies.length > 0 ? 'text-amber' : 'text-green') + '">' + discrepancies.length + '</div><div class="kpi-meta">' + (discrepancies.length > 0 ? 'Requieren sincronización' : 'Documentación al día') + '</div></div>' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Parches Quirúrgicos</span><span>📝</span></div><div class="kpi-value text-blue">' + patches.length + '</div><div class="kpi-meta">Bloques SEARCH/REPLACE</div></div>' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Estado de Sincronización</span><span>⚡</span></div><div class="kpi-value text-green">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div><div class="kpi-meta">' + (report.patchesApplied ? report.patchesApplied + ' parches integrados' : 'Listo para aplicar') + '</div></div>' +
+
+    '<!-- KPI GRID -->' +
+    '<div class="kpi-grid mb-24">' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Discrepancias Reales</span><span>🔍</span></div><div class="kpi-value ' + (discrepancies.length > 0 ? 'text-amber' : 'text-green') + '">' + discrepancies.length + '</div><div class="kpi-meta">' + (discrepancies.length > 0 ? 'Detectadas en firmas públicas' : 'Documentación al día') + '</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Parches Quirúrgicos</span><span>📝</span></div><div class="kpi-value text-blue">' + patches.length + '</div><div class="kpi-meta">Sustituciones exactas</div></div>' +
+      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Estado de Sincronización</span><span>⚡</span></div><div class="kpi-value text-green">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div><div class="kpi-meta">' + (report.patchesApplied ? report.patchesApplied + ' integrados en Git' : 'Listo para fusionar') + '</div></div>' +
       '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Cómputo Incurrido</span><span>💰</span></div><div class="kpi-value text-green">$0.00</div><div class="kpi-meta">Arquitectura Soberana Terra</div></div>' +
     '</div>' +
-    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">' +
+
+    '<!-- TWO COLUMNS SPLIT VIEW -->' +
+    '<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start;">' +
+      '<!-- LEFT: DISCREPANCIES -->' +
       '<div>' +
-        '<h4 style="margin: 0 0 10px 0; font-size: 0.94rem; display: flex; align-items: center; gap: 8px;">' +
-          '<span>⚠️</span> Discrepancias Detectadas (' + discrepancies.length + ')' +
-        '</h4>' +
-        '<div style="max-height: 480px; overflow-y: auto; padding-right: 6px;">' + discHtml + '</div>' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
+          '<h4 style="margin: 0; font-size: 0.96rem; display: flex; align-items: center; gap: 8px;">' +
+            '<span>⚠️</span> Discrepancias Detectadas (' + discrepancies.length + ')' +
+          '</h4>' +
+        '</div>' +
+        '<!-- INTERACTIVE FILTER TABS -->' +
+        '<div class="segmented-control mb-12" style="background: rgba(11, 17, 26, 0.95); padding: 3px; display: flex; flex-wrap: wrap; gap: 4px;">' +
+          '<button class="segmented-item active" id="btn-micans-f-all" onclick="filterMicansDiscrepanciesUI(\'all\')" style="font-size: 0.76rem; padding: 4px 10px;">Todos (' + discrepancies.length + ')</button>' +
+          '<button class="segmented-item" id="btn-micans-f-fns" onclick="filterMicansDiscrepanciesUI(\'fns\')" style="font-size: 0.76rem; padding: 4px 10px;">⚡ Funciones (' + countFns + ')</button>' +
+          (countEps > 0 ? '<button class="segmented-item" id="btn-micans-f-eps" onclick="filterMicansDiscrepanciesUI(\'eps\')" style="font-size: 0.76rem; padding: 4px 10px;">🌐 APIs (' + countEps + ')</button>' : '') +
+          (countCli > 0 ? '<button class="segmented-item" id="btn-micans-f-cli" onclick="filterMicansDiscrepanciesUI(\'cli\')" style="font-size: 0.76rem; padding: 4px 10px;">💻 CLI (' + countCli + ')</button>' : '') +
+          (countVars > 0 ? '<button class="segmented-item" id="btn-micans-f-vars" onclick="filterMicansDiscrepanciesUI(\'vars\')" style="font-size: 0.76rem; padding: 4px 10px;">🔑 Variables (' + countVars + ')</button>' : '') +
+        '</div>' +
+        '<div id="micans-disc-container" style="max-height: 520px; overflow-y: auto; padding-right: 6px;">' + discHtml + '</div>' +
       '</div>' +
+
+      '<!-- RIGHT: PATCH PREVIEW WITH DUAL VIEW SWITCHER -->' +
       '<div>' +
-        '<h4 style="margin: 0 0 10px 0; font-size: 0.94rem; display: flex; align-items: center; gap: 8px;">' +
-          '<span>📝</span> Previsualización del Parche Quirúrgico (' + patches.length + ')' +
-        '</h4>' +
-        '<div style="max-height: 480px; overflow-y: auto; padding-right: 6px;">' + patchHtml + '</div>' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
+          '<h4 style="margin: 0; font-size: 0.96rem; display: flex; align-items: center; gap: 8px;">' +
+            '<span>📝</span> Previsualización Quirúrgica (' + patches.length + ')' +
+          '</h4>' +
+          '<!-- VIEW SWITCHER -->' +
+          '<div class="segmented-control" style="background: rgba(11, 17, 26, 0.95); padding: 2px;">' +
+            '<button class="segmented-item active" id="btn-micans-pv-rendered" onclick="switchMicansPatchView(\'rendered\')" style="font-size: 0.74rem; padding: 4px 10px;">📄 Renderizado</button>' +
+            '<button class="segmented-item" id="btn-micans-pv-diff" onclick="switchMicansPatchView(\'diff\')" style="font-size: 0.74rem; padding: 4px 10px;">🔍 SEARCH/REPLACE</button>' +
+          '</div>' +
+        '</div>' +
+        '<div id="micans-patch-rendered-view" style="display: block; max-height: 520px; overflow-y: auto; padding-right: 6px;">' + renderedDocHtml + '</div>' +
+        '<div id="micans-patch-diff-view" style="display: none; max-height: 520px; overflow-y: auto; padding-right: 6px;">' + diffBlocksHtml + '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -4775,6 +4906,75 @@ function renderMicansDriftReport(report) {
   container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 window.renderMicansDriftReport = renderMicansDriftReport;
+
+function copyIndividualPatch(text) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    sphexnAlert('Fragmento de documentación copiado al portapapeles.', 'Copiado', '📋');
+  }).catch(() => {});
+}
+window.copyIndividualPatch = copyIndividualPatch;
+
+function renderMarkdownToHtml(md) {
+  if (!md) return '';
+  let html = md;
+
+  // Tables
+  const lines = html.split('\n');
+  let inTable = false;
+  let tableLines = [];
+  const outLines = [];
+
+  for (const line of lines) {
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      inTable = true;
+      tableLines.push(line);
+    } else {
+      if (inTable) {
+        outLines.push(convertMarkdownTableToHtml(tableLines));
+        tableLines = [];
+        inTable = false;
+      }
+      outLines.push(line);
+    }
+  }
+  if (inTable) {
+    outLines.push(convertMarkdownTableToHtml(tableLines));
+  }
+
+  html = outLines.join('\n');
+
+  // Headers
+  html = html.replace(/^### (.*$)/gim, '<h4 style="margin: 14px 0 8px 0; font-size: 0.94rem; color: #f8fafc;">$1</h4>');
+  html = html.replace(/^## (.*$)/gim, '<h3 style="margin: 18px 0 10px 0; font-size: 1.05rem; color: #60a5fa; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">$1</h3>');
+
+  // Code chips
+  const bt = String.fromCharCode(96);
+  html = html.split(bt).map((chunk, i) => i % 2 === 1 ? '<code style="background: rgba(59, 130, 246, 0.12); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-family: var(--font-mono);">' + chunk + '</code>' : chunk).join('');
+
+  // Bullet points
+  html = html.replace(/^- (.*$)/gim, '<li style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 4px;">$1</li>');
+
+  return '<div style="line-height: 1.5; font-size: 0.84rem;">' + html + '</div>';
+}
+
+function convertMarkdownTableToHtml(tableLines) {
+  if (tableLines.length < 2) return tableLines.join('\n');
+
+  const headers = tableLines[0].split('|').slice(1, -1).map(h => h.trim());
+  const rows = tableLines.slice(2).map(r => r.split('|').slice(1, -1).map(c => c.trim()));
+
+  let thHtml = headers.map(h => '<th style="padding: 8px 12px; text-align: left; font-size: 0.78rem; color: #94a3b8; background: rgba(16, 24, 38, 0.9); border-bottom: 1px solid rgba(255,255,255,0.08);">' + h + '</th>').join('');
+  let tbHtml = rows.map(cols => {
+    let td = cols.map(c => '<td style="padding: 8px 12px; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.04);">' + c + '</td>').join('');
+    return '<tr>' + td + '</tr>';
+  }).join('');
+
+  return '<table class="data-table" style="width: 100%; border-collapse: collapse; margin: 10px 0; background: rgba(11, 17, 26, 0.6); border-radius: 6px; overflow: hidden;">' +
+    '<thead><tr>' + thHtml + '</tr></thead>' +
+    '<tbody>' + tbHtml + '</tbody>' +
+  '</table>';
+}
 
 function copyMicansPatches() {
   if (!currentMicansResultsCache || !currentMicansResultsCache.patches) {
