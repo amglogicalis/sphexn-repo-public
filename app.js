@@ -4707,6 +4707,41 @@ window.viewMicansAuditDetail = viewMicansAuditDetail;
 
 let currentMicansActiveFilter = 'all';
 let currentMicansPatchViewMode = 'rendered';
+let currentMicansLayoutMode = 'split'; // 'split', 'disc', 'docs'
+
+function setMicansWorkspaceLayout(layout) {
+  currentMicansLayoutMode = layout;
+  const splitBtn = document.getElementById('btn-micans-ws-split');
+  const discBtn = document.getElementById('btn-micans-ws-disc');
+  const docsBtn = document.getElementById('btn-micans-ws-docs');
+
+  const discCol = document.getElementById('micans-col-discrepancies');
+  const docsCol = document.getElementById('micans-col-docs');
+  const containerGrid = document.getElementById('micans-workspace-grid');
+  const patchToggle = document.getElementById('micans-patch-toggle-wrapper');
+
+  if (splitBtn) splitBtn.classList.toggle('active', layout === 'split');
+  if (discBtn) discBtn.classList.toggle('active', layout === 'disc');
+  if (docsBtn) docsBtn.classList.toggle('active', layout === 'docs');
+
+  if (layout === 'split') {
+    if (discCol) discCol.style.display = 'block';
+    if (docsCol) docsCol.style.display = 'block';
+    if (containerGrid) containerGrid.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(0, 1.25fr)';
+    if (patchToggle) patchToggle.style.display = 'flex';
+  } else if (layout === 'disc') {
+    if (discCol) discCol.style.display = 'block';
+    if (docsCol) docsCol.style.display = 'none';
+    if (containerGrid) containerGrid.style.gridTemplateColumns = '1fr';
+    if (patchToggle) patchToggle.style.display = 'none';
+  } else if (layout === 'docs') {
+    if (discCol) discCol.style.display = 'none';
+    if (docsCol) docsCol.style.display = 'block';
+    if (containerGrid) containerGrid.style.gridTemplateColumns = '1fr';
+    if (patchToggle) patchToggle.style.display = 'flex';
+  }
+}
+window.setMicansWorkspaceLayout = setMicansWorkspaceLayout;
 
 function filterMicansDiscrepanciesUI(filterType) {
   currentMicansActiveFilter = filterType;
@@ -4766,7 +4801,7 @@ function renderMicansDriftReport(report) {
   const countVars = discrepancies.filter(d => d.type === 'MISSING_ENV_VAR').length;
 
   const discHtml = discrepancies.length === 0
-    ? '<div class="p-24 text-muted text-center" style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.25); border-radius: 8px;"><span style="font-size: 1.5rem; display: block; margin-bottom: 6px;">✔</span><strong>¡Documentación 100% Sincronizada!</strong><p style="margin: 4px 0 0 0; font-size: 0.82rem;">Todas las firmas de código coinciden fielmente con los archivos documentados.</p></div>'
+    ? '<div style="padding: 36px 20px; text-align: center; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px;"><span style="font-size: 2rem; display: block; margin-bottom: 8px;">✔</span><strong style="font-size: 1.05rem; color: #34d399;">¡Documentación 100% Sincronizada!</strong><p style="margin: 6px 0 0 0; font-size: 0.86rem; color: var(--text-muted);">Todas las firmas exportadas del código coinciden fielmente con los archivos documentados.</p></div>'
     : discrepancies.map(d => {
         const isFn = d.type === 'MISSING_FUNCTION_IN_DOCS';
         const isEp = d.type === 'MISSING_ENDPOINT';
@@ -4776,18 +4811,18 @@ function renderMicansDriftReport(report) {
         const icon = isFn ? '⚡' : (isEp ? '🌐' : (isCli ? '💻' : (isVar ? '🔑' : '📝')));
         const typeBadge = isFn ? 'badge-blue' : (isEp ? 'badge-green' : (isVar ? 'badge-amber' : 'badge-secondary'));
 
-        return '<div class="card micans-disc-item" data-cat="' + cat + '" style="padding: 14px 16px; margin-bottom: 10px; background: rgba(16, 24, 38, 0.9); border-left: 3px solid ' + (isVar ? '#f59e0b' : '#3b82f6') + '; transition: transform 0.15s, border-color 0.15s;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">' +
-            '<div style="display: flex; align-items: center; gap: 8px;">' +
-              '<span style="font-size: 1rem;">' + icon + '</span>' +
-              '<strong style="font-size: 0.9rem; color: #f8fafc; font-family: var(--font-mono);">' + d.symbol + '</strong>' +
+        return '<div class="micans-disc-item" data-cat="' + cat + '" style="padding: 18px 22px; margin-bottom: 14px; background: rgba(16, 24, 38, 0.7); border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid ' + (isVar ? '#f59e0b' : '#3b82f6') + '; border-radius: 10px; transition: all 0.2s ease;">' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;">' +
+            '<div style="display: flex; align-items: center; gap: 10px;">' +
+              '<span style="font-size: 1.1rem;">' + icon + '</span>' +
+              '<strong style="font-size: 0.96rem; color: #f8fafc; font-family: var(--font-mono); letter-spacing: 0.2px;">' + d.symbol + '</strong>' +
             '</div>' +
-            '<span class="badge ' + typeBadge + '" style="font-size: 0.68rem;">' + d.type.replace(/_/g, ' ') + '</span>' +
+            '<span class="badge ' + typeBadge + '" style="font-size: 0.72rem; padding: 3px 8px;">' + d.type.replace(/_/g, ' ') + '</span>' +
           '</div>' +
-          '<p style="margin: 6px 0 0 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">' + d.message + '</p>' +
-          (d.file ? '<div style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.74rem; color: var(--text-muted);">' +
-            '<span>📂 Origen:</span> <code style="color: #93c5fd;">' + d.file + '</code>' +
-            (d.params && d.params.length > 0 ? '<span style="margin-left: 8px;">(params: ' + d.params.join(', ') + ')</span>' : '') +
+          '<p style="margin: 0 0 10px 0; font-size: 0.86rem; color: #cbd5e1; line-height: 1.55;">' + d.message + '</p>' +
+          (d.file ? '<div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-muted); flex-wrap: wrap;">' +
+            '<span>📂 Origen:</span> <code style="color: #93c5fd; background: rgba(59, 130, 246, 0.1); padding: 2px 8px; border-radius: 4px;">' + d.file + '</code>' +
+            (d.params && d.params.length > 0 ? '<span style="color: #94a3b8;">• Params: <code>' + d.params.join(', ') + '</code></span>' : '') +
           '</div>' : '') +
         '</div>';
       }).join('');
@@ -4795,17 +4830,16 @@ function renderMicansDriftReport(report) {
   // 1. Rendered Documentation Table Preview
   let renderedDocHtml = '';
   if (patches.length === 0) {
-    renderedDocHtml = '<div class="p-24 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados para esta corrida.</div>';
+    renderedDocHtml = '<div style="padding: 36px 20px; text-align: center; background: rgba(11, 17, 26, 0.4); border-radius: 12px; color: var(--text-muted);">No hay parches generados para esta corrida.</div>';
   } else {
-    // Generate styled markdown table from replace fragments
     renderedDocHtml = patches.map(p => {
       const text = p.replace || '';
-      return '<div class="card" style="padding: 16px; margin-bottom: 14px; background: rgba(11, 17, 26, 0.95); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
-        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">' +
-          '<span style="font-size: 0.86rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 8px;">' +
+      return '<div style="padding: 22px 24px; margin-bottom: 18px; background: rgba(11, 17, 26, 0.85); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px;">' +
+          '<span style="font-size: 0.92rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 8px;">' +
             '<span>📄</span> ' + (p.section || 'Sección Documentada') +
           '</span>' +
-          '<button class="btn btn-secondary btn-xs" onclick="copyIndividualPatch(' + escapeHtml(JSON.stringify(p.replace)) + ')" style="padding: 2px 8px; font-size: 0.72rem;">📋 Copiar Sección</button>' +
+          '<button class="btn btn-secondary btn-xs" onclick="copyIndividualPatch(' + escapeHtml(JSON.stringify(p.replace)) + ')" style="padding: 5px 12px; font-size: 0.76rem; font-weight: 600;">📋 Copiar Sección</button>' +
         '</div>' +
         renderMarkdownToHtml(text) +
       '</div>';
@@ -4815,90 +4849,138 @@ function renderMicansDriftReport(report) {
   // 2. Diff SEARCH/REPLACE Blocks
   let diffBlocksHtml = '';
   if (patches.length === 0) {
-    diffBlocksHtml = '<div class="p-24 text-muted text-center" style="background: rgba(11, 17, 26, 0.4); border-radius: 8px;">No hay parches generados.</div>';
+    diffBlocksHtml = '<div style="padding: 36px 20px; text-align: center; background: rgba(11, 17, 26, 0.4); border-radius: 12px; color: var(--text-muted);">No hay parches generados.</div>';
   } else {
     diffBlocksHtml = patches.map((p, idx) => {
-      return '<div class="card" style="padding: 14px 16px; margin-bottom: 12px; background: rgba(11, 17, 26, 0.95); border: 1px solid var(--border-subtle); border-radius: 8px;">' +
-        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
-          '<span style="font-size: 0.82rem; font-weight: 600; color: #60a5fa;">Parche #' + (idx + 1) + ' — ' + (p.section || 'Surgical Block') + '</span>' +
-          '<span class="badge badge-blue" style="font-size: 0.68rem;">SEARCH / REPLACE</span>' +
+      return '<div style="padding: 20px 22px; margin-bottom: 16px; background: rgba(11, 17, 26, 0.85); border: 1px solid var(--border-subtle); border-radius: 12px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
+          '<span style="font-size: 0.88rem; font-weight: 600; color: #60a5fa;">Parche #' + (idx + 1) + ' — ' + (p.section || 'Surgical Block') + '</span>' +
+          '<span class="badge badge-blue" style="font-size: 0.72rem;">SEARCH / REPLACE</span>' +
         '</div>' +
-        (p.search ? '<div style="margin-bottom: 10px;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">' +
-            '<span style="font-size: 0.72rem; color: #f87171; font-weight: 700;">&lt;&lt;&lt;&lt; SEARCH (Original a Reemplazar)</span>' +
-          '</div>' +
-          '<pre style="background: rgba(239, 68, 68, 0.08); color: #fca5a5; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(239, 68, 68, 0.2);">' + escapeHtml(p.search) + '</pre>' +
+        (p.search ? '<div style="margin-bottom: 14px;">' +
+          '<div style="font-size: 0.76rem; color: #f87171; font-weight: 700; margin-bottom: 6px;">&lt;&lt;&lt;&lt; SEARCH (Original a Reemplazar)</div>' +
+          '<pre style="background: rgba(239, 68, 68, 0.08); color: #fca5a5; padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(239, 68, 68, 0.2); line-height: 1.5;">' + escapeHtml(p.search) + '</pre>' +
         '</div>' : '') +
         '<div>' +
-          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">' +
-            '<span style="font-size: 0.72rem; color: #34d399; font-weight: 700;">&gt;&gt;&gt;&gt; REPLACE (Documentación Sincronizada)</span>' +
-          '</div>' +
-          '<pre style="background: rgba(16, 185, 129, 0.08); color: #86efac; padding: 10px 12px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(16, 185, 129, 0.2);">' + escapeHtml(p.replace) + '</pre>' +
+          '<div style="font-size: 0.76rem; color: #34d399; font-weight: 700; margin-bottom: 6px;">&gt;&gt;&gt;&gt; REPLACE (Documentación Sincronizada)</div>' +
+          '<pre style="background: rgba(16, 185, 129, 0.08); color: #86efac; padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; overflow-x: auto; margin: 0; font-family: var(--font-mono); border: 1px solid rgba(16, 185, 129, 0.2); line-height: 1.5;">' + escapeHtml(p.replace) + '</pre>' +
         '</div>' +
       '</div>';
     }).join('');
   }
 
-  container.innerHTML = '<div class="card" style="padding: 22px 26px; border: 1px solid rgba(59, 130, 246, 0.35); box-sizing: border-box; width: 100%;">' +
-    '<!-- HEADER -->' +
-    '<div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">' +
+  container.innerHTML = '<div class="card" style="padding: 30px 34px; border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 14px; box-sizing: border-box; width: 100%; background: rgba(15, 23, 42, 0.85);">' +
+    '<!-- 1. AIRY EXECUTIVE HEADER -->' +
+    '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 16px;">' +
       '<div>' +
-        '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">' +
-          '<h3 style="margin: 0; font-size: 1.15rem; color: #f8fafc;">Informe Micans: <strong>' + report.repo + '</strong></h3>' +
-          '<span class="badge badge-blue" style="font-size: 0.72rem;">RAMA: ' + (report.branch || 'main') + '</span>' +
-          '<span class="badge badge-green" style="font-size: 0.72rem;">' + (report.docFiles || 'README.md') + '</span>' +
+        '<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;">' +
+          '<h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #f8fafc;">Informe Micans: <span style="color: #60a5fa;">' + report.repo + '</span></h3>' +
+          '<span class="badge badge-blue" style="padding: 4px 10px; font-size: 0.76rem;">RAMA: ' + (report.branch || 'main') + '</span>' +
+          '<span class="badge badge-green" style="padding: 4px 10px; font-size: 0.76rem;">' + (report.docFiles || 'README.md') + '</span>' +
         '</div>' +
-        '<p class="text-muted" style="margin: 0; font-size: 0.82rem;">' +
-          'Modo: <code>' + report.mode + '</code> • Proveedor IA: <strong>' + (report.provider || 'Motor Heurístico AST') + '</strong> • Fecha: ' + new Date(report.timestamp).toLocaleString() +
+        '<p class="text-muted" style="margin: 0; font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">' +
+          '<span>Modo: <code style="color: #93c5fd;">' + report.mode + '</code></span>' +
+          '<span>•</span>' +
+          '<span>Proveedor: <strong style="color: #e2e8f0;">' + (report.provider || 'Motor Heurístico AST') + '</strong></span>' +
+          '<span>•</span>' +
+          '<span>Fecha: ' + new Date(report.timestamp).toLocaleString() + '</span>' +
         '</p>' +
       '</div>' +
-      '<button class="btn btn-primary btn-sm" id="btn-copy-micans-all" onclick="copyMicansPatches()" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">' +
+      '<button class="btn btn-primary" id="btn-copy-micans-all" onclick="copyMicansPatches()" style="padding: 10px 22px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">' +
         '<span>📋</span> Copiar Parche Completo' +
       '</button>' +
     '</div>' +
 
-    '<!-- KPI GRID -->' +
-    '<div class="kpi-grid mb-24">' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Discrepancias Reales</span><span>🔍</span></div><div class="kpi-value ' + (discrepancies.length > 0 ? 'text-amber' : 'text-green') + '">' + discrepancies.length + '</div><div class="kpi-meta">' + (discrepancies.length > 0 ? 'Detectadas en firmas públicas' : 'Documentación al día') + '</div></div>' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Parches Quirúrgicos</span><span>📝</span></div><div class="kpi-value text-blue">' + patches.length + '</div><div class="kpi-meta">Sustituciones exactas</div></div>' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Estado de Sincronización</span><span>⚡</span></div><div class="kpi-value text-green">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div><div class="kpi-meta">' + (report.patchesApplied ? report.patchesApplied + ' integrados en Git' : 'Listo para fusionar') + '</div></div>' +
-      '<div class="kpi-card"><div class="kpi-header"><span class="kpi-title">Cómputo Incurrido</span><span>💰</span></div><div class="kpi-value text-green">$0.00</div><div class="kpi-meta">Arquitectura Soberana Terra</div></div>' +
+    '<!-- 2. AIRY HORIZONTAL STAT STRIP (Replaces heavy bulky KPI boxes) -->' +
+    '<div style="display: flex; align-items: center; justify-content: space-around; padding: 18px 24px; background: rgba(11, 17, 26, 0.75); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; margin-bottom: 30px; flex-wrap: wrap; gap: 20px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(245, 158, 11, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #fbbf24;">🔍</div>' +
+        '<div>' +
+          '<div style="font-size: 1.3rem; font-weight: 800; color: ' + (discrepancies.length > 0 ? '#fbbf24' : '#34d399') + ';">' + discrepancies.length + ' Discrepancias</div>' +
+          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">' + (discrepancies.length > 0 ? 'Requieren sincronización' : 'Documentación al día') + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="width: 1px; height: 40px; background: rgba(255,255,255,0.08);"></div>' +
+
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(59, 130, 246, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #60a5fa;">📝</div>' +
+        '<div>' +
+          '<div style="font-size: 1.3rem; font-weight: 800; color: #60a5fa;">' + patches.length + ' Parches</div>' +
+          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">Sustituciones exactas</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="width: 1px; height: 40px; background: rgba(255,255,255,0.08);"></div>' +
+
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #34d399;">⚡</div>' +
+        '<div>' +
+          '<div style="font-size: 1.3rem; font-weight: 800; color: #34d399;">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div>' +
+          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">' + (report.patchesApplied ? report.patchesApplied + ' integrados en Git' : 'Listo para fusionar') + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="width: 1px; height: 40px; background: rgba(255,255,255,0.08);"></div>' +
+
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #34d399;">💰</div>' +
+        '<div>' +
+          '<div style="font-size: 1.3rem; font-weight: 800; color: #34d399;">$0.00</div>' +
+          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">Cómputo Soberano Terra</div>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
 
-    '<!-- TWO COLUMNS SPLIT VIEW -->' +
-    '<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start;">' +
-      '<!-- LEFT: DISCREPANCIES -->' +
-      '<div>' +
-        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
-          '<h4 style="margin: 0; font-size: 0.96rem; display: flex; align-items: center; gap: 8px;">' +
+    '<!-- 3. WORKSPACE TOOLBAR (Layout Switcher & Sub-view Toggles) -->' +
+    '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; gap: 16px;">' +
+      '<div class="segmented-control" style="background: rgba(11, 17, 26, 0.95); padding: 4px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">' +
+        '<button class="segmented-item active" id="btn-micans-ws-split" onclick="setMicansWorkspaceLayout(\'split\')" style="font-size: 0.82rem; padding: 7px 18px; font-weight: 600;">⇄ Vista Dividida</button>' +
+        '<button class="segmented-item" id="btn-micans-ws-disc" onclick="setMicansWorkspaceLayout(\'disc\')" style="font-size: 0.82rem; padding: 7px 18px; font-weight: 600;">🔍 Solo Discrepancias (' + discrepancies.length + ')</button>' +
+        '<button class="segmented-item" id="btn-micans-ws-docs" onclick="setMicansWorkspaceLayout(\'docs\')" style="font-size: 0.82rem; padding: 7px 18px; font-weight: 600;">📄 Solo Previsualización (' + patches.length + ')</button>' +
+      '</div>' +
+
+      '<div id="micans-patch-toggle-wrapper" style="display: flex; align-items: center; gap: 10px;">' +
+        '<span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">Formato del Parche:</span>' +
+        '<div class="segmented-control" style="background: rgba(11, 17, 26, 0.95); padding: 3px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">' +
+          '<button class="segmented-item active" id="btn-micans-pv-rendered" onclick="switchMicansPatchView(\'rendered\')" style="font-size: 0.78rem; padding: 6px 14px; font-weight: 600;">📄 Renderizado</button>' +
+          '<button class="segmented-item" id="btn-micans-pv-diff" onclick="switchMicansPatchView(\'diff\')" style="font-size: 0.78rem; padding: 6px 14px; font-weight: 600;">🔍 SEARCH/REPLACE</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- 4. WORKSPACE CONTENT CONTAINER -->' +
+    '<div id="micans-workspace-grid" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 28px; align-items: start;">' +
+      '<!-- LEFT: DISCREPANCIES LIST -->' +
+      '<div id="micans-col-discrepancies">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">' +
+          '<h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">' +
             '<span>⚠️</span> Discrepancias Detectadas (' + discrepancies.length + ')' +
           '</h4>' +
         '</div>' +
-        '<!-- INTERACTIVE FILTER TABS -->' +
-        '<div class="segmented-control mb-12" style="background: rgba(11, 17, 26, 0.95); padding: 3px; display: flex; flex-wrap: wrap; gap: 4px;">' +
-          '<button class="segmented-item active" id="btn-micans-f-all" onclick="filterMicansDiscrepanciesUI(\'all\')" style="font-size: 0.76rem; padding: 4px 10px;">Todos (' + discrepancies.length + ')</button>' +
-          '<button class="segmented-item" id="btn-micans-f-fns" onclick="filterMicansDiscrepanciesUI(\'fns\')" style="font-size: 0.76rem; padding: 4px 10px;">⚡ Funciones (' + countFns + ')</button>' +
-          (countEps > 0 ? '<button class="segmented-item" id="btn-micans-f-eps" onclick="filterMicansDiscrepanciesUI(\'eps\')" style="font-size: 0.76rem; padding: 4px 10px;">🌐 APIs (' + countEps + ')</button>' : '') +
-          (countCli > 0 ? '<button class="segmented-item" id="btn-micans-f-cli" onclick="filterMicansDiscrepanciesUI(\'cli\')" style="font-size: 0.76rem; padding: 4px 10px;">💻 CLI (' + countCli + ')</button>' : '') +
-          (countVars > 0 ? '<button class="segmented-item" id="btn-micans-f-vars" onclick="filterMicansDiscrepanciesUI(\'vars\')" style="font-size: 0.76rem; padding: 4px 10px;">🔑 Variables (' + countVars + ')</button>' : '') +
+
+        '<!-- FILTER PILLS WITH GENEROUS BREATHING ROOM -->' +
+        '<div class="segmented-control mb-16" style="background: rgba(11, 17, 26, 0.95); padding: 4px; display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;">' +
+          '<button class="segmented-item active" id="btn-micans-f-all" onclick="filterMicansDiscrepanciesUI(\'all\')" style="font-size: 0.78rem; padding: 5px 12px; font-weight: 600;">Todos (' + discrepancies.length + ')</button>' +
+          '<button class="segmented-item" id="btn-micans-f-fns" onclick="filterMicansDiscrepanciesUI(\'fns\')" style="font-size: 0.78rem; padding: 5px 12px; font-weight: 600;">⚡ Funciones (' + countFns + ')</button>' +
+          (countEps > 0 ? '<button class="segmented-item" id="btn-micans-f-eps" onclick="filterMicansDiscrepanciesUI(\'eps\')" style="font-size: 0.78rem; padding: 5px 12px; font-weight: 600;">🌐 APIs (' + countEps + ')</button>' : '') +
+          (countCli > 0 ? '<button class="segmented-item" id="btn-micans-f-cli" onclick="filterMicansDiscrepanciesUI(\'cli\')" style="font-size: 0.78rem; padding: 5px 12px; font-weight: 600;">💻 CLI (' + countCli + ')</button>' : '') +
+          (countVars > 0 ? '<button class="segmented-item" id="btn-micans-f-vars" onclick="filterMicansDiscrepanciesUI(\'vars\')" style="font-size: 0.78rem; padding: 5px 12px; font-weight: 600;">🔑 Variables (' + countVars + ')</button>' : '') +
         '</div>' +
-        '<div id="micans-disc-container" style="max-height: 520px; overflow-y: auto; padding-right: 6px;">' + discHtml + '</div>' +
+
+        '<div id="micans-disc-container" style="max-height: 560px; overflow-y: auto; padding-right: 8px;">' + discHtml + '</div>' +
       '</div>' +
 
-      '<!-- RIGHT: PATCH PREVIEW WITH DUAL VIEW SWITCHER -->' +
-      '<div>' +
-        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
-          '<h4 style="margin: 0; font-size: 0.96rem; display: flex; align-items: center; gap: 8px;">' +
-            '<span>📝</span> Previsualización Quirúrgica (' + patches.length + ')' +
+      '<!-- RIGHT: PATCH PREVIEW -->' +
+      '<div id="micans-col-docs">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">' +
+          '<h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">' +
+            '<span>📝</span> Previsualización de Documentación (' + patches.length + ')' +
           '</h4>' +
-          '<!-- VIEW SWITCHER -->' +
-          '<div class="segmented-control" style="background: rgba(11, 17, 26, 0.95); padding: 2px;">' +
-            '<button class="segmented-item active" id="btn-micans-pv-rendered" onclick="switchMicansPatchView(\'rendered\')" style="font-size: 0.74rem; padding: 4px 10px;">📄 Renderizado</button>' +
-            '<button class="segmented-item" id="btn-micans-pv-diff" onclick="switchMicansPatchView(\'diff\')" style="font-size: 0.74rem; padding: 4px 10px;">🔍 SEARCH/REPLACE</button>' +
-          '</div>' +
         '</div>' +
-        '<div id="micans-patch-rendered-view" style="display: block; max-height: 520px; overflow-y: auto; padding-right: 6px;">' + renderedDocHtml + '</div>' +
-        '<div id="micans-patch-diff-view" style="display: none; max-height: 520px; overflow-y: auto; padding-right: 6px;">' + diffBlocksHtml + '</div>' +
+
+        '<div id="micans-patch-rendered-view" style="display: block; max-height: 610px; overflow-y: auto; padding-right: 8px;">' + renderedDocHtml + '</div>' +
+        '<div id="micans-patch-diff-view" style="display: none; max-height: 610px; overflow-y: auto; padding-right: 8px;">' + diffBlocksHtml + '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
