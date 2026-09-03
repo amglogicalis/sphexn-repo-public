@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260903_02">
+  <link rel="stylesheet" href="style.css?v=20260903_03">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -488,7 +488,7 @@
 
               <!-- CONTROLS & SELECTORS FORM -->
               <div class="mt-20" style="background: rgba(11, 17, 26, 0.6); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px 20px;">
-                <div style="display: grid; grid-template-columns: 1.8fr 1fr 1.5fr; gap: 16px; align-items: end;">
+                <div style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
                   <!-- COL 1: REPOSITORY PICKER -->
                   <div class="form-group" style="margin: 0;">
                     <label for="micans-repo-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
@@ -556,7 +556,7 @@
                   <h3 style="margin: 0; font-size: 1.08rem;">🗃️ Registro de Sincronizaciones Micans</h3>
                   <p class="text-muted" style="margin: 2px 0 0 0; font-size: 0.82rem;">Historial de discrepancias detectadas y parches aplicados</p>
                 </div>
-                <button class="btn btn-secondary btn-sm" onclick="loadMicansAudits()">🔄 Refrescar Registros</button>
+                <button class="btn btn-secondary btn-sm" id="btn-refresh-micans-audits" onclick="syncMicansRunsWithGitHub(true)">🔄 Refrescar & Sincronizar</button>
               </div>
 
               <div class="table-wrapper mt-16">
@@ -802,19 +802,19 @@ continue-on-error: true
             </div>
 
             <!-- SUBTAB 3: AUTO-MICANS CONTINUOUS DOCUMENTATION SYNCHRONIZER -->
-            <div id="cfg-subtab-automicans-container" style="display: none;">
+            <div id="cfg-subtab-automicans-container" style="display: none; width: 100%; max-width: 100%; box-sizing: border-box;">
               <!-- MASTER TOGGLE CARD -->
-              <div class="card" style="padding: 22px 28px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25);">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
-                  <div>
-                    <h3 style="color: #60a5fa; margin-bottom: 6px; font-size: 1.15rem; display: flex; align-items: center; gap: 10px;">
+              <div class="card" style="padding: 20px 24px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25); box-sizing: border-box; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: nowrap;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h3 style="color: #60a5fa; margin: 0 0 6px 0; font-size: 1.15rem; display: flex; align-items: center; gap: 10px;">
                       <span>📝</span> Sincronización Continua con Auto-Micans
                     </h3>
                     <p class="text-muted" style="font-size: 0.86rem; margin: 0; line-height: 1.5;">
                       Verifica automáticamente en cada <code>git push</code> si los cambios de código desincronizan tu documentación y propone parches o PRs automáticas con $0 Compute.
                     </p>
                   </div>
-                  <label class="sphexn-switch" style="transform: scale(1.15); margin-right: 8px;">
+                  <label class="sphexn-switch" style="transform: scale(1.1); flex-shrink: 0; margin-left: 12px;">
                     <input type="checkbox" id="master-toggle-auto-micans" onchange="toggleMasterAutoMicans(this.checked)">
                     <span class="sphexn-slider"></span>
                   </label>
@@ -822,52 +822,59 @@ continue-on-error: true
               </div>
 
               <!-- REPO MANAGEMENT PANEL -->
-              <div id="automicans-management-panel" class="card mt-20" style="padding: 24px 28px;">
-                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
-                  <div>
-                    <h3 style="font-size: 1.05rem; margin-bottom: 4px;">➕ Añadir Repositorio a Sincronización Continua Micans</h3>
+              <div id="automicans-management-panel" class="card mt-20" style="padding: 22px 24px; box-sizing: border-box; width: 100%;">
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h3 style="font-size: 1.05rem; margin: 0 0 4px 0;">➕ Añadir Repositorio a Sincronización Continua Micans</h3>
                     <p class="text-muted" style="font-size: 0.82rem; margin: 0;">Configura la rama vigilada y los archivos de documentación a mantener sincronizados.</p>
                   </div>
-                  <button class="btn btn-secondary btn-xs" onclick="loadAutoMicansRepoOptions(true)" title="Forzar refresco">🔄 Refrescar Repositorios</button>
+                  <button class="btn btn-secondary btn-xs" onclick="loadAutoMicansRepoOptions(true)" title="Forzar refresco" style="flex-shrink: 0; white-space: nowrap;">🔄 Refrescar</button>
                 </div>
 
-                <!-- 4-COLUMN INPUT FORM -->
-                <div style="display: grid; grid-template-columns: 1.2fr 1.5fr 1fr 1.3fr; gap: 16px; align-items: end;">
-                  <div class="form-group" style="margin: 0;">
-                    <label for="automicans-repo-search" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
-                      🔍 Filtrar por Nombre:
-                    </label>
-                    <input type="text" id="automicans-repo-search" class="form-control" placeholder="Filtrar (ej: testing, sphexn)..." oninput="filterAutoMicansRepos(this.value)">
+                <!-- 2-ROW SPACIOUS RESPONSIVE FORM -->
+                <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; box-sizing: border-box;">
+                  <!-- ROW 1: REPOSITORY DISCOVERY -->
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="automicans-repo-search" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        🔍 Filtrar por Nombre:
+                      </label>
+                      <input type="text" id="automicans-repo-search" class="form-control" placeholder="Filtrar (ej: testing, sphexn)..." oninput="filterAutoMicansRepos(this.value)" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="automicans-repo-picker" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        📦 Repositorio Detectado:
+                      </label>
+                      <select id="automicans-repo-picker" class="form-control" style="width: 100%; box-sizing: border-box;">
+                        <option value="">Consultando repositorios en GitHub API...</option>
+                      </select>
+                    </div>
                   </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label for="automicans-repo-picker" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
-                      📦 Repositorio Detectado:
-                    </label>
-                    <select id="automicans-repo-picker" class="form-control">
-                      <option value="">Consultando repositorios en GitHub API...</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label for="automicans-branch-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
-                      🌿 Rama Vigilada:
-                    </label>
-                    <input type="text" id="automicans-branch-input" class="form-control" value="main" placeholder="main">
-                  </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label for="automicans-docs-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
-                      📄 Archivos Docs:
-                    </label>
-                    <input type="text" id="automicans-docs-input" class="form-control" value="README.md" placeholder="README.md, docs/API.md">
+
+                  <!-- ROW 2: TARGET BRANCH & DOC FILES -->
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="automicans-branch-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        🌿 Rama Vigilada:
+                      </label>
+                      <input type="text" id="automicans-branch-input" class="form-control" value="main" placeholder="main" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="automicans-docs-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        📄 Archivos Docs (separados por coma):
+                      </label>
+                      <input type="text" id="automicans-docs-input" class="form-control" value="README.md" placeholder="README.md, docs/API.md" style="width: 100%; box-sizing: border-box;">
+                    </div>
                   </div>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; margin-top: 18px;">
-                  <button class="btn btn-primary" onclick="addRepoToAutoMicans()" style="padding: 9px 20px; font-weight: 600;">
+                  <button class="btn btn-primary" onclick="addRepoToAutoMicans()" style="padding: 9px 20px; font-weight: 600; white-space: nowrap;">
                     ➕ Añadir a Sincronización Activa
                   </button>
                 </div>
 
-                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 26px 0 20px 0;">
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0 18px 0;">
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                   <h4 style="margin: 0; font-size: 0.98rem; display: flex; align-items: center; gap: 8px;">
@@ -1158,6 +1165,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260903_02"></script>
+  <script src="app.js?v=20260903_03"></script>
 </body>
 </html>

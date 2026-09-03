@@ -4380,6 +4380,7 @@ let currentMicansResultsCache = null;
 function initMicansUI() {
   loadMicansRepositories();
   loadMicansAudits();
+  syncMicansRunsWithGitHub();
 }
 window.initMicansUI = initMicansUI;
 
@@ -4430,6 +4431,7 @@ function onMicansRepoChanged() {
   if (branchInput && !branchInput.value) {
     branchInput.value = 'main';
   }
+  syncMicansRunsWithGitHub();
 }
 window.onMicansRepoChanged = onMicansRepoChanged;
 
@@ -4525,6 +4527,133 @@ function saveMicansAuditToLocal(audit) {
   localStorage.setItem('sphexn_micans_audits', JSON.stringify(audits));
 }
 
+// Universal Vault & Actions Sync for Sphexn Micans
+async function syncMicansRunsWithGitHub(force = false) {
+  const token = getGitHubToken();
+  const currentUser = getGitHubUser();
+  const repoSelect = document.getElementById('micans-repo-select');
+  const selectedRepo = repoSelect ? repoSelect.value : '';
+  const btnRefresh = document.getElementById('btn-refresh-micans-audits');
+
+  if (btnRefresh) {
+    btnRefresh.textContent = '🔄 Sincronizando...';
+    btnRefresh.disabled = true;
+  }
+
+  try {
+    const reposToPoll = [];
+    if (selectedRepo) reposToPoll.push(selectedRepo);
+    if (!reposToPoll.includes('amglogicalis/testing')) reposToPoll.push('amglogicalis/testing');
+    if (!reposToPoll.includes('amglogicalis/Sphexn')) reposToPoll.push('amglogicalis/Sphexn');
+    const vaultRepo = currentUser + '/.sphexn-storage';
+    if (!reposToPoll.includes(vaultRepo)) reposToPoll.push(vaultRepo);
+
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const existingLocal = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+    const syncedAudits = [...existingLocal];
+
+    for (const r of reposToPoll) {
+      try {
+        // 1. Fetch audits stored in git tree
+        const auditsRes = await fetch('https://api.github.com/repos/' + r + '/contents/audits/micans?ref=main', { headers });
+        let auditFiles = [];
+        if (auditsRes.ok) {
+          const aData = await auditsRes.json();
+          if (Array.isArray(aData)) auditFiles = aData;
+        }
+
+        // 2. Fetch GitHub Actions workflow runs
+        let ghRuns = [];
+        const runsRes = await fetch('https://api.github.com/repos/' + r + '/actions/workflows/sphexn-micans.yml/runs?per_page=15', { headers });
+        if (runsRes.ok) {
+          const rData = await runsRes.json();
+          if (Array.isArray(rData.workflow_runs)) ghRuns = rData.workflow_runs;
+        }
+
+        for (const af of auditFiles) {
+          if (!af.name.endsWith('.json')) continue;
+          const auditId = af.name.replace('.json', '');
+          const existingIdx = syncedAudits.findIndex(a => a.id === auditId);
+
+          let auditData = null;
+          if (existingIdx >= 0 && syncedAudits[existingIdx].details) {
+            auditData = syncedAudits[existingIdx].details;
+          } else {
+            const cRes = await fetch(af.url, { headers });
+            if (cRes.ok) {
+              const blob = await cRes.json();
+              if (blob.content) {
+                try {
+                  auditData = JSON.parse(decodeBase64Utf8(blob.content));
+                } catch (e) {}
+              }
+            }
+          }
+
+          if (!auditData) continue;
+
+          const auditTime = new Date(auditData.timestamp || Date.now()).getTime();
+          const matchGh = ghRuns.find(g => Math.abs(new Date(g.created_at).getTime() - auditTime) < 180000);
+
+          const totalDisc = auditData.results
+            ? auditData.results.reduce((acc, item) => acc + (item.discrepanciesCount || 0), 0)
+            : (auditData.discrepanciesCount || 0);
+
+          const totalPatches = auditData.results
+            ? auditData.results.reduce((acc, item) => acc + (item.patchesApplied || 0), 0)
+            : (auditData.patchesApplied || 0);
+
+          const firstResult = (auditData.results && auditData.results[0]) ? auditData.results[0] : {};
+
+          const unifiedAudit = {
+            id: auditId,
+            repo: auditData.repo || r,
+            branch: auditData.branch || 'main',
+            mode: auditData.mode || 'sync',
+            docFiles: firstResult.docFile || 'README.md',
+            discrepanciesCount: totalDisc,
+            patchesApplied: totalPatches,
+            provider: firstResult.providerUsed || auditData.provider || 'Groq Cloud',
+            summary: firstResult.summary || 'Auditoría Micans registrada en el vault.',
+            timestamp: auditData.timestamp || new Date().toISOString(),
+            status: matchGh ? (matchGh.conclusion === 'success' ? 'completed' : matchGh.conclusion) : 'completed',
+            actionUrl: matchGh ? matchGh.html_url : ('https://github.com/' + r + '/actions'),
+            details: auditData,
+            discrepancies: firstResult.discrepancies || [],
+            patches: firstResult.patches || []
+          };
+
+          if (existingIdx >= 0) {
+            syncedAudits[existingIdx] = unifiedAudit;
+          } else {
+            syncedAudits.push(unifiedAudit);
+          }
+        }
+      } catch (repoErr) {}
+    }
+
+    syncedAudits.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    localStorage.setItem('sphexn_micans_audits', JSON.stringify(syncedAudits.slice(0, 50)));
+    loadMicansAudits();
+
+    // If there's an active audit and results box is showing placeholder, auto-display latest
+    const resultsContainer = document.getElementById('micans-results');
+    if (syncedAudits.length > 0 && resultsContainer && resultsContainer.querySelector('.placeholder-box')) {
+      renderMicansDriftReport(syncedAudits[0]);
+    }
+  } catch (err) {
+    console.error('Error syncing Micans runs:', err);
+  } finally {
+    if (btnRefresh) {
+      btnRefresh.textContent = '🔄 Refrescar & Sincronizar';
+      btnRefresh.disabled = false;
+    }
+  }
+}
+window.syncMicansRunsWithGitHub = syncMicansRunsWithGitHub;
+
 function loadMicansAudits() {
   const tbody = document.getElementById('micans-tbody');
   if (!tbody) return;
@@ -4532,22 +4661,35 @@ function loadMicansAudits() {
   const audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
 
   if (audits.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay registros de sincronización de Micans aún. Selecciona un repositorio arriba y pulsa Auditar Drift.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 24px;">No hay registros de sincronización de Micans aún. Selecciona un repositorio arriba y pulsa <strong>"🔍 Auditar Drift"</strong> o <strong>"🔄 Refrescar & Sincronizar"</strong>.</td></tr>';
     return;
   }
 
   tbody.innerHTML = audits.map((a, idx) => {
-    const isDispatched = a.status === 'DISPATCHED';
-    return '<tr>' +
-      '<td><code>' + a.id + '</code></td>' +
+    const isCompleted = a.status === 'completed' || a.status === 'success';
+    const isRunning = a.status === 'DISPATCHED' || a.status === 'in_progress';
+    const isFailed = a.status === 'failure' || a.status === 'failed';
+
+    const statusBadge = isCompleted ? '<span class="badge badge-green">COMPLETADO</span>'
+      : isRunning ? '<span class="badge badge-blue">EN PROCESO ⏳</span>'
+      : isFailed ? '<span class="badge badge-red">FALLADO</span>'
+      : '<span class="badge badge-secondary">' + (a.status || 'FINALIZADO') + '</span>';
+
+    const dateStr = new Date(a.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+
+    return '<tr style="cursor: pointer; transition: background 0.15s;" onclick="viewMicansAuditDetail(' + idx + ')">' +
+      '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: #93c5fd;"><code>' + a.id + '</code></td>' +
       '<td><strong>' + a.repo + '</strong> <span style="font-size: 0.78rem; color: var(--text-muted);">(' + (a.branch || 'main') + ')</span></td>' +
       '<td><code>' + (a.docFiles || 'README.md') + '</code></td>' +
-      '<td>' + (isDispatched ? '<span class="badge badge-blue">⏳ Ejecutando</span>' : '<span class="badge ' + (a.discrepanciesCount > 0 ? 'badge-amber' : 'badge-green') + '">' + (a.discrepanciesCount || 0) + ' discrepancias</span>') + '</td>' +
-      '<td>' + (a.patchesApplied ? '<span class="badge badge-green">✔ ' + a.patchesApplied + ' aplicados</span>' : '<span class="text-muted">0</span>') + '</td>' +
-      '<td><span style="font-size: 0.8rem;">' + (a.provider || 'Groq Cloud') + '</span></td>' +
-      '<td>' + new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+      '<td><span class="badge ' + (a.discrepanciesCount > 0 ? 'badge-amber' : 'badge-green') + '">' + (a.discrepanciesCount || 0) + ' discrepancias</span></td>' +
+      '<td>' + (a.patchesApplied ? '<span class="badge badge-green">✔ ' + a.patchesApplied + ' aplicados</span>' : (a.patches && a.patches.length > 0 ? '<span class="badge badge-blue">' + a.patches.length + ' listos</span>' : '<span class="text-muted">0</span>')) + '</td>' +
+      '<td><span style="font-size: 0.8rem; color: #cbd5e1;">' + (a.provider || 'Groq Cloud') + '</span></td>' +
+      '<td style="font-size: 0.78rem; color: var(--text-muted);">' + dateStr + '</td>' +
       '<td>' +
-        '<button class="btn btn-secondary btn-xs" onclick="viewMicansAuditDetail(' + idx + ')" style="padding: 4px 10px;">👁️ Ver Detalle</button>' +
+        '<div style="display: flex; gap: 6px; align-items: center;">' +
+          '<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); viewMicansAuditDetail(' + idx + ')" style="padding: 3px 10px;">👁️ Ver</button>' +
+          (a.actionUrl ? '<a href="' + a.actionUrl + '" target="_blank" onclick="event.stopPropagation();" class="btn btn-secondary btn-xs" style="padding: 3px 8px; text-decoration: none;">🔗 Action</a>' : '') +
+        '</div>' +
       '</td>' +
     '</tr>';
   }).join('');
