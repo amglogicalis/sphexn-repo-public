@@ -396,6 +396,11 @@ function switchTab(tabId) {
     if (typeof window.loadMicansRepositories === 'function') window.loadMicansRepositories();
     if (typeof window.loadMicansAudits === 'function') window.loadMicansAudits();
   }
+  if (tabId === 'nudus') {
+    if (typeof window.initNudusUI === 'function') window.initNudusUI();
+    if (typeof window.loadNudusRepositories === 'function') window.loadNudusRepositories();
+    if (typeof window.loadNudusAudits === 'function') window.loadNudusAudits();
+  }
   if (tabId === 'config') {
     if (typeof window.initConfigurationTab === 'function') window.initConfigurationTab();
     if (typeof window.renderFallbackMatrixUI === 'function') window.renderFallbackMatrixUI();
@@ -3436,12 +3441,16 @@ function switchConfigSubtab(subtab) {
   const contAp = document.getElementById('cfg-subtab-autopr-container');
   const contAm = document.getElementById('cfg-subtab-automicans-container');
 
+  const btnAn = document.getElementById('btn-cfg-subtab-autonudus');
+  const contAn = document.getElementById('cfg-subtab-autonudus-container');
   if (btnFb) btnFb.className = 'segmented-item';
   if (btnAp) btnAp.className = 'segmented-item';
   if (btnAm) btnAm.className = 'segmented-item';
+  if (btnAn) btnAn.className = 'segmented-item';
   if (contFb) contFb.style.display = 'none';
   if (contAp) contAp.style.display = 'none';
   if (contAm) contAm.style.display = 'none';
+  if (contAn) contAn.style.display = 'none';
 
   if (subtab === 'fallback') {
     if (btnFb) btnFb.className = 'segmented-item active';
@@ -3455,6 +3464,10 @@ function switchConfigSubtab(subtab) {
     if (btnAm) btnAm.className = 'segmented-item active';
     if (contAm) contAm.style.display = 'block';
     initAutoMicansConfigUI();
+  } else if (subtab === 'autonudus') {
+    if (btnAn) btnAn.className = 'segmented-item active';
+    if (contAn) contAn.style.display = 'block';
+    if (typeof window.initAutoNudusConfigUI === 'function') window.initAutoNudusConfigUI();
   }
 }
 window.switchConfigSubtab = switchConfigSubtab;
@@ -5390,3 +5403,590 @@ function renderAutoMicansMonitoredRepos() {
   }).join('');
 }
 window.renderAutoMicansMonitoredRepos = renderAutoMicansMonitoredRepos;
+
+
+// ─── MODULE: SPHEXN NUDUS (TEST RUNNER & CLOSED-LOOP SELF-HEALING) ────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentNudusResultsCache = null;
+
+function initNudusUI() {
+  loadNudusRepositories();
+  loadNudusAudits();
+  syncNudusRunsWithGitHub();
+}
+window.initNudusUI = initNudusUI;
+
+async function loadNudusRepositories(force = false) {
+  const select = document.getElementById('nudus-repo-select');
+  const searchInput = document.getElementById('nudus-repo-search');
+  if (!select) return;
+
+  const repos = await getAccessibleRepositories(force);
+  if (!repos || repos.length === 0) {
+    select.innerHTML = '<option value="">No hay repositorios disponibles (Inicia sesión)</option>';
+    return;
+  }
+
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const filtered = query ? repos.filter(r => r.full_name.toLowerCase().includes(query)) : repos;
+
+  select.innerHTML = filtered.map(r => {
+    return '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>';
+  }).join('');
+
+  if (select.options.length > 0) {
+    onNudusRepoChanged();
+  }
+}
+window.loadNudusRepositories = loadNudusRepositories;
+
+function filterNudusRepos(query) {
+  loadNudusRepositories();
+}
+window.filterNudusRepos = filterNudusRepos;
+
+function onNudusRepoChanged() {
+  const repoSelect = document.getElementById('nudus-repo-select');
+  if (!repoSelect || !repoSelect.value) return;
+  fetchRepoBranches(repoSelect.value, 'nudus-branch-select');
+}
+window.onNudusRepoChanged = onNudusRepoChanged;
+
+async function dispatchNudus(action = 'heal') {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('nudus-repo-select');
+  const branchSelect = document.getElementById('nudus-branch-select');
+  const cmdInput = document.getElementById('nudus-cmd-input');
+  const retriesSelect = document.getElementById('nudus-retries-select');
+  const prToggle = document.getElementById('nudus-create-pr-toggle');
+  const issueToggle = document.getElementById('nudus-open-issue-toggle');
+  const spinner = document.getElementById('nudus-spinner');
+
+  const repo = repoSelect ? repoSelect.value : '';
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const testCmd = (cmdInput ? cmdInput.value : 'npm test').trim() || 'npm test';
+  const maxRetries = retriesSelect ? retriesSelect.value : '3';
+  const createPr = prToggle ? prToggle.checked : true;
+  const openIssue = issueToggle ? issueToggle.checked : true;
+
+  if (!repo) {
+    sphexnAlert('Por favor, selecciona un repositorio destino para evaluar con Nudus.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  if (!token) {
+    sphexnAlert('Se requiere un GitHub Personal Access Token con permisos repo para despachar Nudus.', 'Token Requerido', '🔑');
+    return;
+  }
+
+  if (spinner) spinner.style.display = 'block';
+
+  const isDryRun = action === 'dry-run' || action === 'diagnose';
+  const actionLabel = isDryRun 
+    ? 'Dry-Run (Diagnosticar sin aplicar parches)' 
+    : ('Auto-Curar en Bucle Cerrado ' + (createPr ? '(con Pull Request)' : '(Commit Directo)'));
+
+  try {
+    const activeChain = getActiveFallbackChain('nudus');
+    const workflowFile = 'sphexn-nudus.yml';
+
+    const dispatchUrl = 'https://api.github.com/repos/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
+    const res = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs: {
+          mode: isDryRun ? 'dry-run' : 'heal',
+          test_cmd: testCmd,
+          max_retries: String(maxRetries),
+          repo: repo,
+          branch: branch,
+          create_pr: String(createPr),
+          open_issue: String(openIssue),
+          fallback_matrix: JSON.stringify(activeChain)
+        }
+      })
+    });
+
+    if (spinner) spinner.style.display = 'none';
+
+    if (res.status === 204 || res.status === 200 || res.status === 201) {
+      sphexnAlert('Disparo exitoso de Sphexn Nudus [' + actionLabel + '] en ' + repo + ' (' + branch + '). El runner está ejecutando los tests y el bucle cerrado en GitHub Actions.', 'Nudus Despachado 🚀', '🩹');
+
+      const newAudit = {
+        id: 'nudus_' + Date.now(),
+        repo: repo,
+        branch: branch,
+        mode: isDryRun ? 'dry-run' : 'heal',
+        testCmd: testCmd,
+        timestamp: new Date().toISOString(),
+        status: 'DISPATCHED',
+        attemptsCount: 1,
+        attempts: [],
+        patchesApplied: [],
+        provider: activeChain[0] ? activeChain[0].name : 'Groq Cloud'
+      };
+
+      saveNudusAuditToLocal(newAudit);
+      loadNudusAudits();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      if (spinner) spinner.style.display = 'none';
+      sphexnAlert('Error ' + res.status + ' al despachar workflow: ' + (err.message || 'Verifica que .github/workflows/sphexn-nudus.yml exista en la rama ' + branch), 'Fallo en Despacho', '❌');
+    }
+  } catch (e) {
+    if (spinner) spinner.style.display = 'none';
+    sphexnAlert('Error de conexión con GitHub API: ' + e.message, 'Error de Red', '❌');
+  }
+}
+window.dispatchNudus = dispatchNudus;
+
+function saveNudusAuditToLocal(audit) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+  audits.unshift(audit);
+  if (audits.length > 50) audits = audits.slice(0, 50);
+  localStorage.setItem('sphexn_nudus_audits', JSON.stringify(audits));
+}
+
+async function syncNudusRunsWithGitHub(force = false) {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('nudus-repo-select');
+  const selectedRepo = repoSelect ? repoSelect.value : '';
+  const btnRefresh = document.getElementById('btn-refresh-nudus-audits');
+
+  if (btnRefresh) {
+    btnRefresh.textContent = '🔄 Sincronizando...';
+    btnRefresh.disabled = true;
+  }
+
+  try {
+    const reposToPoll = [];
+    if (selectedRepo) reposToPoll.push(selectedRepo);
+
+    const currentUser = getGitHubUser();
+    if (currentUser) {
+      if (!reposToPoll.includes(currentUser + '/Sphexn')) reposToPoll.push(currentUser + '/Sphexn');
+      if (!reposToPoll.includes(currentUser + '/testing')) reposToPoll.push(currentUser + '/testing');
+    }
+
+    let allRunsFound = [];
+    for (const r of reposToPoll) {
+      try {
+        const headers = { 'Accept': 'application/vnd.github.v3+json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const res = await fetch('https://api.github.com/repos/' + r + '/actions/workflows/sphexn-nudus.yml/runs?per_page=5', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.workflow_runs) {
+            allRunsFound.push(...data.workflow_runs.map(run => ({
+              id: 'nudus_run_' + run.id,
+              runId: run.id,
+              repo: r,
+              branch: run.head_branch,
+              status: run.conclusion === 'success' ? 'HEALED' : (run.status === 'completed' ? 'FAILED' : 'RUNNING'),
+              conclusion: run.conclusion,
+              mode: 'heal',
+              testCmd: 'npm test',
+              attemptsCount: 1,
+              timestamp: run.created_at,
+              provider: 'GitHub Actions / Sovereign AI',
+              url: run.html_url
+            })));
+          }
+        }
+      } catch (err) {}
+    }
+
+    if (allRunsFound.length > 0) {
+      let localAudits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+      for (const run of allRunsFound) {
+        if (!localAudits.some(a => a.runId === run.runId || a.id === run.id)) {
+          localAudits.push(run);
+        }
+      }
+      localAudits.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      localStorage.setItem('sphexn_nudus_audits', JSON.stringify(localAudits.slice(0, 50)));
+    }
+  } catch (globalErr) {
+    console.warn('Error syncing Nudus runs:', globalErr);
+  } finally {
+    if (btnRefresh) {
+      btnRefresh.textContent = '🔄 Refrescar & Sincronizar';
+      btnRefresh.disabled = false;
+    }
+    loadNudusAudits();
+  }
+}
+window.syncNudusRunsWithGitHub = syncNudusRunsWithGitHub;
+
+function loadNudusAudits() {
+  const tbody = document.getElementById('nudus-tbody');
+  if (!tbody) return;
+
+  const audits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+  if (audits.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 24px;">No hay registros de Nudus aún. Ejecuta una suite de tests o sincroniza con GitHub.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = audits.map((a, idx) => {
+    let badgeClass = 'badge-blue';
+    let statusLabel = a.status || 'UNKNOWN';
+
+    if (statusLabel === 'HEALED' || a.conclusion === 'success') {
+      badgeClass = 'badge-green';
+      statusLabel = 'HEALED (Auto-Curado)';
+    } else if (statusLabel === 'PASSED') {
+      badgeClass = 'badge-green';
+      statusLabel = 'PASSED (Limpio)';
+    } else if (statusLabel === 'UNHEALED' || statusLabel === 'FAILED') {
+      badgeClass = 'badge-danger';
+      statusLabel = 'UNHEALED';
+    } else if (statusLabel === 'DRY_RUN_DIAGNOSED') {
+      badgeClass = 'badge-blue';
+      statusLabel = 'DRY-RUN (Simulado)';
+    } else if (statusLabel === 'DISPATCHED' || statusLabel === 'RUNNING') {
+      badgeClass = 'badge-purple';
+      statusLabel = 'EN PROGRESO...';
+    }
+
+    const patchesCount = a.patchesApplied ? a.patchesApplied.length : (a.status === 'HEALED' ? 1 : 0);
+    const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleString() : 'N/A';
+    const provider = a.provider || (a.patchesApplied && a.patchesApplied[0] ? a.patchesApplied[0].providerUsed : 'Sovereign AI ($0)');
+
+    return '<tr>' +
+      '<td><code>' + (a.id || ('nudus_' + idx)) + '</code></td>' +
+      '<td><strong>' + (a.repo || 'Local') + '</strong> <span class="badge badge-secondary" style="font-size: 0.68rem;">' + (a.branch || 'main') + '</span></td>' +
+      '<td><code>' + (a.testCmd || 'npm test') + '</code></td>' +
+      '<td><span class="badge ' + badgeClass + '">' + statusLabel + '</span></td>' +
+      '<td>' + (a.attemptsCount || 1) + '</td>' +
+      '<td><strong>' + patchesCount + '</strong> parche(s)</td>' +
+      '<td><span style="font-size: 0.8rem; color: #94a3b8;">' + provider + '</span></td>' +
+      '<td style="font-size: 0.78rem; color: #94a3b8;">' + dateStr + '</td>' +
+      '<td>' +
+        '<div style="display: flex; gap: 6px;">' +
+          '<button class="btn btn-secondary btn-xs" onclick="viewNudusAuditDetails(\'' + a.id + '\')" style="padding: 3px 8px;" title="Ver detalles">👁️ Ver</button>' +
+          '<button class="btn btn-danger btn-xs" onclick="deleteNudusAudit(\'' + a.id + '\')" style="padding: 3px 8px;" title="Borrar registro">✕</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+window.loadNudusAudits = loadNudusAudits;
+
+function deleteNudusAudit(auditId) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+  const initialLen = audits.length;
+  audits = audits.filter(a => a.id !== auditId);
+
+  if (audits.length < initialLen) {
+    localStorage.setItem('sphexn_nudus_audits', JSON.stringify(audits));
+    loadNudusAudits();
+
+    const resultsBox = document.getElementById('nudus-results');
+    if (resultsBox && resultsBox.dataset.currentAuditId === auditId) {
+      resultsBox.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+        '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">🩹</span>' +
+        '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Auditoría eliminada. Selecciona otra del historial o ejecuta una nueva evaluación.</p>' +
+      '</div>';
+      delete resultsBox.dataset.currentAuditId;
+    }
+  }
+}
+window.deleteNudusAudit = deleteNudusAudit;
+
+function clearNudusAudits() {
+  const audits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+  if (audits.length === 0) {
+    sphexnAlert('El registro de auditorías de Nudus ya está vacío.', 'Historial Vacío', 'ℹ️');
+    return;
+  }
+
+  showSphexnConfirmModal(
+    '¿Estás seguro de que deseas vaciar todos los registros de Sphexn Nudus? Esta acción eliminará el historial local.',
+    'Vaciar Historial de Nudus',
+    () => {
+      localStorage.removeItem('sphexn_nudus_audits');
+      loadNudusAudits();
+      const resultsBox = document.getElementById('nudus-results');
+      if (resultsBox) {
+        resultsBox.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+          '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">🩹</span>' +
+          '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Historial vaciado. Selecciona un repositorio y pulsa Ejecutar & Auto-Curar para comenzar.</p>' +
+        '</div>';
+      }
+      sphexnAlert('Historial de Sphexn Nudus vaciado correctamente.', 'Historial Vaciado', '🗑️');
+    }
+  );
+}
+window.clearNudusAudits = clearNudusAudits;
+
+function viewNudusAuditDetails(auditId) {
+  const audits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]');
+  const audit = audits.find(a => a.id === auditId);
+  if (!audit) return;
+  renderNudusResults(audit);
+}
+window.viewNudusAuditDetails = viewNudusAuditDetails;
+
+function renderNudusResults(audit) {
+  const container = document.getElementById('nudus-results');
+  if (!container) return;
+  container.dataset.currentAuditId = audit.id;
+
+  const isDryRun = audit.mode === 'dry-run';
+  const isHealed = audit.status === 'HEALED' || audit.conclusion === 'success';
+  const isPassed = audit.status === 'PASSED';
+  const isUnhealed = audit.status === 'UNHEALED' || audit.conclusion === 'failure';
+
+  let statusBadge = '<span class="badge badge-purple" style="font-size: 0.85rem; padding: 6px 14px;">EN PROGRESO</span>';
+  if (isHealed) {
+    statusBadge = '<span class="badge badge-green" style="font-size: 0.85rem; padding: 6px 14px;">✅ HEALED (Auto-Curado con Éxito)</span>';
+  } else if (isPassed) {
+    statusBadge = '<span class="badge badge-green" style="font-size: 0.85rem; padding: 6px 14px;">✅ PASSED (Tests Pasaron Limpiamente)</span>';
+  } else if (isUnhealed) {
+    statusBadge = '<span class="badge badge-danger" style="font-size: 0.85rem; padding: 6px 14px;">❌ UNHEALED (Fallo Persistente)</span>';
+  } else if (isDryRun) {
+    statusBadge = '<span class="badge badge-blue" style="font-size: 0.85rem; padding: 6px 14px;">🔍 SIMULADO (Dry-Run: Parche Listo)</span>';
+  }
+
+  let html = '<div class="card" style="padding: 24px; background: rgba(16, 24, 38, 0.95); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px;">';
+
+  // HEADER BANNER
+  html += '<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px; flex-wrap: wrap; gap: 12px;">';
+  html += '  <div>';
+  html += '    <h3 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 10px;">';
+  html += '      <span>🩹</span> Informe Forense de Auto-Curación Sphexn Nudus';
+  html += '    </h3>';
+  html += '    <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.84rem;">';
+  html += '      Repositorio: <strong>' + (audit.repo || 'Local') + '</strong> | Rama: <code>' + (audit.branch || 'main') + '</code> | Comando: <code>' + (audit.testCmd || 'npm test') + '</code>';
+  html += '    </p>';
+  html += '  </div>';
+  html += '  <div style="display: flex; align-items: center; gap: 10px;">';
+  html += statusBadge;
+  if (audit.createdPrUrl) {
+    html += '<a href="' + audit.createdPrUrl + '" target="_blank" class="btn btn-primary btn-sm" style="background: #2563eb;">🌿 Ver Pull Request</a>';
+  }
+  if (audit.createdIssueUrl) {
+    html += '<a href="' + audit.createdIssueUrl + '" target="_blank" class="btn btn-danger btn-sm">🚨 Ver Issue</a>';
+  }
+  if (audit.url) {
+    html += '<a href="' + audit.url + '" target="_blank" class="btn btn-secondary btn-sm">🔗 Ver GitHub Run</a>';
+  }
+  html += '  </div>';
+  html += '</div>';
+
+  // KPI STATS ROW
+  html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin: 18px 0;">';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Intentos Realizados</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700; color: #34d399;">' + (audit.attemptsCount || 1) + '</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Parches Quirúrgicos</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700; color: #60a5fa;">' + (audit.patchesApplied ? audit.patchesApplied.length : (isHealed ? 1 : 0)) + '</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Modo de Ejecución</div>';
+  html += '    <div style="font-size: 1.1rem; font-weight: 700; color: #e2e8f0;">' + (isDryRun ? 'Dry-Run' : 'Closed-Loop Heal') + '</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Coste Compute</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700; color: #10b981;">$0.00</div>';
+  html += '  </div>';
+  html += '</div>';
+
+  // SUMMARY BOX
+  if (audit.summary) {
+    html += '<div style="background: rgba(16, 185, 129, 0.08); border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; color: #e2e8f0;">';
+    html += '  <strong>Resumen del Motor:</strong> ' + audit.summary;
+    html += '</div>';
+  }
+
+  // ATTEMPTS TIMELINE / CARDS
+  if (audit.attempts && audit.attempts.length > 0) {
+    html += '<h4 style="margin: 20px 0 12px 0; font-size: 1rem; color: #f8fafc;">🔄 Trazabilidad del Bucle Cerrado de Intentos</h4>';
+    html += '<div style="display: flex; flex-direction: column; gap: 14px;">';
+
+    audit.attempts.forEach((att, i) => {
+      const attPassed = att.passed;
+      const attBadge = attPassed 
+        ? '<span class="badge badge-green">PASÓ ✅</span>' 
+        : '<span class="badge badge-danger">FALLÓ (Código ' + att.exitCode + ') ❌</span>';
+      
+      html += '<div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px;">';
+      html += '  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+      html += '    <strong style="font-size: 0.95rem; color: #e2e8f0;">Intento ' + att.attempt + (att.attempt === 0 ? ' (Ejecución Inicial)' : ' (Tras Parche Quirúrgico)') + '</strong>';
+      html += '    <div style="display: flex; gap: 8px; align-items: center;">';
+      if (att.durationMs) html += '<span style="font-size: 0.78rem; color: #94a3b8;">' + (att.durationMs / 1000).toFixed(2) + 's</span>';
+      html += attBadge;
+      html += '    </div>';
+      html += '  </div>';
+
+      if (att.errorSnippet && !attPassed) {
+        html += '  <details style="margin-top: 8px; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">';
+        html += '    <summary style="cursor: pointer; font-size: 0.82rem; color: #f87171; font-weight: 600;">Ver Traza de Error y Salida de Test</summary>';
+        html += '    <pre style="margin-top: 8px; font-size: 0.78rem; color: #fca5a5; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">' + escapeHtml(att.errorSnippet) + '</pre>';
+        html += '  </details>';
+      }
+
+      if (att.patch) {
+        html += '  <div style="margin-top: 12px; padding: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">';
+        html += '    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">';
+        html += '      <span style="font-size: 0.84rem; font-weight: 700; color: #34d399;">🩹 Parche Quirúrgico: <code>' + (att.patch.filePath || 'Archivo Fuente') + '</code></span>';
+        html += '      <span style="font-size: 0.76rem; color: #94a3b8;">' + (att.patch.providerUsed || 'Sovereign AI') + '</span>';
+        html += '    </div>';
+        if (att.patch.explanation) {
+          html += '    <p style="margin: 0 0 8px 0; font-size: 0.82rem; color: #cbd5e1;"><em>' + escapeHtml(att.patch.explanation) + '</em></p>';
+        }
+        html += '    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+        html += '      <div>';
+        html += '        <div style="font-size: 0.74rem; font-weight: 600; color: #f87171; margin-bottom: 4px;">SEARCH (Código Original):</div>';
+        html += '        <pre style="margin: 0; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; font-size: 0.76rem; color: #fca5a5; overflow-x: auto; white-space: pre-wrap;">' + escapeHtml(att.patch.search) + '</pre>';
+        html += '      </div>';
+        html += '      <div>';
+        html += '        <div style="font-size: 0.74rem; font-weight: 600; color: #34d399; margin-bottom: 4px;">REPLACE (Corrección Quirúrgica):</div>';
+        html += '        <pre style="margin: 0; padding: 8px; background: rgba(16, 185, 129, 0.1); border-radius: 4px; font-size: 0.76rem; color: #86efac; overflow-x: auto; white-space: pre-wrap;">' + escapeHtml(att.patch.replace) + '</pre>';
+        html += '      </div>';
+        html += '    </div>';
+        html += '  </div>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.renderNudusResults = renderNudusResults;
+
+// ─── AUTO-NUDUS CONTINUOUS TEST SURVEILLANCE ENGINE ──────────────
+function initAutoNudusConfigUI() {
+  loadAutoNudusRepositories();
+  renderAutoNudusMonitoredRepos();
+  const masterToggle = document.getElementById('master-toggle-auto-nudus');
+  if (masterToggle) {
+    const isMasterOn = localStorage.getItem('sphexn_master_auto_nudus') !== 'false';
+    masterToggle.checked = isMasterOn;
+  }
+}
+window.initAutoNudusConfigUI = initAutoNudusConfigUI;
+
+async function loadAutoNudusRepositories() {
+  const picker = document.getElementById('auto-nudus-repo-select');
+  if (!picker) return;
+
+  const repos = await getAccessibleRepositories();
+  if (!repos || repos.length === 0) {
+    picker.innerHTML = '<option value="">No hay repositorios disponibles</option>';
+    return;
+  }
+
+  picker.innerHTML = repos.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+  if (picker.options.length > 0) {
+    onAutoNudusRepoChanged();
+  }
+}
+window.loadAutoNudusRepositories = loadAutoNudusRepositories;
+
+function onAutoNudusRepoChanged() {
+  const repoSelect = document.getElementById('auto-nudus-repo-select');
+  if (!repoSelect || !repoSelect.value) return;
+  fetchRepoBranches(repoSelect.value, 'auto-nudus-branch-select');
+}
+window.onAutoNudusRepoChanged = onAutoNudusRepoChanged;
+
+function toggleMasterAutoNudus(enabled) {
+  localStorage.setItem('sphexn_master_auto_nudus', String(enabled));
+  if (enabled) {
+    sphexnAlert('Vigilancia Continua Auto-Nudus activada. Si un test falla en CI, se auto-curará en bucle cerrado.', 'Auto-Nudus Activado', '🩹');
+  } else {
+    sphexnAlert('Vigilancia Continua Auto-Nudus pausada globalmente.', 'Auto-Nudus Pausado', 'ℹ️');
+  }
+}
+window.toggleMasterAutoNudus = toggleMasterAutoNudus;
+
+function addRepoToAutoNudus() {
+  const picker = document.getElementById('auto-nudus-repo-select');
+  const branchSelect = document.getElementById('auto-nudus-branch-select');
+  const cmdInput = document.getElementById('auto-nudus-cmd-input');
+
+  const repo = picker ? picker.value : null;
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const testCmd = (cmdInput ? cmdInput.value : 'npm test').trim() || 'npm test';
+
+  if (!repo) {
+    sphexnAlert('Selecciona un repositorio válido para añadir.', 'Aviso', '⚠️');
+    return;
+  }
+
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  const alreadyExists = list.some(item => item.repo === repo && item.branch === branch);
+
+  if (alreadyExists) {
+    sphexnAlert('La rama ' + branch + ' del repositorio ' + repo + ' ya se encuentra en vigilancia continua.', 'Ya Añadido', 'ℹ️');
+    return;
+  }
+
+  list.push({ repo, branch, testCmd });
+  localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list));
+  renderAutoNudusMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' [Rama: ' + branch + '] añadido a la vigilancia continua de Nudus.', 'Añadido a Auto-Nudus', '➕');
+}
+window.addRepoToAutoNudus = addRepoToAutoNudus;
+
+function removeRepoFromAutoNudus(repo, branch = 'main') {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  list = list.filter(item => !(item.repo === repo && item.branch === branch));
+  localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list));
+  renderAutoNudusMonitoredRepos();
+}
+window.removeRepoFromAutoNudus = removeRepoFromAutoNudus;
+
+function renderAutoNudusMonitoredRepos() {
+  const container = document.getElementById('auto-nudus-list');
+  const countBadge = document.getElementById('auto-nudus-count-badge');
+  if (!container) return;
+
+  const list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+
+  if (countBadge) {
+    countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-muted text-center" style="grid-column: span 2; padding: 24px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">' +
+      'No hay repositorios configurados en Auto-Nudus. Añade uno arriba para activar la vigilancia continua.' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(item => {
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.3rem;">🩹</span>' +
+        '<div>' +
+          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + item.repo + '</strong>' +
+          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + item.branch + '</span>' +
+            '<span class="badge badge-green" style="font-size: 0.7rem;">CMD: ' + item.testCmd + '</span>' +
+            '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push [src/**, test/**]</code></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoNudus(\'' + item.repo + '\', \'' + item.branch + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoNudusMonitoredRepos = renderAutoNudusMonitoredRepos;
