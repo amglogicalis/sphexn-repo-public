@@ -555,12 +555,15 @@
 
             <!-- MICANS AUDITS INVENTORY -->
             <div class="card mt-24">
-              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div>
                   <h3 style="margin: 0; font-size: 1.08rem;">🗃️ Registro de Sincronizaciones Micans</h3>
                   <p class="text-muted" style="margin: 2px 0 0 0; font-size: 0.82rem;">Historial de discrepancias detectadas y parches aplicados</p>
                 </div>
-                <button class="btn btn-secondary btn-sm" id="btn-refresh-micans-audits" onclick="syncMicansRunsWithGitHub(true)">🔄 Refrescar & Sincronizar</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="btn btn-secondary btn-sm" id="btn-refresh-micans-audits" onclick="syncMicansRunsWithGitHub(true)">🔄 Refrescar & Sincronizar</button>
+                  <button class="btn btn-danger btn-sm" onclick="clearMicansAudits()" title="Vaciar todo el historial de Micans">🗑️ Vaciar</button>
+                </div>
               </div>
 
               <div class="table-wrapper mt-16">
@@ -1171,6 +1174,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260903_06"></script>
+  <script src="app.js?v=20260904_01"></script>
 </body>
 </html>

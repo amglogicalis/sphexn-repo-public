@@ -4605,8 +4605,9 @@ async function syncMicansRunsWithGitHub(force = false) {
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
 
+    const deletedAudits = JSON.parse(localStorage.getItem('sphexn_micans_deleted_audits') || '[]');
     const existingLocal = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
-    const syncedAudits = [...existingLocal];
+    const syncedAudits = existingLocal.filter(la => !deletedAudits.includes(la.id));
 
     for (const r of reposToPoll) {
       try {
@@ -4629,6 +4630,7 @@ async function syncMicansRunsWithGitHub(force = false) {
         for (const af of auditFiles) {
           if (!af.name.endsWith('.json')) continue;
           const auditId = af.name.replace('.json', '');
+          if (deletedAudits.includes(auditId) || deletedAudits.includes(af.name)) continue;
           const existingIdx = syncedAudits.findIndex(a => a.id === auditId);
 
           let auditData = null;
@@ -4743,6 +4745,7 @@ function loadMicansAudits() {
         '<div style="display: flex; gap: 6px; align-items: center;">' +
           '<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); viewMicansAuditDetail(' + idx + ')" style="padding: 3px 10px;">👁️ Ver</button>' +
           (a.actionUrl ? '<a href="' + a.actionUrl + '" target="_blank" onclick="event.stopPropagation();" class="btn btn-secondary btn-xs" style="padding: 3px 8px; text-decoration: none;">🔗 Action</a>' : '') +
+          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deleteMicansAudit(\'' + a.id + '\')">🗑️</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
