@@ -4987,7 +4987,25 @@ function renderMicansDriftReport(report) {
     }).join('');
   }
 
+  const isDryRun = report.mode === 'dry-run' || report.mode === 'drift';
+  const dryRunBanner = isDryRun
+    ? '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 22px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 10px; font-size: 0.85rem; color: #bfdbfe;">' +
+        '<div style="display: flex; align-items: center; gap: 12px;">' +
+          '<span style="font-size: 1.3rem;">🔍</span>' +
+          '<div>' +
+            '<strong>Simulación Dry-Run Completa:</strong> El AST y las discrepancias se evaluaron con el mismo rigor que en el modo sincronización. Los parches de abajo están listos para aplicarse sin haber tocado archivos en disco ni haber abierto PRs.' +
+          '</div>' +
+        '</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="dispatchMicans(\'sync\')" style="white-space: nowrap; font-weight: 700; padding: 6px 14px; font-size: 0.82rem; margin-left: 14px;">⚡ Aplicar Cambios (Sincronizar)</button>' +
+      '</div>'
+    : '';
+
+  const statusLabel = isDryRun ? 'SIMULADO' : (report.patchesApplied ? 'APLICADO' : 'ANALIZADO');
+  const statusMeta = isDryRun ? 'Listo para sincronizar' : (report.patchesApplied ? report.patchesApplied + ' integrados en Git' : 'Listo para fusionar');
+  const statusColor = isDryRun ? '#60a5fa' : '#34d399';
+
   container.innerHTML = '<div class="card" style="padding: 30px 34px; border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 14px; box-sizing: border-box; width: 100%; background: rgba(15, 23, 42, 0.85);">' +
+    dryRunBanner +
     '<!-- 1. AIRY EXECUTIVE HEADER -->' +
     '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 16px;">' +
       '<div>' +
@@ -4997,7 +5015,7 @@ function renderMicansDriftReport(report) {
           '<span class="badge badge-green" style="padding: 4px 10px; font-size: 0.76rem;">' + (report.docFiles || 'README.md') + '</span>' +
         '</div>' +
         '<p class="text-muted" style="margin: 0; font-size: 0.84rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">' +
-          '<span>Modo: <code style="color: #93c5fd;">' + report.mode + '</code></span>' +
+          '<span>Modo: <code style="color: #93c5fd;">' + (isDryRun ? 'dry-run (simulación)' : (report.createPr === false ? 'sync (directo)' : 'sync (con PR)')) + '</code></span>' +
           '<span>•</span>' +
           '<span>Proveedor: <strong style="color: #e2e8f0;">' + (report.provider || 'Motor Heurístico AST') + '</strong></span>' +
           '<span>•</span>' +
@@ -5032,10 +5050,10 @@ function renderMicansDriftReport(report) {
       '<div style="width: 1px; height: 40px; background: rgba(255,255,255,0.08);"></div>' +
 
       '<div style="display: flex; align-items: center; gap: 14px;">' +
-        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #34d399;">⚡</div>' +
+        '<div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: ' + statusColor + ';">⚡</div>' +
         '<div>' +
-          '<div style="font-size: 1.3rem; font-weight: 800; color: #34d399;">' + (report.patchesApplied ? 'APLICADO' : 'ANALIZADO') + '</div>' +
-          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">' + (report.patchesApplied ? report.patchesApplied + ' integrados en Git' : 'Listo para fusionar') + '</div>' +
+          '<div style="font-size: 1.3rem; font-weight: 800; color: ' + statusColor + ';">' + statusLabel + '</div>' +
+          '<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">' + statusMeta + '</div>' +
         '</div>' +
       '</div>' +
 
