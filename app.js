@@ -5894,6 +5894,15 @@ window.renderNudusResults = renderNudusResults;
 // ─── AUTO-NUDUS CONTINUOUS TEST SURVEILLANCE ENGINE ──────────────
 function initAutoNudusConfigUI() {
   loadAutoNudusRepositories();
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  if (list.length === 0) {
+    list = [
+      { repo: 'amglogicalis/testing', branch: 'main', testCmd: 'node test_math.js && node test_auth.js', maxRetries: 3 },
+      { repo: 'amglogicalis/testing', branch: 'hiven/patch-4838d7', testCmd: 'node test_math.js', maxRetries: 3 },
+      { repo: 'amglogicalis/Sphexn', branch: 'main', testCmd: 'node tests/species.test.js', maxRetries: 3 }
+    ];
+    localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list));
+  }
   renderAutoNudusMonitoredRepos();
   const masterToggle = document.getElementById('master-toggle-auto-nudus');
   if (masterToggle) {
