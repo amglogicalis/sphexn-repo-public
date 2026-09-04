@@ -4762,6 +4762,59 @@ function viewMicansAuditDetail(index) {
 }
 window.viewMicansAuditDetail = viewMicansAuditDetail;
 
+function deleteMicansAudit(auditId) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+  audits = audits.filter(a => a.id !== auditId);
+  localStorage.setItem('sphexn_micans_audits', JSON.stringify(audits));
+
+  // Mark as tombstone in deleted list so remote sync does not resurrect it
+  let deleted = JSON.parse(localStorage.getItem('sphexn_micans_deleted_audits') || '[]');
+  if (!deleted.includes(auditId)) {
+    deleted.push(auditId);
+    localStorage.setItem('sphexn_micans_deleted_audits', JSON.stringify(deleted));
+  }
+
+  loadMicansAudits();
+
+  const container = document.getElementById('micans-results');
+  if (container) {
+    if (audits.length > 0) {
+      renderMicansDriftReport(audits[0]);
+    } else {
+      container.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+        '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">📝</span>' +
+        '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Historial de Micans vacío. Selecciona un repositorio arriba y pulsa <strong>Auditar Drift</strong> para auditar.</p>' +
+        '<span class="text-muted" style="font-size: 0.8rem;">Cero falsos positivos garantizados por extracción de firmas AST y caché SHA-256 de $0 Compute.</span>' +
+      '</div>';
+    }
+  }
+}
+window.deleteMicansAudit = deleteMicansAudit;
+
+async function clearMicansAudits() {
+  const ok = await sphexnConfirm('¿Deseas vaciar todo el historial de auditorías de Micans?', 'Limpiar Historial', true, 'Vaciar');
+  if (ok) {
+    let audits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]');
+    let deleted = JSON.parse(localStorage.getItem('sphexn_micans_deleted_audits') || '[]');
+    for (const a of audits) {
+      if (!deleted.includes(a.id)) deleted.push(a.id);
+    }
+    localStorage.setItem('sphexn_micans_deleted_audits', JSON.stringify(deleted));
+    localStorage.removeItem('sphexn_micans_audits');
+    loadMicansAudits();
+
+    const container = document.getElementById('micans-results');
+    if (container) {
+      container.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+        '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">📝</span>' +
+        '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Historial de Micans limpio. Selecciona un repositorio arriba y pulsa <strong>Auditar Drift</strong> para comenzar.</p>' +
+        '<span class="text-muted" style="font-size: 0.8rem;">Cero falsos positivos garantizados por extracción de firmas AST y caché SHA-256 de $0 Compute.</span>' +
+      '</div>';
+    }
+  }
+}
+window.clearMicansAudits = clearMicansAudits;
+
 let currentMicansActiveFilter = 'all';
 let currentMicansPatchViewMode = 'rendered';
 let currentMicansLayoutMode = 'split'; // 'split', 'disc', 'docs'
