@@ -5422,34 +5422,54 @@ async function loadNudusRepositories(force = false) {
   const searchInput = document.getElementById('nudus-repo-search');
   if (!select) return;
 
-  const repos = await getAccessibleRepositories(force);
+  select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+
   if (!repos || repos.length === 0) {
-    select.innerHTML = '<option value="">No hay repositorios disponibles (Inicia sesión)</option>';
+    select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onNudusRepoChanged();
     return;
   }
 
-  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const filtered = query ? repos.filter(r => r.full_name.toLowerCase().includes(query)) : repos;
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterNudusRepos(searchInput.value);
+    });
+  }
 
-  select.innerHTML = filtered.map(r => {
-    return '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>';
-  }).join('');
-
-  if (select.options.length > 0) {
-    onNudusRepoChanged();
+  filterNudusRepos(searchInput ? searchInput.value : '');
+  const firstRepo = select.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'nudus-branch-select');
   }
 }
 window.loadNudusRepositories = loadNudusRepositories;
 
-function filterNudusRepos(query) {
-  loadNudusRepositories();
+function filterNudusRepos(q) {
+  const select = document.getElementById('nudus-repo-select');
+  if (!select) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    select.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  select.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
 }
 window.filterNudusRepos = filterNudusRepos;
 
-function onNudusRepoChanged() {
-  const repoSelect = document.getElementById('nudus-repo-select');
-  if (!repoSelect || !repoSelect.value) return;
-  fetchRepoBranches(repoSelect.value, 'nudus-branch-select');
+async function onNudusRepoChanged() {
+  const select = document.getElementById('nudus-repo-select');
+  const selectedRepo = select ? select.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'nudus-branch-select');
+  }
+  syncNudusRunsWithGitHub();
 }
 window.onNudusRepoChanged = onNudusRepoChanged;
 
@@ -5883,13 +5903,15 @@ function initAutoNudusConfigUI() {
 }
 window.initAutoNudusConfigUI = initAutoNudusConfigUI;
 
-async function loadAutoNudusRepositories() {
+async function loadAutoNudusRepositories(force = false) {
   const picker = document.getElementById('auto-nudus-repo-select');
   if (!picker) return;
 
-  const repos = await getAccessibleRepositories();
+  picker.innerHTML = '<option value="">Cargando repositorios...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
   if (!repos || repos.length === 0) {
-    picker.innerHTML = '<option value="">No hay repositorios disponibles</option>';
+    picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onAutoNudusRepoChanged();
     return;
   }
 

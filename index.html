@@ -643,7 +643,7 @@
                     <label for="nudus-cmd-input" style="font-size: 0.86rem; font-weight: 600; margin-bottom: 8px; display: block; color: #e2e8f0;">
                       ⚡ Comando de Tests:
                     </label>
-                    <input type="text" id="nudus-cmd-input" class="form-control" value="npm test" placeholder="ej: npm test, pytest, cargo test" style="font-size: 0.88rem; padding: 10px 14px; width: 100%; box-sizing: border-box; height: 42px;">
+                    <input type="text" id="nudus-cmd-input" class="form-control" value="" placeholder="ej: npm test, pytest, node test/index.js (o encadena con &&)" style="font-size: 0.88rem; padding: 10px 14px; width: 100%; box-sizing: border-box; height: 42px;">
                   </div>
 
                   <!-- COL 4: RETRIES -->
@@ -1059,7 +1059,7 @@ continue-on-error: true
                     </div>
                     <div class="form-group" style="margin: 0;">
                       <label style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: block;">Comando de Test:</label>
-                      <input type="text" id="auto-nudus-cmd-input" class="form-control" value="npm test" placeholder="ej: npm test" style="font-size: 0.86rem; padding: 8px 12px;">
+                      <input type="text" id="auto-nudus-cmd-input" class="form-control" value="" placeholder="ej: npm test, pytest, cargo test" style="font-size: 0.86rem; padding: 8px 12px;">
                     </div>
                     <button class="btn btn-primary" onclick="addRepoToAutoNudus()" style="font-size: 0.86rem; font-weight: 600; padding: 9px 18px; white-space: nowrap; height: 38px;">
                       ➕ Añadir a Auto-Nudus
@@ -1358,6 +1358,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260904_06"></script>
+  <script src="app.js?v=20260904_07"></script>
 </body>
 </html>
