@@ -6012,3 +6012,67 @@ function renderAutoNudusMonitoredRepos() {
   }).join('');
 }
 window.renderAutoNudusMonitoredRepos = renderAutoNudusMonitoredRepos;
+
+
+function addCurrentToAutoNudus() {
+  const repoSelect = document.getElementById('nudus-repo-select');
+  const branchSelect = document.getElementById('nudus-branch-select');
+  const cmdInput = document.getElementById('nudus-cmd-input');
+
+  const repo = repoSelect ? repoSelect.value : '';
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const testCmd = (cmdInput && cmdInput.value.trim()) ? cmdInput.value.trim() : 'npm test';
+
+  if (!repo) {
+    sphexnAlert('Por favor, selecciona un repositorio primero.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  const exists = list.some(item => item.repo === repo && item.branch === branch);
+
+  if (exists) {
+    sphexnAlert('La rama ' + branch + ' de ' + repo + ' ya está configurada en Auto-Nudus.', 'Ya Registrado', 'ℹ️');
+    return;
+  }
+
+  list.push({ repo, branch, testCmd });
+  localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list));
+  renderAutoNudusTabList();
+  renderAutoNudusMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' [Rama: ' + branch + '] añadido a la vigilancia continua de Auto-Nudus (Comando: ' + testCmd + ').', 'Auto-Nudus Registrado', '🩹');
+}
+window.addCurrentToAutoNudus = addCurrentToAutoNudus;
+
+function renderAutoNudusTabList() {
+  const container = document.getElementById('auto-nudus-tab-list');
+  const countBadge = document.getElementById('auto-nudus-tab-count');
+  if (!container) return;
+
+  const list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+
+  if (countBadge) {
+    countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-muted text-center" style="grid-column: 1 / -1; padding: 18px; border: 1px dashed rgba(255,255,255,0.08); border-radius: 8px; font-size: 0.84rem;">' +
+      'No hay repositorios configurados en Auto-Nudus. Pulsa "Añadir Selección Actual a Auto-Nudus" para registrar el repositorio y rama seleccionados arriba.' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(item => {
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin: 0; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">' +
+      '<div style="min-width: 0; margin-right: 10px;">' +
+        '<strong style="font-size: 0.88rem; color: #f8fafc; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + item.repo + '</strong>' +
+        '<div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
+          '<span class="badge badge-blue" style="font-size: 0.68rem; padding: 2px 6px;">RAMA: ' + item.branch + '</span>' +
+          '<span class="badge badge-green" style="font-size: 0.68rem; padding: 2px 6px;">CMD: ' + item.testCmd + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoNudus(\'' + item.repo + '\', \'' + item.branch + '\'); renderAutoNudusTabList();" style="padding: 4px 8px; font-weight: 600;" title="Quitar de vigilancia">✕</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoNudusTabList = renderAutoNudusTabList;

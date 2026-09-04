@@ -691,6 +691,32 @@
                 </div>
               </div>
 
+              
+              <!-- AUTO-NUDUS CONTINUOUS SURVEILLANCE CARD -->
+              <div class="card mt-24 mb-24" style="padding: 20px 24px; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                      <span>🩹</span> Repositorios en Vigilancia Continua Auto-Nudus
+                    </h3>
+                    <p class="text-muted" style="margin: 2px 0 0 0; font-size: 0.8rem;">
+                      Disparo automático en cada push: ejecuta los comandos de prueba configurados y aplica auto-healing si fallan.
+                    </p>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn btn-secondary btn-xs" onclick="addCurrentToAutoNudus()" style="padding: 6px 14px; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                      ➕ Añadir Selección Actual a Auto-Nudus
+                    </button>
+                    <span id="auto-nudus-tab-count" class="badge badge-green" style="font-size: 0.76rem;">0 Repositorios</span>
+                  </div>
+                </div>
+                <div id="auto-nudus-tab-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+                  <div class="text-muted text-center" style="grid-column: 1 / -1; padding: 18px; border: 1px dashed rgba(255,255,255,0.08); border-radius: 8px; font-size: 0.84rem;">
+                    No hay repositorios configurados en Auto-Nudus. Pulsa "Añadir Selección Actual a Auto-Nudus" para registrar el repositorio y rama seleccionados arriba.
+                  </div>
+                </div>
+              </div>
+
               <!-- DYNAMIC RESULTS VIEW -->
               <div id="nudus-results" class="mt-20">
                 <div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">
@@ -1358,6 +1384,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260904_07"></script>
+  <script src="app.js?v=20260904_08"></script>
 </body>
 </html>
