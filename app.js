@@ -4494,11 +4494,13 @@ async function dispatchMicans(action) {
   const branchSelect = document.getElementById('micans-branch-select');
   const branchInput = document.getElementById('micans-branch-input');
   const docFilesInput = document.getElementById('micans-doc-files-input');
+  const prToggle = document.getElementById('micans-create-pr-toggle');
   const spinner = document.getElementById('micans-spinner');
 
   const repo = repoSelect ? repoSelect.value : '';
   const branch = (branchSelect ? branchSelect.value : (branchInput ? branchInput.value : 'main')).trim() || 'main';
   const docFiles = (docFilesInput ? docFilesInput.value : 'README.md').trim() || 'README.md';
+  const createPr = prToggle ? prToggle.checked : true;
 
   if (!repo) {
     sphexnAlert('Por favor, selecciona un repositorio destino para auditar con Micans.', 'Repositorio Requerido', '⚠️');
@@ -4512,11 +4514,10 @@ async function dispatchMicans(action) {
 
   if (spinner) spinner.style.display = 'block';
 
-  const actionLabels = {
-    drift: 'Auditoría de Discrepancias (Drift)',
-    patch: 'Generación de Parche Quirúrgico',
-    sync: 'Sincronización Automática (Auto-PR)'
-  };
+  const isDryRun = action === 'dry-run' || action === 'drift';
+  const actionLabel = isDryRun 
+    ? 'Dry-Run (Solo Auditoría en Memoria)' 
+    : ('Sincronización & Parcheo ' + (createPr ? '(con Pull Request)' : '(Commit Directo)'));
 
   try {
     const activeChain = getActiveFallbackChain('micans');
@@ -4533,10 +4534,11 @@ async function dispatchMicans(action) {
       body: JSON.stringify({
         ref: branch,
         inputs: {
-          mode: action,
+          mode: isDryRun ? 'dry-run' : 'sync',
           repo: repo,
           branch: branch,
           doc_files: docFiles,
+          create_pr: String(createPr),
           fallback_matrix: JSON.stringify(activeChain)
         }
       })
@@ -4545,7 +4547,7 @@ async function dispatchMicans(action) {
     if (spinner) spinner.style.display = 'none';
 
     if (res.status === 204 || res.status === 200 || res.status === 201) {
-      sphexnAlert('Disparo exitoso de Sphexn Micans (' + actionLabels[action] + ') en ' + repo + ' (' + branch + '). El runner está ejecutándose en GitHub Actions con $0 Compute.', 'Micans Despachado 🚀', '📝');
+      sphexnAlert('Disparo exitoso de Sphexn Micans [' + actionLabel + '] en ' + repo + ' (' + branch + '). El runner está ejecutándose en GitHub Actions con $0 Compute.', 'Micans Despachado 🚀', '📝');
 
       // Record simulated initial item
       const newAudit = {
@@ -4668,6 +4670,7 @@ async function syncMicansRunsWithGitHub(force = false) {
             repo: auditData.repo || r,
             branch: auditData.branch || 'main',
             mode: auditData.mode || 'sync',
+            createPr: auditData.createPr !== false,
             docFiles: firstResult.docFile || 'README.md',
             discrepanciesCount: totalDisc,
             patchesApplied: totalPatches,
@@ -4733,9 +4736,14 @@ function loadMicansAudits() {
 
     const dateStr = new Date(a.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
 
+    const isDry = a.mode === 'dry-run' || a.mode === 'drift';
+    const modeBadge = isDry 
+      ? '<span class="badge badge-blue" style="font-size: 0.68rem; margin-left: 6px;">DRY-RUN</span>'
+      : '<span class="badge badge-green" style="font-size: 0.68rem; margin-left: 6px;">AUTO-SYNC</span>';
+
     return '<tr style="cursor: pointer; transition: background 0.15s;" onclick="viewMicansAuditDetail(' + idx + ')">' +
       '<td style="font-family: var(--font-mono); font-size: 0.8rem; color: #93c5fd;"><code>' + a.id + '</code></td>' +
-      '<td><strong>' + a.repo + '</strong> <span style="font-size: 0.78rem; color: var(--text-muted);">(' + (a.branch || 'main') + ')</span></td>' +
+      '<td><strong>' + a.repo + '</strong> <span style="font-size: 0.78rem; color: var(--text-muted);">(' + (a.branch || 'main') + ')</span>' + modeBadge + '</td>' +
       '<td><code>' + (a.docFiles || 'README.md') + '</code></td>' +
       '<td><span class="badge ' + (a.discrepanciesCount > 0 ? 'badge-amber' : 'badge-green') + '">' + (a.discrepanciesCount || 0) + ' discrepancias</span></td>' +
       '<td>' + (a.patchesApplied ? '<span class="badge badge-green">✔ ' + a.patchesApplied + ' aplicados</span>' : (a.patches && a.patches.length > 0 ? '<span class="badge badge-blue">' + a.patches.length + ' listos</span>' : '<span class="text-muted">0</span>')) + '</td>' +
