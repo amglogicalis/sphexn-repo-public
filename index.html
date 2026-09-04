@@ -524,17 +524,23 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 16px;">
                   <div style="font-size: 0.84rem; color: #94a3b8; display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 1rem;">💡</span>
-                    <span>Extrae firmas AST de funciones, rutas REST, comandos CLI y variables con $0 Compute.</span>
+                    <span><strong>2 Modos:</strong> Dry-Run (simular en memoria) o Sincronizar (parchear con o sin Pull Request).</span>
                   </div>
-                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn btn-secondary" id="btn-micans-drift" onclick="dispatchMicans('drift')" style="font-weight: 600; padding: 10px 20px; font-size: 0.88rem;">
-                      🔍 Auditar Drift (Discrepancias)
+                  <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                    <!-- Option to Toggle PR on Sync -->
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #cbd5e1; cursor: pointer; user-select: none; background: rgba(255,255,255,0.05); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);" title="Si está activo, abre una Pull Request automática en GitHub. Si está desactivado, aplica los cambios directamente.">
+                      <input type="checkbox" id="micans-create-pr-toggle" checked style="accent-color: #3b82f6; width: 16px; height: 16px; cursor: pointer;">
+                      <span>🌿 Abrir Pull Request</span>
+                    </label>
+
+                    <!-- MODE 1: DRY RUN -->
+                    <button class="btn btn-secondary" id="btn-micans-dryrun" onclick="dispatchMicans('dry-run')" style="font-weight: 600; padding: 10px 20px; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;" title="Analiza discrepancias y simula parches quirúrgicos sin tocar ningún archivo ni abrir PRs">
+                      <span>🔍</span> <span>Dry-Run (Solo Auditar)</span>
                     </button>
-                    <button class="btn btn-secondary" id="btn-micans-patch" onclick="dispatchMicans('patch')" style="font-weight: 600; padding: 10px 20px; font-size: 0.88rem; border-color: rgba(96, 165, 250, 0.4); color: #93c5fd;">
-                      📝 Generar Parche Quirúrgico
-                    </button>
-                    <button class="btn btn-primary" id="btn-micans-sync" onclick="dispatchMicans('sync')" style="font-weight: 700; padding: 10px 22px; font-size: 0.88rem; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
-                      ⚡ Sincronizar (Auto-PR)
+
+                    <!-- MODE 2: AUTO SYNC & PATCH -->
+                    <button class="btn btn-primary" id="btn-micans-sync" onclick="dispatchMicans('sync')" style="font-weight: 700; padding: 10px 24px; font-size: 0.88rem; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); display: flex; align-items: center; gap: 8px;" title="Detecta discrepancias, actualiza la documentación y abre PR o commit según tu elección">
+                      <span>⚡</span> <span>Sincronizar & Parchear</span>
                     </button>
                   </div>
                 </div>
@@ -1174,6 +1180,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260904_03"></script>
+  <script src="app.js?v=20260904_04"></script>
 </body>
 </html>
