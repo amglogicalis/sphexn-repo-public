@@ -692,31 +692,6 @@
               </div>
 
               
-              <!-- AUTO-NUDUS CONTINUOUS SURVEILLANCE CARD -->
-              <div class="card mt-24 mb-24" style="padding: 20px 24px; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
-                      <span>🩹</span> Repositorios en Vigilancia Continua Auto-Nudus
-                    </h3>
-                    <p class="text-muted" style="margin: 2px 0 0 0; font-size: 0.8rem;">
-                      Disparo automático en cada push: ejecuta los comandos de prueba configurados y aplica auto-healing si fallan.
-                    </p>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn btn-secondary btn-xs" onclick="addCurrentToAutoNudus()" style="padding: 6px 14px; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
-                      ➕ Añadir Selección Actual a Auto-Nudus
-                    </button>
-                    <span id="auto-nudus-tab-count" class="badge badge-green" style="font-size: 0.76rem;">0 Repositorios</span>
-                  </div>
-                </div>
-                <div id="auto-nudus-tab-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
-                  <div class="text-muted text-center" style="grid-column: 1 / -1; padding: 18px; border: 1px dashed rgba(255,255,255,0.08); border-radius: 8px; font-size: 0.84rem;">
-                    No hay repositorios configurados en Auto-Nudus. Pulsa "Añadir Selección Actual a Auto-Nudus" para registrar el repositorio y rama seleccionados arriba.
-                  </div>
-                </div>
-              </div>
-
               <!-- DYNAMIC RESULTS VIEW -->
               <div id="nudus-results" class="mt-20">
                 <div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">
@@ -1048,62 +1023,102 @@ continue-on-error: true
             </div>
 
             <!-- SUBTAB 4: AUTO-NUDUS CONTINUOUS TEST SELF-HEALING -->
-            <div id="cfg-subtab-autonudus-container" style="display: none;">
-              <div class="card" style="padding: 24px 28px;">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+            <div id="cfg-subtab-autonudus-container" style="display: none; width: 100%; max-width: 100%; box-sizing: border-box;">
+              <!-- MASTER TOGGLE CARD -->
+              <div class="card" style="padding: 20px 24px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.25); box-sizing: border-box; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: nowrap;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h3 style="color: #34d399; margin: 0 0 6px 0; font-size: 1.15rem; display: flex; align-items: center; gap: 10px;">
                       <span>🩹</span> Vigilancia Continua con Auto-Nudus
                     </h3>
-                    <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.84rem;">
-                      Dispara automáticamente Sphexn Nudus en bucle cerrado al detectar tests rotos tras cada push.
+                    <p class="text-muted" style="font-size: 0.86rem; margin: 0; line-height: 1.5;">
+                      Dispara automáticamente Sphexn Nudus en bucle cerrado al detectar tests rotos tras cada <code>git push</code> y aplica auto-curación quirúrgica con $0 Compute.
                     </p>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">Master Switch:</span>
-                    <label class="switch">
-                      <input type="checkbox" id="master-toggle-auto-nudus" onchange="toggleMasterAutoNudus(this.checked)">
-                      <span class="slider round"></span>
-                    </label>
+                  <label class="sphexn-switch emerald" style="transform: scale(1.1); flex-shrink: 0; margin-left: 12px;">
+                    <input type="checkbox" id="master-toggle-auto-nudus" onchange="toggleMasterAutoNudus(this.checked)">
+                    <span class="sphexn-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- REPO MANAGEMENT PANEL -->
+              <div id="autonudus-management-panel" class="card mt-20" style="padding: 22px 24px; box-sizing: border-box; width: 100%;">
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h3 style="font-size: 1.05rem; margin: 0 0 4px 0;">➕ Añadir Repositorio a Vigilancia Continua Nudus</h3>
+                    <p class="text-muted" style="font-size: 0.82rem; margin: 0;">Configura la rama vigilada, la suite de pruebas a ejecutar y los reintentos máximos de auto-curación.</p>
                   </div>
+                  <button class="btn btn-secondary btn-xs" onclick="loadAutoNudusRepositories(true)" title="Forzar refresco" style="flex-shrink: 0; white-space: nowrap;">🔄 Refrescar</button>
                 </div>
 
-                <!-- ADD REPO ROW -->
-                <div class="mt-20 p-16" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
-                  <div style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 16px; align-items: end;">
-                    <div class="form-group" style="margin: 0;">
-                      <label style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: block;">Repositorio a Vigilar:</label>
-                      <select id="auto-nudus-repo-select" class="form-control" onchange="onAutoNudusRepoChanged()" style="font-size: 0.86rem; padding: 8px 12px;">
-                        <option value="">Cargando repositorios...</option>
+                <!-- 2-ROW SPACIOUS RESPONSIVE FORM -->
+                <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; box-sizing: border-box;">
+                  <!-- ROW 1: REPOSITORY DISCOVERY -->
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="auto-nudus-repo-search" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        🔍 Filtrar por Nombre:
+                      </label>
+                      <input type="text" id="auto-nudus-repo-search" class="form-control" placeholder="Filtrar (ej: testing, sphexn)..." oninput="filterAutoNudusRepos(this.value)" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="auto-nudus-repo-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        📦 Repositorio Detectado:
+                      </label>
+                      <select id="auto-nudus-repo-select" class="form-control" onchange="onAutoNudusRepoChanged()" style="width: 100%; box-sizing: border-box;">
+                        <option value="">Consultando repositorios en GitHub API...</option>
                       </select>
                     </div>
-                    <div class="form-group" style="margin: 0;">
-                      <label style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: block;">Rama a Vigilar:</label>
-                      <select id="auto-nudus-branch-select" class="form-control" style="font-size: 0.86rem; padding: 8px 12px;">
+                  </div>
+
+                  <!-- ROW 2: TARGET BRANCH, TEST COMMAND, AND MAX RETRIES -->
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 0.8fr); gap: 16px; align-items: end; width: 100%; box-sizing: border-box;">
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="auto-nudus-branch-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        🌿 Rama Vigilada:
+                      </label>
+                      <select id="auto-nudus-branch-select" class="form-control" style="width: 100%; box-sizing: border-box; font-size: 0.88rem; padding: 9px 12px; height: 40px;">
                         <option value="main">🌿 main</option>
                       </select>
                     </div>
-                    <div class="form-group" style="margin: 0;">
-                      <label style="font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; display: block;">Comando de Test:</label>
-                      <input type="text" id="auto-nudus-cmd-input" class="form-control" value="" placeholder="ej: npm test, pytest, cargo test" style="font-size: 0.86rem; padding: 8px 12px;">
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="auto-nudus-cmd-input" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        ⚡ Comando de Test:
+                      </label>
+                      <input type="text" id="auto-nudus-cmd-input" class="form-control" value="" placeholder="ej: npm test, pytest, node test_math.js" style="width: 100%; box-sizing: border-box; height: 40px;">
                     </div>
-                    <button class="btn btn-primary" onclick="addRepoToAutoNudus()" style="font-size: 0.86rem; font-weight: 600; padding: 9px 18px; white-space: nowrap; height: 38px;">
-                      ➕ Añadir a Auto-Nudus
-                    </button>
+                    <div class="form-group" style="margin: 0; min-width: 0;">
+                      <label for="auto-nudus-retries-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                        🔄 Reintentos Máx:
+                      </label>
+                      <select id="auto-nudus-retries-select" class="form-control" style="width: 100%; box-sizing: border-box; font-size: 0.88rem; padding: 9px 12px; height: 40px;">
+                        <option value="1">1 Reintento</option>
+                        <option value="2">2 Reintentos</option>
+                        <option value="3" selected>3 Reintentos (Recomendado)</option>
+                        <option value="5">5 Reintentos</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <!-- MONITORED REPOSITORIES LIST -->
-                <div class="mt-24">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h4 style="margin: 0; font-size: 0.95rem; color: #e2e8f0;">📋 Repositorios en Vigilancia Continua</h4>
-                    <span id="auto-nudus-count-badge" class="badge badge-primary">0 Repositorios</span>
-                  </div>
-                  <div id="auto-nudus-list" class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div class="text-muted text-center" style="grid-column: span 2; padding: 24px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
-                      No hay repositorios configurados en Auto-Nudus. Añade uno arriba para activar el auto-healing.
-                    </div>
-                  </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 18px;">
+                  <button class="btn btn-primary" onclick="addRepoToAutoNudus()" style="padding: 9px 24px; font-weight: 700; white-space: nowrap; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);">
+                    ➕ Añadir a Vigilancia Activa
+                  </button>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0 18px 0;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                  <h4 style="margin: 0; font-size: 0.98rem; display: flex; align-items: center; gap: 8px;">
+                    <span>📋</span> Repositorios en Vigilancia Continua Nudus
+                  </h4>
+                  <span id="auto-nudus-count-badge" class="badge badge-green" style="font-size: 0.74rem;">0 Repositorios</span>
+                </div>
+
+                <div id="auto-nudus-list" style="display: flex; flex-direction: column; gap: 10px;">
+                  <!-- Rendered by renderAutoNudusMonitoredRepos -->
                 </div>
               </div>
             </div>
@@ -1384,6 +1399,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260904_08"></script>
+  <script src="app.js?v=20260904_09"></script>
 </body>
 </html>

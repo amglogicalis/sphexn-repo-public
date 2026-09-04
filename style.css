@@ -1187,6 +1187,11 @@ body {
   border-color: #3b82f6;
   box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
 }
+.sphexn-switch.emerald input:checked + .sphexn-slider {
+  background-color: #10b981;
+  border-color: #059669;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
 .sphexn-switch input:checked + .sphexn-slider:before {
   transform: translateX(22px);
   background-color: #ffffff;
