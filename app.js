@@ -7548,7 +7548,10 @@ function renderRexAudits() {
 
     const durationStr = a.durationMs ? ((a.durationMs / 1000).toFixed(1) + 's') : '--';
     const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--';
-    const ghLink = a.htmlUrl ? '<a href="' + a.htmlUrl + '" target="_blank" class="btn btn-secondary btn-xs" style="margin-right: 4px;" title="Ver en GitHub Actions">🔗 Run</a>' : '';
+    const runUrl = a.htmlUrl || ('https://github.com/' + (a.repo || 'amglogicalis/testing') + '/actions');
+    const ghLink = '<a href="' + runUrl + '" target="_blank" class="rex-action-btn rex-btn-run" title="Abrir ejecución en GitHub Actions"><span>🔗</span> Run</a>';
+    const previewBtn = '<button class="rex-action-btn rex-btn-preview" onclick="previewRexEmailReport(\'' + a.id + '\')" title="Previsualizar correo HTML de auditoría"><span>💌</span> Preview</button>';
+    const deleteBtn = '<button class="rex-action-btn rex-btn-delete" onclick="deleteRexAudit(\'' + a.id + '\')" title="Eliminar registro">✕</button>';
 
     return '<tr>' +
       '<td>' + dateStr + '</td>' +
@@ -7557,10 +7560,12 @@ function renderRexAudits() {
       '<td>' + statusBadge + '</td>' +
       '<td>' + (a.totalTasks || 1) + ' tareas</td>' +
       '<td>' + durationStr + '</td>' +
-      '<td>' +
-        ghLink +
-        '<button class="btn btn-secondary btn-xs" onclick="previewRexEmailReport(\'' + a.id + '\')" style="margin-right: 4px;" title="Ver Correo HTML">📧</button>' +
-        '<button class="btn btn-danger btn-xs" onclick="deleteRexAudit(\'' + a.id + '\')" title="Eliminar">✕</button>' +
+      '<td class="rex-actions-cell">' +
+        '<div class="rex-action-group">' +
+          ghLink +
+          previewBtn +
+          deleteBtn +
+        '</div>' +
       '</td>' +
     '</tr>';
   }).join('');

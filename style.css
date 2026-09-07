@@ -1307,3 +1307,86 @@ select option:checked {
 .drag-handle:active {
   cursor: grabbing;
 }
+
+
+/* SPHEXN REX AUDIT ACTIONS TOOLBAR */
+.rex-actions-cell {
+  white-space: nowrap !important;
+  text-align: right !important;
+  width: 1%;
+}
+
+.rex-action-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+.rex-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  text-decoration: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(30, 41, 59, 0.75) !important;
+  color: #cbd5e1 !important;
+  cursor: pointer !important;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  line-height: 1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  vertical-align: middle !important;
+}
+
+.rex-action-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+.rex-btn-run {
+  background: rgba(37, 99, 235, 0.15) !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+  color: #60a5fa !important;
+}
+
+.rex-btn-run:hover {
+  background: rgba(37, 99, 235, 0.3) !important;
+  border-color: rgba(96, 165, 250, 0.6) !important;
+  color: #93c5fd !important;
+}
+
+.rex-btn-preview {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #fbbf24 !important;
+}
+
+.rex-btn-preview:hover {
+  background: rgba(245, 158, 11, 0.3) !important;
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  color: #fef08a !important;
+}
+
+.rex-btn-delete {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+  color: #f87171 !important;
+  font-size: 0.82rem !important;
+}
+
+.rex-btn-delete:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  color: #fca5a5 !important;
+}
+
