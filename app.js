@@ -2248,6 +2248,7 @@ async function getOrFetchAllUserRepos(force = false) {
   return allUserReposCache || [];
 }
 window.getOrFetchAllUserRepos = getOrFetchAllUserRepos;
+if (typeof globalThis !== "undefined") globalThis.getOrFetchAllUserRepos = getOrFetchAllUserRepos;
 
 // Repositories Loader via GitHub API
 async function loadLucaeRepositories(force = false) {
@@ -3652,7 +3653,8 @@ async function loadAutoPrRepoOptions(force = false) {
   if (!picker) return;
 
   picker.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
-  const repos = await getOrFetchAllUserRepos(force);
+  const fetchFn = typeof getOrFetchAllUserRepos === "function" ? getOrFetchAllUserRepos : (window.getOrFetchAllUserRepos || (async () => []));
+  const repos = await fetchFn(force);
 
   if (!repos || repos.length === 0) {
     picker.innerHTML = '<option value="amglogicalis/pokemon-tcg-project">amglogicalis/pokemon-tcg-project (Predeterminado)</option>';
@@ -6103,7 +6105,8 @@ async function loadObscurusRepositories(force = false) {
   if (!select) return;
 
   select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
-  const repos = await getOrFetchAllUserRepos(force);
+  const fetchFn = typeof getOrFetchAllUserRepos === 'function' ? getOrFetchAllUserRepos : (window.getOrFetchAllUserRepos || (async () => []));
+  const repos = await fetchFn(force);
 
   if (!repos || repos.length === 0) {
     select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
@@ -6165,7 +6168,7 @@ async function dispatchObscurus(action = 'heal') {
 
   const repo = repoSelect ? repoSelect.value : '';
   const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
-  const targetFiles = (filesInput ? filesInput.value : 'src/**, *.js, *.py, *.ts, *.json').trim() || 'src/**, *.js, *.py, *.ts, *.json';
+  const targetFiles = (filesInput ? filesInput.value : '').trim();
   const maxRetries = retriesSelect ? retriesSelect.value : '3';
   const createPr = prToggle ? prToggle.checked : false;
   const openIssue = issueToggle ? issueToggle.checked : true;
@@ -6360,7 +6363,7 @@ function loadObscurusAudits() {
 
     const score = a.avgConfidence !== undefined ? a.avgConfidence : 100;
     const scoreClass = score >= 85 ? 'text-green' : (score >= 50 ? 'text-amber' : 'text-red');
-    const scoreBadge = '<strong class="' + scoreClass + '">' + score + '/100</strong>';
+    const scoreBadge = '<strong class="' + scoreClass + '">' + score + '/100</strong> <span class="badge ' + badgeClass + '" style="font-size: 0.68rem; margin-left: 4px;">' + statusLabel + '</span>';
 
     const syntaxValid = a.syntaxValid !== false;
     const syntaxBadge = syntaxValid 
@@ -6582,8 +6585,9 @@ function initAutoObscurusConfigUI() {
   let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
   if (list.length === 0) {
     list = [
-      { repo: 'amglogicalis/testing', branch: 'main', targetFiles: 'src/**, *.js, *.py, *.ts, *.json', maxRetries: 3 },
-      { repo: 'amglogicalis/Sphexn', branch: 'main', targetFiles: 'src/**, *.js, *.py, *.ts, *.json', maxRetries: 3 }
+      { repo: 'amglogicalis/testing', branch: 'main', targetFiles: '', maxRetries: 3 },
+      { repo: 'amglogicalis/testing', branch: 'develop', targetFiles: '', maxRetries: 3 },
+      { repo: 'amglogicalis/Sphexn', branch: 'main', targetFiles: '', maxRetries: 3 }
     ];
     localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list));
   }
@@ -6602,7 +6606,8 @@ async function loadAutoObscurusRepositories(force = false) {
   if (!picker) return;
 
   picker.innerHTML = '<option value="">Cargando repositorios...</option>';
-  const repos = await getOrFetchAllUserRepos(force);
+  const fetchFn = typeof getOrFetchAllUserRepos === 'function' ? getOrFetchAllUserRepos : (window.getOrFetchAllUserRepos || (async () => []));
+  const repos = await fetchFn(force);
   if (!repos || repos.length === 0) {
     picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
     onAutoObscurusRepoChanged();
@@ -6667,7 +6672,7 @@ function addRepoToAutoObscurus() {
 
   const repo = picker ? picker.value : null;
   const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
-  const targetFiles = (filesInput && filesInput.value.trim()) ? filesInput.value.trim() : 'src/**, *.js, *.py, *.ts, *.json';
+  const targetFiles = (filesInput && filesInput.value.trim()) ? filesInput.value.trim() : '';
   const maxRetries = retriesSelect ? parseInt(retriesSelect.value || '3', 10) : 3;
 
   if (!repo) {
@@ -6728,7 +6733,7 @@ function renderAutoObscurusMonitoredRepos() {
   container.innerHTML = list.map(item => {
     const repoName = typeof item === 'string' ? item : item.repo;
     const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
-    const files = (item && item.targetFiles) ? item.targetFiles : 'src/**, *.js, *.py, *.ts, *.json';
+    const files = (item && item.targetFiles && item.targetFiles.trim()) ? item.targetFiles.trim() : 'Auto (Todo el código)';
     const retries = (item && item.maxRetries) ? item.maxRetries : 3;
 
     return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">' +
