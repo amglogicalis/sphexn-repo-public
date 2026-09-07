@@ -7693,16 +7693,248 @@ function initAutoRexConfigUI() {
   const saved = localStorage.getItem('sphexn_auto_rex_repos');
   if (!saved) {
     const defaults = [
-      { repo: 'amglogicalis/testing', branch: 'main', email: '', webhook: '', maxRetries: 3 },
-      { repo: 'amglogicalis/testing', branch: 'develop', email: '', webhook: '', maxRetries: 3 },
-      { repo: 'amglogicalis/Sphexn', branch: 'main', email: '', webhook: '', maxRetries: 3 }
+      { repo: 'amglogicalis/testing', branch: 'main', plan: '', enabled: true },
+      { repo: 'amglogicalis/testing', branch: 'develop', plan: '', enabled: true },
+      { repo: 'amglogicalis/Sphexn', branch: 'main', plan: '', enabled: true }
     ];
     localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(defaults));
   }
+
+  // Init Master Toggle State
+  const masterEnabled = localStorage.getItem('sphexn_auto_rex_master_enabled') !== 'false';
+  const masterToggle = document.getElementById('auto-rex-master-toggle');
+  const masterStatus = document.getElementById('auto-rex-master-status');
+  if (masterToggle) masterToggle.checked = masterEnabled;
+  if (masterStatus) {
+    masterStatus.className = masterEnabled ? 'badge badge-green' : 'badge badge-secondary';
+    masterStatus.textContent = masterEnabled ? '🟢 ACTIVO' : '⚪ PAUSADO';
+  }
+
+  // Init Editor and Placeholder
+  const planTextarea = document.getElementById('auto-rex-plan-content');
+  if (planTextarea) {
+    planTextarea.placeholder = SYNTHETIC_REX_PLAN;
+    if (!planTextarea.dataset.bound) {
+      planTextarea.dataset.bound = 'true';
+      planTextarea.addEventListener('input', () => updateAutoRexDagPreview());
+    }
+  }
+
   loadAutoRexRepositories();
   renderAutoRexMonitoredRepos();
+  updateAutoRexDagPreview();
 }
 window.initAutoRexConfigUI = initAutoRexConfigUI;
+
+function toggleAutoRexMaster(enabled) {
+  localStorage.setItem('sphexn_auto_rex_master_enabled', enabled ? 'true' : 'false');
+  const masterStatus = document.getElementById('auto-rex-master-status');
+  if (masterStatus) {
+    masterStatus.className = enabled ? 'badge badge-green' : 'badge badge-secondary';
+    masterStatus.textContent = enabled ? '🟢 ACTIVO' : '⚪ PAUSADO';
+  }
+  sphexnAlert(
+    enabled ? 'Modo Auto-Rex activado: los triggers automáticos responderán en GitHub.' : 'Modo Auto-Rex pausado: los triggers automáticos quedan temporalmente en reposo.',
+    enabled ? 'Auto-Rex Activado' : 'Auto-Rex Pausado',
+    enabled ? '🟢' : '⏸️'
+  );
+}
+window.toggleAutoRexMaster = toggleAutoRexMaster;
+
+function toggleAutoRexRepo(repo, branch, enabled) {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  list = list.map(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    if (itemRepo === repo && itemBranch === branch) {
+      return { ...item, enabled };
+    }
+    return item;
+  });
+  localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
+  renderAutoRexMonitoredRepos();
+}
+window.toggleAutoRexRepo = toggleAutoRexRepo;
+
+function loadSyntheticAutoRexPlan() {
+  const textarea = document.getElementById('auto-rex-plan-content');
+  if (textarea) {
+    textarea.value = SYNTHETIC_REX_PLAN;
+    updateAutoRexDagPreview();
+  }
+}
+window.loadSyntheticAutoRexPlan = loadSyntheticAutoRexPlan;
+
+function clearAutoRexPlan() {
+  const textarea = document.getElementById('auto-rex-plan-content');
+  if (textarea) {
+    textarea.value = '';
+    updateAutoRexDagPreview();
+  }
+}
+window.clearAutoRexPlan = clearAutoRexPlan;
+
+function updateAutoRexDagPreview() {
+  const textarea = document.getElementById('auto-rex-plan-content');
+  const dagContainer = document.getElementById('auto-rex-dag-container');
+  const countBadge = document.getElementById('auto-rex-dag-status-badge');
+  if (!textarea || !dagContainer) return;
+
+  const raw = textarea.value.trim();
+
+  // If empty, clean inactive state
+  if (!raw) {
+    dagContainer.innerHTML = '<div style="text-align: center; padding: 22px 16px; color: var(--text-muted); font-size: 0.84rem; border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 8px;">' +
+      '<span>📊</span> Grafo DAG inactivo · Comienza a escribir directivas <code>## Tarea:</code> para proyectar el pipeline topológico en tiempo real.' +
+    '</div>';
+    if (countBadge) {
+      countBadge.className = 'badge badge-secondary';
+      countBadge.textContent = '0 Tareas Detectadas';
+    }
+    return;
+  }
+
+  // Parse tasks and metadata
+  const sections = raw.split(/^##\s+Tarea:/im);
+  const tasks = [];
+  for (let i = 1; i < sections.length; i++) {
+    const lines = sections[i].split('\n');
+    const titleLine = lines[0].trim();
+    const id = titleLine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    let dependsOn = [];
+    let scriptPath = '';
+    let timeout = 180;
+    let continueOnError = false;
+    let selfHeal = undefined;
+    let maxRetries = undefined;
+
+    for (const line of lines.slice(1)) {
+      const l = line.trim();
+      if (/^-\s*\*{0,2}Depende de\*{0,2}\s*:/i.test(l)) {
+        const deps = l.replace(/^-\s*\*{0,2}Depende de\*{0,2}\s*:\s*/i, '');
+        dependsOn = deps.split(',').map(d => d.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')).filter(Boolean);
+      } else if (/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:/i.test(l)) {
+        scriptPath = l.replace(/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:\s*/i, '').replace(/\(.*?\)/g, '').trim();
+      } else if (/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:/i.test(l)) {
+        const val = l.replace(/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:\s*/i, '').trim();
+        selfHeal = !/^(?:false|no|0|off|desactivado)$/i.test(val);
+      } else if (/^-\s*\*{0,2}Reintentos\*{0,2}\s*:/i.test(l)) {
+        const r = parseInt(l.replace(/^-\s*\*{0,2}Reintentos\*{0,2}\s*:\s*/i, '').trim(), 10);
+        if (!isNaN(r) && r >= 0) maxRetries = r;
+      } else if (/^-\s*\*{0,2}Timeout\*{0,2}\s*:/i.test(l)) {
+        const t = parseInt(l.replace(/^-\s*\*{0,2}Timeout\*{0,2}\s*:\s*/i, '').trim(), 10);
+        if (!isNaN(t)) timeout = t;
+      } else if (/^-\s*\*{0,2}Continuar si falla\*{0,2}\s*:/i.test(l)) {
+        const val = l.replace(/^-\s*\*{0,2}Continuar si falla\*{0,2}\s*:\s*/i, '').trim();
+        continueOnError = /^(?:true|s[ií]|yes|1)$/i.test(val);
+      }
+    }
+    if (id) {
+      tasks.push({ id, name: titleLine, dependsOn, scriptPath, timeout, continueOnError, selfHeal, maxRetries });
+    }
+  }
+
+  if (tasks.length === 0) {
+    dagContainer.innerHTML = '<div style="text-align: center; padding: 22px 16px; color: var(--text-muted); font-size: 0.84rem; border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 8px;">' +
+      '<span>ℹ️</span> Encabezado detectado, pero aún no se han definido secciones <code>## Tarea: &lt;Nombre&gt;</code>.' +
+    '</div>';
+    if (countBadge) {
+      countBadge.className = 'badge badge-amber';
+      countBadge.textContent = '0 Tareas';
+    }
+    return;
+  }
+
+  if (countBadge) {
+    countBadge.className = 'badge badge-green';
+    countBadge.textContent = tasks.length + ' Tarea' + (tasks.length === 1 ? '' : 's');
+  }
+
+  // Topological sorting (Kahn's Algorithm)
+  const idToTask = {};
+  for (const t of tasks) idToTask[t.id] = t;
+
+  const inDegree = {};
+  const adjacency = {};
+  for (const t of tasks) {
+    inDegree[t.id] = inDegree[t.id] || 0;
+    adjacency[t.id] = adjacency[t.id] || [];
+    for (const dep of t.dependsOn) {
+      if (!idToTask[dep]) continue;
+      adjacency[dep] = adjacency[dep] || [];
+      adjacency[dep].push(t.id);
+      inDegree[t.id] = (inDegree[t.id] || 0) + 1;
+    }
+  }
+
+  const queue = tasks.filter(t => (inDegree[t.id] || 0) === 0).map(t => t.id);
+  const sorted = [];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    sorted.push(idToTask[current]);
+    for (const neighbor of (adjacency[current] || [])) {
+      inDegree[neighbor]--;
+      if (inDegree[neighbor] === 0) queue.push(neighbor);
+    }
+  }
+
+  if (sorted.length < tasks.length) {
+    for (const t of tasks) {
+      if (!sorted.find(s => s.id === t.id)) sorted.push(t);
+    }
+  }
+
+  // Extract global metadata
+  const autoHealMatch = raw.match(/^##?\s*(?:Auto-Healing|AutoHeal|Auto-Heal)[^\n]*\n([^\n]+)/im);
+  const globalSelfHeal = autoHealMatch ? !/^(?:false|no|0|off|desactivado)$/i.test(autoHealMatch[1].trim()) : true;
+
+  const retriesMatch = raw.match(/^##?\s*(?:Reintentos|Retries|Max-Retries)[^\n]*\n([^\n]+)/im);
+  const globalRetries = retriesMatch ? parseInt(retriesMatch[1].trim(), 10) : 3;
+
+  const emailMatch = raw.match(/^##?\s*(?:Destinatario|Email|Notify-Email)[^\n]*\n([^\n]+)/im);
+  const detectedEmail = emailMatch ? emailMatch[1].trim().replace(/^[-*]\s*/, '') : '';
+
+  const webhookMatch = raw.match(/^##?\s*(?:Webhook|Notify-Webhook)[^\n]*\n([^\n]+)/im);
+  const detectedWebhook = webhookMatch ? webhookMatch[1].trim().replace(/^[-*]\s*/, '') : '';
+
+  let html = '<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 6px 10px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; font-size: 0.74rem;">' +
+    '<span style="color: #94a3b8;">Directivas detectadas:</span> ' +
+    '<span class="badge ' + (globalSelfHeal ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.68rem;">🛡️ Heal: ' + (globalSelfHeal ? (globalRetries + 'x') : 'Off') + '</span> ' +
+    (detectedEmail ? ('<span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; font-size: 0.68rem;">📧 ' + escapeHtml(detectedEmail.split(',')[0]) + '</span> ') : '') +
+    (detectedWebhook ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 0.68rem;">📡 Webhook</span> ' : '') +
+  '</div>';
+
+  html += '<div style="display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding-bottom: 6px;">';
+
+  sorted.forEach((task, idx) => {
+    const isAi = !task.scriptPath;
+    const taskHeal = task.selfHeal !== undefined ? task.selfHeal : globalSelfHeal;
+    const taskRetries = task.maxRetries !== undefined ? task.maxRetries : globalRetries;
+
+    html += '<div style="flex: 1; min-width: 175px; background: rgba(16, 24, 38, 0.9); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">' +
+      '<div>' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">' +
+          '<span style="font-size: 0.68rem; font-weight: 800; color: #f43f5e; text-transform: uppercase;">Paso ' + (idx + 1) + '</span>' +
+          '<span class="badge ' + (isAi ? 'badge-blue' : 'badge-secondary') + '" style="font-size: 0.66rem; padding: 2px 6px;">' + (isAi ? '🤖 IA' : '📜 Script') + '</span>' +
+        '</div>' +
+        '<div style="font-size: 0.8rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; word-break: break-word;">' + escapeHtml(task.name) + '</div>' +
+      '</div>' +
+      '<div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 6px;">' +
+        '<span class="badge ' + (taskHeal ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.64rem; padding: 1px 5px;">🛡️ ' + (taskHeal ? (taskRetries + 'x') : 'Off') + '</span>' +
+        '<span class="badge badge-secondary" style="font-size: 0.64rem; padding: 1px 5px;">⏱️ ' + task.timeout + 's</span>' +
+        (task.continueOnError ? '<span class="badge badge-amber" style="font-size: 0.64rem; padding: 1px 5px;">⚠️ Tolera</span>' : '<span class="badge badge-danger" style="font-size: 0.64rem; padding: 1px 5px;">🛑 Estricto</span>') +
+      '</div>' +
+    '</div>';
+
+    if (idx < sorted.length - 1) {
+      html += '<div style="display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.35); font-size: 1.1rem; flex-shrink: 0;">➔</div>';
+    }
+  });
+
+  html += '</div>';
+  dagContainer.innerHTML = html;
+}
+window.updateAutoRexDagPreview = updateAutoRexDagPreview;
 
 function renderAutoRexRepoOptions(reposList) {
   const picker = document.getElementById('auto-rex-repo-select');
@@ -7782,42 +8014,98 @@ window.onAutoRexRepoChanged = onAutoRexRepoChanged;
 function addRepoToAutoRex() {
   const repoSelect = document.getElementById('auto-rex-repo-select');
   const branchSelect = document.getElementById('auto-rex-branch-select');
-  const emailInput = document.getElementById('auto-rex-email-input');
-  const webhookInput = document.getElementById('auto-rex-webhook-input');
-  const retriesSelect = document.getElementById('auto-rex-retries-select');
+  const planTextarea = document.getElementById('auto-rex-plan-content');
 
   const repo = repoSelect ? repoSelect.value.trim() : '';
   const branch = (branchSelect ? branchSelect.value.trim() : 'main') || 'main';
-  const email = (emailInput ? emailInput.value.trim() : '');
-  const webhook = (webhookInput ? webhookInput.value.trim() : '');
-  const maxRetries = retriesSelect ? parseInt(retriesSelect.value, 10) : 3;
+  const plan = planTextarea ? planTextarea.value.trim() : '';
 
   if (!repo) {
     sphexnAlert('Selecciona un repositorio válido para monitorizar con Auto-Rex.', 'Repositorio Requerido', '⚠️');
     return;
   }
 
+  // Parse directives directly from plan markdown (Pure GitOps)
+  let email = '';
+  let webhook = '';
+  let selfHeal = true;
+  let maxRetries = 3;
+
+  if (plan) {
+    const emailMatch = plan.match(/^##?\s*(?:Destinatario|Email|Notify-Email)[^\n]*\n([^\n]+)/im);
+    if (emailMatch) email = emailMatch[1].trim().replace(/^[-*]\s*/, '');
+
+    const webhookMatch = plan.match(/^##?\s*(?:Webhook|Notify-Webhook)[^\n]*\n([^\n]+)/im);
+    if (webhookMatch) webhook = webhookMatch[1].trim().replace(/^[-*]\s*/, '');
+
+    const autoHealMatch = plan.match(/^##?\s*(?:Auto-Healing|AutoHeal|Auto-Heal)[^\n]*\n([^\n]+)/im);
+    if (autoHealMatch) selfHeal = !/^(?:false|no|0|off|desactivado)$/i.test(autoHealMatch[1].trim());
+
+    const retriesMatch = plan.match(/^##?\s*(?:Reintentos|Retries|Max-Retries)[^\n]*\n([^\n]+)/im);
+    if (retriesMatch) {
+      const num = parseInt(retriesMatch[1].trim(), 10);
+      if (!isNaN(num) && num >= 0) maxRetries = num;
+    }
+  }
+
   let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
-  const alreadyExists = list.some(item => {
+  const existingIdx = list.findIndex(item => {
     const itemRepo = typeof item === 'string' ? item : item.repo;
     const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
     return itemRepo === repo && itemBranch === branch;
   });
 
-  if (alreadyExists) {
-    sphexnAlert('El repositorio ' + repo + ' en la rama [' + branch + '] ya está configurado en Auto-Rex.', 'Rama Ya Vigilada', 'ℹ️');
-    return;
+  const entry = {
+    repo,
+    branch,
+    plan,
+    email,
+    webhook,
+    selfHeal,
+    maxRetries,
+    enabled: true,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (existingIdx !== -1) {
+    list[existingIdx] = { ...list[existingIdx], ...entry };
+    localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
+    renderAutoRexMonitoredRepos();
+    sphexnAlert('Plan de orquestación de ' + repo + ' (' + branch + ') actualizado en Auto-Rex.', 'Auto-Rex Actualizado', '👑');
+  } else {
+    list.push(entry);
+    localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
+    renderAutoRexMonitoredRepos();
+    sphexnAlert('Repositorio ' + repo + ' (' + branch + ') añadido a Auto-Rex con su plan declarativo.', 'Añadido a Auto-Rex', '👑');
   }
-
-  list.push({ repo, branch, email, webhook, maxRetries });
-  localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
-  if (emailInput) emailInput.value = '';
-  if (webhookInput) webhookInput.value = '';
-
-  renderAutoRexMonitoredRepos();
-  sphexnAlert('Repositorio ' + repo + ' (' + branch + ') añadido a Auto-Rex. Se ejecutará automáticamente ante eventos de push, PRs o workflow_dispatch.', 'Añadido a Auto-Rex', '👑');
 }
 window.addRepoToAutoRex = addRepoToAutoRex;
+
+function loadAutoRexRepoPlanIntoEditor(repo, branch) {
+  const list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  const item = list.find(i => {
+    const r = typeof i === 'string' ? i : i.repo;
+    const b = typeof i === 'string' ? 'main' : (i.branch || 'main');
+    return r === repo && b === branch;
+  });
+
+  if (!item) return;
+
+  const repoSelect = document.getElementById('auto-rex-repo-select');
+  const branchSelect = document.getElementById('auto-rex-branch-select');
+  const planTextarea = document.getElementById('auto-rex-plan-content');
+
+  if (repoSelect) repoSelect.value = repo;
+  if (branchSelect) branchSelect.value = branch;
+  if (planTextarea) {
+    planTextarea.value = item.plan || '';
+    updateAutoRexDagPreview();
+    planTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  sphexnAlert('Plan declarativo cargado en el editor para ' + repo + ' (' + branch + ').', 'Plan Cargado', '📝');
+}
+window.loadAutoRexRepoPlanIntoEditor = loadAutoRexRepoPlanIntoEditor;
 
 function removeRepoFromAutoRex(repo, branch = 'main') {
   let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
@@ -7851,25 +8139,39 @@ function renderAutoRexMonitoredRepos() {
   container.innerHTML = list.map(item => {
     const repoName = typeof item === 'string' ? item : item.repo;
     const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    const isEnabled = item.enabled !== false;
     const retries = (item && item.maxRetries) ? item.maxRetries : 3;
-    const emailInfo = item && item.email ? '<span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.7rem;">📧 ' + escapeHtml(item.email) + '</span>' : '';
-    const webhookInfo = item && item.webhook ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.7rem;">📡 Webhook</span>' : '';
+    const hasPlan = Boolean(item && item.plan && item.plan.trim());
+    const emailInfo = item && item.email ? '<span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.68rem;">📧 ' + escapeHtml(item.email.split(',')[0]) + '</span>' : '';
+    const webhookInfo = item && item.webhook ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.68rem;">📡 Webhook</span>' : '';
+    const healBadge = '<span class="badge ' + (item.selfHeal !== false ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.68rem;">🛡️ ' + (item.selfHeal !== false ? (retries + 'x heal') : 'Heal Off') + '</span>';
+    const planBadge = hasPlan ? '<span class="badge badge-amber" style="font-size: 0.68rem;">📜 Plan personalizado</span>' : '<span class="badge badge-secondary" style="font-size: 0.68rem;">📄 Plan del repo</span>';
 
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px;">' +
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid ' + (isEnabled ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255, 255, 255, 0.08)') + '; border-radius: 8px; opacity: ' + (isEnabled ? '1' : '0.65') + '; transition: all 0.2s ease;">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
         '<span style="font-size: 1.3rem;">👑</span>' +
         '<div>' +
-          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
-          '<div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
-            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + escapeHtml(branchName) + '</span>' +
-            '<span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.7rem;">REINTENTOS: ' + retries + '</span>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">' + escapeHtml(branchName) + '</span>' +
+          '</div>' +
+          '<div style="display: flex; gap: 6px; align-items: center; margin-top: 5px; flex-wrap: wrap;">' +
+            healBadge +
+            planBadge +
             emailInfo +
             webhookInfo +
-            '<span class="text-muted" style="font-size: 0.76rem;">Triggers: <code>push, PR, dispatch</code></span>' +
+            '<span class="text-muted" style="font-size: 0.74rem;">Triggers: <code>push, PR, dispatch</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoRex(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de Auto-Rex">✕ Quitar</button>' +
+      '<div style="display: flex; align-items: center; gap: 10px;">' +
+        '<label class="switch-toggle" title="' + (isEnabled ? 'Pausar vigilancia en esta rama' : 'Activar vigilancia en esta rama') + '">' +
+          '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoRexRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
+          '<span class="slider"></span>' +
+        '</label>' +
+        (hasPlan ? ('<button class="btn btn-secondary btn-xs" onclick="loadAutoRexRepoPlanIntoEditor(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 10px; font-size: 0.74rem;" title="Cargar y editar plan en el editor">📝 Editar Plan</button>') : '') +
+        '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoRex(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 10px; font-weight: 600; font-size: 0.74rem;" title="Quitar de Auto-Rex">✕ Quitar</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }

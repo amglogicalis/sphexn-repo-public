@@ -11,10 +11,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex06">
+  <link rel="stylesheet" href="style.css?v=20260907_rex07">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
-    #rex-plan-content::placeholder {
+    #rex-plan-content::placeholder,
+    #auto-rex-plan-content::placeholder {
       color: rgba(148, 163, 184, 0.45) !important;
       font-family: 'JetBrains Mono', Consolas, monospace !important;
       font-size: 0.84rem !important;
@@ -1461,10 +1462,11 @@
             </div>
 
           
-            <!-- SUBTAB 6: AUTO-REX (CI/CD CONTINUO & GITHUB TRIGGERS) -->
+                        <!-- SUBTAB 6: AUTO-REX (CI/CD CONTINUO & GITHUB TRIGGERS) -->
             <div id="cfg-subtab-autorex-container" style="display: none;">
               <div class="card" style="padding: 22px 28px; margin-bottom: 24px;">
-                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                <!-- HEADER WITH TITLE, BADGE & MASTER TOGGLE -->
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                   <div>
                     <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px;">
                       <span>👑</span> Configuración de Auto-Rex (Orquestación Continua)
@@ -1473,62 +1475,96 @@
                       Ejecuta automáticamente planes declarativos de DevOps ante eventos de <code>push</code>, <code>pull_request</code> o <code>workflow_dispatch</code> en GitHub con auto-sanación y despacho de correo HTML.
                     </p>
                   </div>
-                  <span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.8rem; padding: 4px 10px;">
-                    👑 Especie Suprema
-                  </span>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.8rem; padding: 4px 10px;">
+                      👑 Especie Suprema
+                    </span>
+                    <!-- MASTER TOGGLE SWITCH -->
+                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.7); padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.12);">
+                      <span id="auto-rex-master-status" class="badge badge-green" style="font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">
+                        🟢 ACTIVO
+                      </span>
+                      <label class="switch-toggle" style="margin: 0;" title="Activar o pausar el modo de orquestación continua Auto-Rex">
+                        <input type="checkbox" id="auto-rex-master-toggle" checked onchange="toggleAutoRexMaster(this.checked)">
+                        <span class="slider"></span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="grid-3-col mt-20" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-                  <div class="form-group">
-                    <label for="auto-rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Repositorio a Monitorizar:</label>
+                <!-- ROW 1: REPOSITORY & TARGET BRANCH -->
+                <div class="grid-2-col mt-20" style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 18px;">
+                  <div class="form-group" style="margin: 0;">
+                    <label for="auto-rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.85rem; color: #f8fafc;">Repositorio a Monitorizar:</label>
                     <div style="display: flex; gap: 6px;">
-                      <select id="auto-rex-repo-select" class="form-control" onchange="onAutoRexRepoChanged()" style="flex: 1;">
+                      <select id="auto-rex-repo-select" class="form-control" onchange="onAutoRexRepoChanged()" style="flex: 1; height: 40px;">
                         <option value="amglogicalis/testing">amglogicalis/testing</option>
                         <option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>
                       </select>
-                      <button class="btn btn-secondary btn-xs" onclick="loadAutoRexRepositories(true)" title="Forzar refresco" style="flex-shrink: 0; white-space: nowrap;">🔄 Refrescar</button>
+                      <button class="btn btn-secondary btn-xs" onclick="loadAutoRexRepositories(true)" title="Forzar refresco de repositorios" style="flex-shrink: 0; white-space: nowrap; height: 40px; padding: 0 14px;">🔄 Refrescar</button>
                     </div>
-                    <input type="text" id="auto-rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
+                    <input type="text" id="auto-rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar repositorios..." style="font-size: 0.8rem; padding: 6px 10px;" />
                   </div>
 
-                  <div class="form-group">
-                    <label for="auto-rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Rama a Vigilar:</label>
-                    <select id="auto-rex-branch-select" class="form-control">
-                      <option value="main">main</option>
-                      <option value="develop">develop</option>
+                  <div class="form-group" style="margin: 0;">
+                    <label for="auto-rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.85rem; color: #f8fafc;">Rama a Vigilar:</label>
+                    <select id="auto-rex-branch-select" class="form-control" style="height: 40px;">
+                      <option value="main">🌿 main</option>
+                      <option value="develop">🌿 develop</option>
                     </select>
-                    <span class="text-muted" style="font-size: 0.76rem; margin-top: 4px; display: block;">Permite monitorizar múltiples ramas del mismo repo.</span>
-                  </div>
-
-                  <div class="form-group">
-                    <label for="auto-rex-retries-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Max Reintentos Self-Heal:</label>
-                    <select id="auto-rex-retries-select" class="form-control">
-                      <option value="1">1 intento</option>
-                      <option value="2">2 intentos</option>
-                      <option value="3" selected>3 intentos (Recomendado)</option>
-                      <option value="5">5 intentos</option>
-                    </select>
+                    <span class="text-muted" style="font-size: 0.76rem; margin-top: 6px; display: block;">Permite monitorizar múltiples ramas del mismo repo de forma independiente.</span>
                   </div>
                 </div>
 
-                <div class="grid-2-col mt-16" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                  <div class="form-group">
-                    <label for="auto-rex-email-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Destinatario Correo Notificación:</label>
-                    <input type="email" id="auto-rex-email-input" class="form-control" placeholder="ej: devops@empresa.com (opcional)" />
-                  </div>
-                  <div class="form-group">
-                    <label for="auto-rex-webhook-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Webhook de Notificación:</label>
-                    <input type="url" id="auto-rex-webhook-input" class="form-control" placeholder="ej: https://discord.com/api/webhooks/... (opcional)" />
+                <!-- GITOPS DECLARATIVE DIRECTIVES NOTE -->
+                <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 8px; padding: 12px 16px; margin-top: 16px; display: flex; align-items: center; gap: 10px; font-size: 0.83rem; color: #93c5fd;">
+                  <span style="font-size: 1.15rem;">💡</span>
+                  <div>
+                    <strong>Paradigma GitOps Declarativo:</strong> La política de <code>Auto-Healing</code>, el límite de <code>Reintentos</code>, los <code>Destinatarios de Correo</code> y los <code>Webhooks</code> se declaran directamente dentro del archivo <code>sphexn_rex.md</code>.
                   </div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 12px;">
+                <!-- DECLARATIVE PLAN EDITOR (sphexn_rex.md) -->
+                <div class="mt-20">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <label for="auto-rex-plan-content" style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; display: flex; align-items: center; gap: 6px; margin: 0;">
+                      <span>📝</span> Definición del Plan Declarativo (sphexn_rex.md)
+                    </label>
+                    <div style="display: flex; gap: 6px;">
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="clearAutoRexPlan()" title="Limpiar editor" style="font-size: 0.74rem; padding: 4px 10px;">
+                        🧹 Limpiar
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="loadSyntheticAutoRexPlan()" title="Cargar ejemplo con todas las opciones" style="font-size: 0.74rem; padding: 4px 10px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">
+                        📋 Cargar Ejemplo Sintético
+                      </button>
+                    </div>
+                  </div>
+                  <textarea id="auto-rex-plan-content" class="form-control" style="width: 100%; height: 260px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.84rem; line-height: 1.55; background: #080c14; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 14px; color: #f1f5f9; resize: vertical; box-sizing: border-box;" placeholder=""></textarea>
+                </div>
+
+                <!-- REAL-TIME TOPOLOGICAL DAG PREVIEW FOR AUTO-REX -->
+                <div class="mt-16">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+                      <span>📊</span> Grafo de Ejecución DAG (Topological Pipeline)
+                    </div>
+                    <span id="auto-rex-dag-status-badge" class="badge badge-amber" style="font-size: 0.7rem;">0 Tareas Detectadas</span>
+                  </div>
+                  <div id="auto-rex-dag-container" style="background: rgba(11, 17, 26, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px; min-height: 70px; overflow-x: auto;">
+                    <div class="text-muted text-center" style="padding: 16px; font-size: 0.82rem;">
+                      Grafo DAG inactivo · Escribe directivas <code>## Tarea:</code> para proyectar el orden de ejecución.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FOOTER WITH TRIGGERS AND ACTION BUTTON -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 12px;">
                   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <span class="badge badge-blue" style="font-size: 0.75rem;">⚡ Trigger: push</span>
-                    <span class="badge badge-amber" style="font-size: 0.75rem;">⚡ Trigger: pull_request</span>
-                    <span class="badge badge-green" style="font-size: 0.75rem;">⚡ Trigger: workflow_dispatch</span>
+                    <span class="badge badge-blue" style="font-size: 0.74rem;">⚡ Trigger: push</span>
+                    <span class="badge badge-amber" style="font-size: 0.74rem;">⚡ Trigger: pull_request</span>
+                    <span class="badge badge-green" style="font-size: 0.74rem;">⚡ Trigger: workflow_dispatch</span>
                   </div>
-                  <button class="btn btn-primary" onclick="addRepoToAutoRex()" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; font-weight: 600;">
+                  <button class="btn btn-primary" onclick="addRepoToAutoRex()" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; font-weight: 700; font-size: 0.88rem; padding: 10px 22px; box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);">
                     + Añadir Repositorio a Auto-Rex
                   </button>
                 </div>
@@ -1849,6 +1885,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex06"></script>
+  <script src="app.js?v=20260907_rex07"></script>
 </body>
 </html>
