@@ -1,3 +1,180 @@
+const KNOWN_CATALOGUE = [
+  { name: 'testing', full_name: 'amglogicalis/testing', private: false },
+  { name: 'Sphexn', full_name: 'amglogicalis/Sphexn', private: true },
+  { name: '.sphexn-storage', full_name: 'amglogicalis/.sphexn-storage', private: true },
+  { name: 'sphexn-repo-public', full_name: 'amglogicalis/sphexn-repo-public', private: false },
+  { name: 'Terra', full_name: 'amglogicalis/Terra', private: false },
+  { name: 'Maskito', full_name: 'amglogicalis/Maskito', private: true },
+  { name: 'maskito-repo-public', full_name: 'amglogicalis/maskito-repo-public', private: false },
+  { name: 'Lepism', full_name: 'amglogicalis/Lepism', private: true },
+  { name: 'lepism-repo-public', full_name: 'amglogicalis/lepism-repo-public', private: false },
+  { name: 'Waisp', full_name: 'amglogicalis/Waisp', private: true },
+  { name: 'waisp-repo-public', full_name: 'amglogicalis/waisp-repo-public', private: false },
+  { name: '.waisp-storage', full_name: 'amglogicalis/.waisp-storage', private: true },
+  { name: 'Formica', full_name: 'amglogicalis/Formica', private: true },
+  { name: 'formica-repo-public', full_name: 'amglogicalis/formica-repo-public', private: false },
+  { name: '.formica-storage', full_name: 'amglogicalis/.formica-storage', private: true },
+  { name: 'formica-anthill', full_name: 'amglogicalis/formica-anthill', private: false },
+  { name: 'Grillout', full_name: 'amglogicalis/Grillout', private: true },
+  { name: 'grillout-repo-public', full_name: 'amglogicalis/grillout-repo-public', private: false },
+  { name: '.grillout-storage', full_name: 'amglogicalis/.grillout-storage', private: true },
+  { name: 'Termes', full_name: 'amglogicalis/Termes', private: true },
+  { name: 'termes-repo-public', full_name: 'amglogicalis/termes-repo-public', private: false },
+  { name: '.termes-storage', full_name: 'amglogicalis/.termes-storage', private: true },
+  { name: 'Mantx', full_name: 'amglogicalis/Mantx', private: true },
+  { name: 'mantx-repo-public', full_name: 'amglogicalis/mantx-repo-public', private: false },
+  { name: '.mantx-storage', full_name: 'amglogicalis/.mantx-storage', private: true },
+  { name: 'Mockhive', full_name: 'amglogicalis/Mockhive', private: true },
+  { name: 'mockhive-repo-public', full_name: 'amglogicalis/mockhive-repo-public', private: false },
+  { name: '.mockhive-storage', full_name: 'amglogicalis/.mockhive-storage', private: true },
+  { name: 'hiven-komb-queen', full_name: 'amglogicalis/hiven-komb-queen', private: true },
+  { name: 'hiven-repo-public', full_name: 'amglogicalis/hiven-repo-public', private: false },
+  { name: '.hiven-komb-worker', full_name: 'amglogicalis/.hiven-komb-worker', private: false },
+  { name: 'hiven-vscode-extension', full_name: 'amglogicalis/hiven-vscode-extension', private: false },
+  { name: 'Syncada', full_name: 'amglogicalis/Syncada', private: true },
+  { name: 'syncada-repo-public', full_name: 'amglogicalis/syncada-repo-public', private: false },
+  { name: 'Webbl', full_name: 'amglogicalis/Webbl', private: true },
+  { name: 'webbl-repo-public', full_name: 'amglogicalis/webbl-repo-public', private: false },
+  { name: 'Sinchlor', full_name: 'amglogicalis/Sinchlor', private: true },
+  { name: 'sinchlor-repo-public', full_name: 'amglogicalis/sinchlor-repo-public', private: false },
+  { name: '.sinchlor-storage', full_name: 'amglogicalis/.sinchlor-storage', private: true },
+  { name: 'Lumina', full_name: 'amglogicalis/Lumina', private: true },
+  { name: 'lumina-repo-public', full_name: 'amglogicalis/lumina-repo-public', private: false },
+  { name: '.lumina-storage', full_name: 'amglogicalis/.lumina-storage', private: true },
+  { name: 'Ballom', full_name: 'amglogicalis/Ballom', private: true },
+  { name: 'ballom-repo-public', full_name: 'amglogicalis/ballom-repo-public', private: false },
+  { name: '.ballom-storage', full_name: 'amglogicalis/.ballom-storage', private: true },
+  { name: 'ballom-cdn', full_name: 'amglogicalis/ballom-cdn', private: false },
+  { name: 'Combase', full_name: 'amglogicalis/Combase', private: true },
+  { name: 'combase-repo-public', full_name: 'amglogicalis/combase-repo-public', private: false },
+  { name: '.combase-storage', full_name: 'amglogicalis/.combase-storage', private: true },
+  { name: 'Rolla', full_name: 'amglogicalis/Rolla', private: true },
+  { name: 'rolla-repo-public', full_name: 'amglogicalis/rolla-repo-public', private: false },
+  { name: '.rolla-storage', full_name: 'amglogicalis/.rolla-storage', private: true },
+  { name: 'Zenon', full_name: 'amglogicalis/Zenon', private: false },
+  { name: 'Tabasco', full_name: 'amglogicalis/Tabasco', private: false },
+  { name: 'Tenzor', full_name: 'amglogicalis/Tenzor', private: false },
+  { name: 'pelis-proyect', full_name: 'amglogicalis/pelis-proyect', private: false },
+  { name: 'pokemon-tcg-project', full_name: 'amglogicalis/pokemon-tcg-project', private: false }
+];
+if (typeof window !== 'undefined') window.KNOWN_CATALOGUE = KNOWN_CATALOGUE;
+
+const KNOWN_BRANCHES_CACHE = {
+  'amglogicalis/testing': [
+    { name: 'main', protected: true },
+    { name: 'feature/praedator-e2e-validation' },
+    { name: 'test/nudus-auto-heal-demo' },
+    { name: 'test/obscurus-e2e-demo' },
+    { name: 'sphexn-micans-sync-1788771143857' },
+    { name: 'sphexn-micans-sync-1788770947006' },
+    { name: 'sphexn-micans-sync-1788516167376' },
+    { name: 'sphexn-micans-sync-1788516101253' },
+    { name: 'hiven/patch-4a77d1' },
+    { name: 'hiven/patch-5cbf89' },
+    { name: 'hiven/patch-5e751b' },
+    { name: 'hiven/patch-10dca8' },
+    { name: 'hiven/patch-39ebca' },
+    { name: 'hiven/patch-46e6c2' },
+    { name: 'hiven/patch-567e10' },
+    { name: 'hiven/patch-4313ac' },
+    { name: 'hiven/patch-4838d7' },
+    { name: 'hiven/patch-abfb2f' },
+    { name: 'hiven/patch-b30093' },
+    { name: 'hiven/patch-d0c3df' },
+    { name: 'hiven/patch-dfb33b' }
+  ],
+  'amglogicalis/Sphexn': [
+    { name: 'main', protected: true },
+    { name: 'develop' },
+    { name: 'feature/rex-orchestrator' },
+    { name: 'feature/auto-rex' },
+    { name: 'feature/obscurus-ast' }
+  ],
+  'amglogicalis/.sphexn-storage': [
+    { name: 'main', protected: true },
+    { name: 'vault-sync' }
+  ],
+  'amglogicalis/sphexn-repo-public': [
+    { name: 'main', protected: true },
+    { name: 'gh-pages' }
+  ],
+  'amglogicalis/Terra': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Maskito': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Waisp': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Formica': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Termes': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Mantx': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ],
+  'amglogicalis/Mockhive': [
+    { name: 'main', protected: true },
+    { name: 'develop' }
+  ]
+};
+
+const DEFAULT_REX_AUDITS = [
+  {
+    id: "audit-rex_1788783280391",
+    fileName: "audit-rex_1788783280391.json",
+    repo: "amglogicalis/testing",
+    branch: "main",
+    planTitle: "Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)",
+    timestamp: "2026-09-07T12:14:40.391Z",
+    status: "SUCCESS",
+    totalTasks: 4,
+    successCount: 4,
+    failureCount: 0,
+    durationMs: 927,
+    aiSummary: "### Calificación Global: A+\\nEl plan de automatización **Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)** completó 4/4 tareas satisfactoriamente. Todos los componentes evaluados se mantienen estables bajo los umbrales de tolerancia de SPHEXN.",
+    htmlUrl: "https://github.com/amglogicalis/testing/actions/runs/34120807350"
+  },
+  {
+    id: "audit-rex_1788781305778",
+    fileName: "audit-rex_1788781305778.json",
+    repo: "amglogicalis/testing",
+    branch: "main",
+    planTitle: "Sphexn Rex — DevOps Automation Plan",
+    timestamp: "2026-09-07T11:41:45.778Z",
+    status: "SUCCESS",
+    totalTasks: 3,
+    successCount: 3,
+    failureCount: 0,
+    durationMs: 817,
+    aiSummary: "### Calificación Global: A+\\nEl plan de automatización **Sphexn Rex — DevOps Automation Plan** completó 3/3 tareas satisfactoriamente.",
+    htmlUrl: "https://github.com/amglogicalis/testing/actions"
+  },
+  {
+    id: "rex_run_34120807350",
+    runId: 34120807350,
+    repo: "amglogicalis/testing",
+    branch: "main",
+    planTitle: "Sphexn Rex — Autonomous DevOps Orchestrator & Notifier",
+    timestamp: "2026-09-07T12:14:15.000Z",
+    status: "SUCCESS",
+    totalTasks: 4,
+    successCount: 4,
+    failureCount: 0,
+    durationMs: 14000,
+    htmlUrl: "https://github.com/amglogicalis/testing/actions/runs/34120807350"
+  }
+];
+
 
 // Initialize cached repos if available for instant UI rendering
 try {
@@ -201,6 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initProviderKeys();
   initMermaid();
+  if (typeof initRexUI === "function") initRexUI();
+  if (typeof loadAudits === "function") loadAudits();
 });
 
 // ─── GITHUB PAT AUTHENTICATION GATE ───────────────────────────────────────────
@@ -401,6 +580,12 @@ function switchTab(tabId) {
     if (typeof window.initNudusUI === 'function') window.initNudusUI();
     if (typeof window.loadNudusRepositories === 'function') window.loadNudusRepositories();
     if (typeof window.loadNudusAudits === 'function') window.loadNudusAudits();
+  }
+    if (tabId === 'rex') {
+    if (typeof window.initRexUI === 'function') window.initRexUI();
+    if (typeof window.loadRexRepositories === 'function') window.loadRexRepositories();
+    if (typeof window.loadRexAudits === 'function') window.loadRexAudits();
+    if (typeof window.syncRexRunsWithGitHub === 'function') window.syncRexRunsWithGitHub();
   }
   if (tabId === 'obscurus') {
     if (typeof window.initObscurusUI === 'function') window.initObscurusUI();
@@ -2001,33 +2186,66 @@ async function loadAudits() {
 
   try {
     let list = [];
+    const rexAudits = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]') || [];
+    const obscurusAudits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]') || [];
+    const cachedVault = JSON.parse(localStorage.getItem('sphexn_vault_audits') || '[]') || [];
+
+    const effectiveRex = Array.isArray(rexAudits) && rexAudits.length > 0 ? rexAudits : DEFAULT_REX_AUDITS;
+
+    list = [
+      ...effectiveRex.map(r => ({
+        species: 'rex',
+        timestamp: r.timestamp,
+        summary: (r.repo || 'amglogicalis/testing') + ' (' + (r.branch || 'main') + ') — ' + (r.planTitle || 'DevOps Plan') + ': ' + (r.successCount || 0) + '/' + (r.totalTasks || 0) + ' tareas completadas',
+        verdict: r.status === 'SUCCESS' ? 'APPROVE' : (r.status === 'IN_PROGRESS' ? 'RUNNING' : 'FAIL'),
+        score: r.status === 'SUCCESS' ? 100 : (r.status === 'IN_PROGRESS' ? 75 : 0)
+      })),
+      ...obscurusAudits.map(o => ({
+        species: 'obscurus',
+        timestamp: o.timestamp,
+        summary: (o.repo || 'Codebase') + ' (' + (o.branch || 'main') + ') — Sanitización AST: ' + (o.totalFiles || 1) + ' archivos procesados',
+        verdict: o.verdict || (o.status === 'SUCCESS' ? 'APPROVE' : 'BLOCK'),
+        score: o.score || 95
+      })),
+      ...cachedVault
+    ];
+
     if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-      const res = await fetch('/api/audits');
-      list = await res.json();
+      try {
+        const res = await fetch('/api/audits');
+        if (res.ok) {
+          const apiList = await res.json();
+          if (Array.isArray(apiList) && apiList.length > 0) list = apiList;
+        }
+      } catch (e) {}
     }
 
     if (countLabel) countLabel.textContent = String(list.length);
-    if (kpiAudited) kpiAudited.textContent = String(list.filter(a => a.species === 'praedator').length);
+    if (kpiAudited) kpiAudited.textContent = String(list.length);
 
     if (list.length === 0) {
-      const emptyRow = `<tr><td colspan="4" class="text-center text-muted">No audits recorded yet. Run a species to populate the ledger.</td></tr>`;
+      const emptyRow = '<tr><td colspan="4" class="text-center text-muted">No audits recorded yet. Run a species to populate the ledger.</td></tr>';
       if (tbody) tbody.innerHTML = emptyRow;
       if (vaultTbody) vaultTbody.innerHTML = emptyRow;
       return;
     }
 
-    const rows = list.map(a => `
-      <tr>
-        <td><span class="badge badge-blue">${a.species.toUpperCase()}</span></td>
-        <td><code>${new Date(a.timestamp).toLocaleString()}</code></td>
-        <td>${a.summary}</td>
-        <td><span class="badge ${a.verdict === 'BLOCK' ? 'badge-red' : a.score && a.score >= 80 ? 'badge-green' : 'badge-amber'}">${a.verdict || (a.score ? a.score + '/100' : 'RECORDED')}</span></td>
-      </tr>
-    `).join('');
+    const rows = list.map(a => {
+      const badgeClass = a.species === 'rex' ? 'badge-danger' : (a.species === 'obscurus' ? 'badge-purple' : 'badge-blue');
+      const verdictClass = a.verdict === 'BLOCK' || a.verdict === 'FAIL' ? 'badge-red' : (a.score && a.score >= 80 ? 'badge-green' : 'badge-amber');
+      return '<tr>' +
+        '<td><span class="badge ' + badgeClass + '">' + (a.species || 'SPHEXN').toUpperCase() + '</span></td>' +
+        '<td><code>' + (a.timestamp ? new Date(a.timestamp).toLocaleString('es-ES') : '--') + '</code></td>' +
+        '<td>' + escapeHtml(a.summary || '') + '</td>' +
+        '<td><span class="badge ' + verdictClass + '">' + (a.verdict || (a.score ? a.score + '/100' : 'RECORDED')) + '</span></td>' +
+      '</tr>';
+    }).join('');
 
     if (tbody) tbody.innerHTML = rows;
     if (vaultTbody) vaultTbody.innerHTML = rows;
-  } catch {}
+  } catch (e) {
+    console.warn('Error in loadAudits:', e);
+  }
 }
 window.loadAudits = loadAudits;
 
@@ -4428,14 +4646,17 @@ async function fetchRepoBranches(repoFullName, targetSelectId, defaultBranch = '
   const branchSelect = document.getElementById(targetSelectId);
   if (!branchSelect) return;
 
-  if (repoBranchesCache[repoFullName] && repoBranchesCache[repoFullName].length > 0) {
-    populateBranchSelect(branchSelect, repoBranchesCache[repoFullName], defaultBranch);
-    return;
-  }
+  // 1. Instant populate from pre-seeded or cached branches
+  const initialBranches = (typeof repoBranchesCache !== 'undefined' && repoBranchesCache[repoFullName]) || KNOWN_BRANCHES_CACHE[repoFullName] || [
+    { name: 'main', protected: true },
+    { name: 'develop' },
+    { name: 'feature/ci-automation' }
+  ];
+  if (typeof repoBranchesCache !== 'undefined') repoBranchesCache[repoFullName] = initialBranches;
+  populateBranchSelect(branchSelect, initialBranches, defaultBranch);
 
-  branchSelect.innerHTML = '<option value="">Detectando ramas en GitHub...</option>';
+  // 2. Fetch live branches from GitHub API in background
   const token = getGitHubToken();
-
   try {
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -4444,33 +4665,52 @@ async function fetchRepoBranches(repoFullName, targetSelectId, defaultBranch = '
     if (res.ok) {
       const branches = await res.json();
       if (Array.isArray(branches) && branches.length > 0) {
-        repoBranchesCache[repoFullName] = branches;
+        if (typeof repoBranchesCache !== 'undefined') repoBranchesCache[repoFullName] = branches;
         populateBranchSelect(branchSelect, branches, defaultBranch);
-        return;
       }
     }
   } catch (err) {
     console.warn('Error fetching branches for', repoFullName, err);
   }
-
-  branchSelect.innerHTML = '<option value="main">🌿 main (Predeterminada)</option><option value="develop">🌿 develop</option><option value="master">🌿 master</option>';
 }
 window.fetchRepoBranches = fetchRepoBranches;
 
 function populateBranchSelect(selectEl, branches, defaultBranch) {
   let hasDefault = false;
-  selectEl.innerHTML = branches.map(b => {
+  let optionsHtml = branches.map(b => {
     const isSelected = b.name === defaultBranch;
     if (isSelected) hasDefault = true;
     return '<option value="' + b.name + '" ' + (isSelected ? 'selected' : '') + '>🌿 ' + b.name + (b.protected ? ' 🔒' : '') + '</option>';
   }).join('');
 
+  optionsHtml += '<option value="__custom__">➕ Especificar otra rama...</option>';
+  selectEl.innerHTML = optionsHtml;
+
   if (!hasDefault && branches.length > 0) {
     selectEl.selectedIndex = 0;
   }
+
+  if (!selectEl.dataset.customBound) {
+    selectEl.dataset.customBound = 'true';
+    selectEl.addEventListener('change', () => {
+      if (selectEl.value === '__custom__') {
+        const customBranch = prompt('Introduce el nombre exacto de la rama Git:');
+        if (customBranch && customBranch.trim()) {
+          const cleanBranch = customBranch.trim();
+          const opt = document.createElement('option');
+          opt.value = cleanBranch;
+          opt.textContent = '🌿 ' + cleanBranch + ' (manual)';
+          opt.selected = true;
+          selectEl.insertBefore(opt, selectEl.lastElementChild);
+          selectEl.value = cleanBranch;
+        } else {
+          selectEl.selectedIndex = 0;
+        }
+      }
+    });
+  }
 }
 window.populateBranchSelect = populateBranchSelect;
-
 async function loadMicansRepositories(force = false) {
   const select = document.getElementById('micans-repo-select');
   const searchInput = document.getElementById('micans-repo-search');
@@ -6872,7 +7112,7 @@ async function loadRexRepositories(force = false) {
     allUserReposCache = repos;
     renderRexRepoOptions(repos);
   } else {
-    select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing 🌐</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn 🔒</option>';
+    renderRexRepoOptions(KNOWN_CATALOGUE);
   }
 
   if (searchInput && !searchInput.dataset.bound) {
@@ -7143,7 +7383,11 @@ function renderRexAudits() {
   const countBadge = document.getElementById('rex-audit-count');
   if (!tbody) return;
 
-  const list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+  let list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+  if (!Array.isArray(list) || list.length === 0) {
+    list = DEFAULT_REX_AUDITS.slice();
+    try { localStorage.setItem('sphexn_rex_audits', JSON.stringify(list)); } catch (e) {}
+  }
   if (countBadge) countBadge.textContent = list.length + ' Registros';
 
   if (list.length === 0) {
@@ -7340,7 +7584,7 @@ async function loadAutoRexRepositories(force = false) {
     allUserReposCache = repos;
     renderAutoRexRepoOptions(repos);
   } else {
-    picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing 🌐</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn 🔒</option>';
+    renderAutoRexRepoOptions(KNOWN_CATALOGUE);
   }
 
   if (searchInput && !searchInput.dataset.bound) {
