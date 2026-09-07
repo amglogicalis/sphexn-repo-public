@@ -916,7 +916,7 @@
               </div>
 
               <!-- CONTROLS ROW -->
-              <div class="grid-3-col mt-20" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+              <div class="grid-2-col mt-20" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group">
                   <label for="rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Repositorio Destino:</label>
                   <div style="display: flex; gap: 6px;">
@@ -926,7 +926,7 @@
                     </select>
                     <button class="btn btn-secondary btn-xs" onclick="loadRexRepositories(true)" title="Refrescar lista" style="flex-shrink: 0;">🔄</button>
                   </div>
-                  <input type="text" id="rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
+                  <input type="text" id="rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar entre todos los repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
                 </div>
 
                 <div class="form-group">
@@ -934,15 +934,6 @@
                   <select id="rex-branch-select" class="form-control">
                     <option value="main">main</option>
                     <option value="develop">develop</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="rex-preset-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Plantilla de Plan:</label>
-                  <select id="rex-preset-select" class="form-control" onchange="applyRexPlanPreset(this.value)">
-                    <option value="cicd">🚀 CI/CD & Build Health Check (Por defecto)</option>
-                    <option value="security">🔒 Auditoría de Dependencias y Seguridad</option>
-                    <option value="release">📦 Preparación de Release y Empaquetado</option>
                   </select>
                 </div>
               </div>
@@ -1819,8 +1810,8 @@
 
   
   <!-- REX EMAIL REPORT PREVIEW MODAL -->
-  <div id="rex-email-modal" class="custom-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(4, 7, 13, 0.88); backdrop-filter: blur(14px); z-index: 999999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
-    <div style="width: 800px; max-width: 96vw; max-height: 90vh; background: #0b0d13; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.9), 0 0 35px rgba(244, 63, 94, 0.2); display: flex; flex-direction: column; overflow: hidden;">
+  <div id="rex-email-modal" onclick="if(event.target===this)closeRexEmailModal()" style="display: none; position: fixed; inset: 0; background: rgba(4, 7, 13, 0.88); backdrop-filter: blur(14px); z-index: 999999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; opacity: 1;">
+    <div style="width: 820px; max-width: 96vw; max-height: 90vh; background: #0b0d13; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.9), 0 0 35px rgba(244, 63, 94, 0.2); display: flex; flex-direction: column; overflow: hidden; pointer-events: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #111522; border-bottom: 1px solid rgba(255,255,255,0.08);">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 1.3rem;">👑</span>
@@ -1835,7 +1826,7 @@
         </div>
       </div>
       <div style="flex: 1; overflow-y: auto; padding: 16px; background: #07090e;">
-        <iframe id="rex-email-iframe" style="width: 100%; min-height: 600px; border: none; border-radius: 8px; background: #0b0d13;" sandbox="allow-same-origin"></iframe>
+        <iframe id="rex-email-iframe" style="width: 100%; min-height: 560px; border: none; border-radius: 8px; background: #0b0d13;"></iframe>
       </div>
     </div>
   </div>
@@ -1869,6 +1860,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex01"></script>
+  <script src="app.js?v=20260907_rex02"></script>
 </body>
 </html>
