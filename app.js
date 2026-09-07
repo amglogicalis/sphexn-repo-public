@@ -3976,41 +3976,81 @@ function filterAutoPrRepos(q) {
 }
 window.filterAutoPrRepos = filterAutoPrRepos;
 
+const DEFAULT_AUTO_PR_REPOS = [
+  { repo: 'amglogicalis/testing', branch: 'main', enabled: true },
+  { repo: 'amglogicalis/testing', branch: 'dev', enabled: true },
+  { repo: 'amglogicalis/sphexn-repo-public', branch: 'main', enabled: true }
+];
+
 function addRepoToAutoPraedator() {
   const picker = document.getElementById('autopr-repo-picker');
+  const branchSelect = document.getElementById('autopr-branch-select');
   const repo = picker ? picker.value : null;
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+
   if (!repo) {
     sphexnAlert('Selecciona un repositorio válido para añadir.', 'Aviso', '⚠️');
     return;
   }
 
   let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
-  if (repos.includes(repo)) {
-    sphexnAlert('El repositorio ' + repo + ' ya se encuentra en la lista de monitoreo.', 'Ya Añadido', 'ℹ️');
+  const alreadyExists = repos.some(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return itemRepo === repo && itemBranch === branch;
+  });
+
+  if (alreadyExists) {
+    sphexnAlert('La rama ' + branch + ' del repositorio ' + repo + ' ya se encuentra en la lista de monitoreo.', 'Ya Añadido', 'ℹ️');
     return;
   }
 
-  repos.push(repo);
+  repos.push({ repo, branch, enabled: true, updatedAt: new Date().toISOString() });
   localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos));
   renderAutoPrMonitoredRepos();
-  sphexnAlert('Repositorio ' + repo + ' añadido al monitoreo continuo de Praedator.', 'Repositorio Añadido', '➕');
+  sphexnAlert('Repositorio ' + repo + ' [Rama: ' + branch + '] añadido al monitoreo continuo de Praedator.', 'Repositorio Añadido', '➕');
 }
 window.addRepoToAutoPraedator = addRepoToAutoPraedator;
 
-function removeRepoFromAutoPraedator(repo) {
+function removeRepoFromAutoPraedator(repo, branch = 'main') {
   let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
-  repos = repos.filter(r => r !== repo);
+  repos = repos.filter(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return !(itemRepo === repo && itemBranch === branch);
+  });
   localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos));
   renderAutoPrMonitoredRepos();
 }
 window.removeRepoFromAutoPraedator = removeRepoFromAutoPraedator;
+
+function toggleAutoPraedatorRepo(repo, branch, enabled) {
+  let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  repos = repos.map(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    if (itemRepo === repo && itemBranch === branch) {
+      if (typeof item === 'string') return { repo, branch, enabled: Boolean(enabled) };
+      return { ...item, enabled: Boolean(enabled) };
+    }
+    return item;
+  });
+  localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos));
+  renderAutoPrMonitoredRepos();
+}
+window.toggleAutoPraedatorRepo = toggleAutoPraedatorRepo;
 
 function renderAutoPrMonitoredRepos() {
   const container = document.getElementById('autopr-monitored-list');
   const countBadge = document.getElementById('autopr-monitored-count');
   if (!container) return;
 
-  const repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  let repos = JSON.parse(localStorage.getItem('sphexn_auto_pr_repos') || '[]');
+  if (!Array.isArray(repos) || repos.length === 0) {
+    repos = DEFAULT_AUTO_PR_REPOS.slice();
+    try { localStorage.setItem('sphexn_auto_pr_repos', JSON.stringify(repos)); } catch (e) {}
+  }
+
   if (countBadge) {
     countBadge.textContent = repos.length + ' Repositorio' + (repos.length === 1 ? '' : 's');
   }
@@ -4019,28 +4059,40 @@ function renderAutoPrMonitoredRepos() {
     container.innerHTML = '<div class="placeholder-box" style="padding: 24px; margin: 0; background: rgba(11, 17, 26, 0.4);">' +
       '<span class="large-icon" style="font-size: 1.8rem;">📦</span>' +
       '<p class="text-muted" style="margin: 8px 0 0 0; font-size: 0.86rem;">Cero repositorios en vigilancia. Selecciona uno arriba y pulsa "➕ Añadir a Vigilancia Activa".</p>' +
-    '</div>';
+      '</div>';
     return;
   }
 
-  container.innerHTML = repos.map(repo => {
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
+  container.innerHTML = repos.map(item => {
+    const repoName = typeof item === 'string' ? item : item.repo;
+    const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    const isEnabled = typeof item === 'string' ? true : (item.enabled !== false);
+
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid ' + (isEnabled ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.08)') + '; border-radius: 8px; opacity: ' + (isEnabled ? '1' : '0.65') + '; transition: all 0.2s ease;">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
-        '<span style="font-size: 1.3rem;">📦</span>' +
+        '<span style="font-size: 1.3rem;">⚡</span>' +
         '<div>' +
-          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + repo + '</strong>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">' + escapeHtml(branchName) + '</span>' +
+          '</div>' +
           '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">' +
-            '<span class="badge badge-green" style="font-size: 0.7rem;">MONITOREO ACTIVO ⚡</span>' +
+            '<span class="badge ' + (isEnabled ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.7rem;">' + (isEnabled ? 'MONITOREO ACTIVO ⚡' : 'PAUSADO ⚪') + '</span>' +
             '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>pull_request [opened, synchronize]</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoPraedator(\'' + repo + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de monitoreo">✕ Quitar</button>' +
+      '<div style="display: flex; align-items: center; gap: 10px;">' +
+        '<label class="sphexn-switch" style="transform: scale(0.9); margin-right: 4px;" title="' + (isEnabled ? 'Pausar vigilancia en este repositorio' : 'Activar vigilancia en este repositorio') + '">' +
+          '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoPraedatorRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
+          '<span class="sphexn-slider" style="background: rgba(59, 130, 246, 0.25);"></span>' +
+        '</label>' +
+        '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoPraedator(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de monitoreo">✕ Quitar</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
 window.renderAutoPrMonitoredRepos = renderAutoPrMonitoredRepos;
-
 
 // ─── FALLBACK MATRIX ACTIONS & PERSISTENCE ───
 function saveFallbackMatrixConfig() {
@@ -5691,13 +5743,39 @@ function removeRepoFromAutoMicans(repo, branch = 'main') {
 }
 window.removeRepoFromAutoMicans = removeRepoFromAutoMicans;
 
+const DEFAULT_AUTO_MICANS_REPOS = [
+  { repo: 'amglogicalis/testing', branch: 'main', docs: 'README.md', enabled: true },
+  { repo: 'amglogicalis/testing', branch: 'feature/docs', docs: 'docs/**', enabled: true },
+  { repo: 'amglogicalis/sphexn-repo-public', branch: 'main', docs: 'README.md', enabled: true }
+];
+
+function toggleAutoMicansRepo(repo, branch, enabled) {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
+  list = list.map(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    if (itemRepo === repo && itemBranch === branch) {
+      if (typeof item === 'string') return { repo, branch, docs: 'README.md', enabled: Boolean(enabled) };
+      return { ...item, enabled: Boolean(enabled) };
+    }
+    return item;
+  });
+  localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(list));
+  renderAutoMicansMonitoredRepos();
+}
+window.toggleAutoMicansRepo = toggleAutoMicansRepo;
+
 function renderAutoMicansMonitoredRepos() {
   const container = document.getElementById('automicans-monitored-list');
   const countBadge = document.getElementById('automicans-monitored-count');
   if (!container) return;
 
-  const rawList = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
-  const list = rawList.map(item => typeof item === 'string' ? { repo: item, branch: 'main', docs: 'README.md' } : item);
+  let rawList = JSON.parse(localStorage.getItem('sphexn_auto_micans_repos') || '[]');
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    rawList = DEFAULT_AUTO_MICANS_REPOS.slice();
+    try { localStorage.setItem('sphexn_auto_micans_repos', JSON.stringify(rawList)); } catch (e) {}
+  }
+  const list = rawList.map(item => typeof item === 'string' ? { repo: item, branch: 'main', docs: 'README.md', enabled: true } : item);
 
   if (countBadge) {
     countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
@@ -5707,29 +5785,41 @@ function renderAutoMicansMonitoredRepos() {
     container.innerHTML = '<div class="placeholder-box" style="padding: 24px; margin: 0; background: rgba(11, 17, 26, 0.4);">' +
       '<span class="large-icon" style="font-size: 1.8rem;">📝</span>' +
       '<p class="text-muted" style="margin: 8px 0 0 0; font-size: 0.86rem;">Cero repositorios configurados. Añade uno arriba para sincronizar automáticamente su documentación en cada push.</p>' +
-    '</div>';
+      '</div>';
     return;
   }
 
   container.innerHTML = list.map(item => {
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">' +
+    const repoName = item.repo;
+    const branchName = item.branch || 'main';
+    const isEnabled = item.enabled !== false;
+
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid ' + (isEnabled ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.08)') + '; border-radius: 8px; opacity: ' + (isEnabled ? '1' : '0.65') + '; transition: all 0.2s ease;">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
         '<span style="font-size: 1.3rem;">📝</span>' +
         '<div>' +
-          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + item.repo + '</strong>' +
-          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">' +
-            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + item.branch + '</span>' +
-            '<span class="badge badge-green" style="font-size: 0.7rem;">DOCS: ' + item.docs + '</span>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">' + escapeHtml(branchName) + '</span>' +
+          '</div>' +
+          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
+            '<span class="badge ' + (isEnabled ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.7rem;">' + (isEnabled ? 'SINCRONIZACIÓN ACTIVA 📝' : 'PAUSADO ⚪') + '</span>' +
+            '<span class="badge badge-green" style="font-size: 0.7rem;">DOCS: ' + escapeHtml(item.docs || 'README.md') + '</span>' +
             '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push [src/**, docs/**, README.md]</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoMicans(\'' + item.repo + '\', \'' + item.branch + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de sincronización">✕ Quitar</button>' +
+      '<div style="display: flex; align-items: center; gap: 10px;">' +
+        '<label class="sphexn-switch emerald" style="transform: scale(0.9); margin-right: 4px;" title="' + (isEnabled ? 'Pausar sincronización en este repositorio' : 'Activar sincronización en este repositorio') + '">' +
+          '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoMicansRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
+          '<span class="sphexn-slider" style="background: rgba(16, 185, 129, 0.25);"></span>' +
+        '</label>' +
+        '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoMicans(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de sincronización">✕ Quitar</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
 window.renderAutoMicansMonitoredRepos = renderAutoMicansMonitoredRepos;
-
 
 // ─── MODULE: SPHEXN NUDUS (TEST RUNNER & CLOSED-LOOP SELF-HEALING) ────────────
 // ══════════════════════════════════════════════════════════════════════════════
@@ -6349,12 +6439,36 @@ function removeRepoFromAutoNudus(repo, branch = 'main') {
 }
 window.removeRepoFromAutoNudus = removeRepoFromAutoNudus;
 
+function toggleAutoNudusRepo(repo, branch, enabled) {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  list = list.map(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    if (itemRepo === repo && itemBranch === branch) {
+      if (typeof item === 'string') return { repo, branch, enabled: Boolean(enabled) };
+      return { ...item, enabled: Boolean(enabled) };
+    }
+    return item;
+  });
+  localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list));
+  renderAutoNudusMonitoredRepos();
+}
+window.toggleAutoNudusRepo = toggleAutoNudusRepo;
+
 function renderAutoNudusMonitoredRepos() {
   const container = document.getElementById('auto-nudus-list');
   const countBadge = document.getElementById('auto-nudus-count-badge');
   if (!container) return;
 
-  const list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_nudus_repos') || '[]');
+  if (!Array.isArray(list) || list.length === 0) {
+    list = [
+      { repo: 'amglogicalis/testing', branch: 'main', testCmd: 'node test_math.js && node test_auth.js', maxRetries: 3, enabled: true },
+      { repo: 'amglogicalis/testing', branch: 'feature/auto-rex', testCmd: 'node test_math.js', maxRetries: 3, enabled: true },
+      { repo: 'amglogicalis/sphexn-repo-public', branch: 'main', testCmd: 'node tests/species.test.js', maxRetries: 3, enabled: true }
+    ];
+    try { localStorage.setItem('sphexn_auto_nudus_repos', JSON.stringify(list)); } catch (e) {}
+  }
 
   if (countBadge) {
     countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
@@ -6372,21 +6486,31 @@ function renderAutoNudusMonitoredRepos() {
     const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
     const cmd = (item && item.testCmd) ? item.testCmd : 'npm test';
     const retries = (item && item.maxRetries) ? item.maxRetries : 3;
+    const isEnabled = typeof item === 'string' ? true : (item.enabled !== false);
 
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">' +
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid ' + (isEnabled ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.08)') + '; border-radius: 8px; opacity: ' + (isEnabled ? '1' : '0.65') + '; transition: all 0.2s ease;">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
         '<span style="font-size: 1.3rem;">🩹</span>' +
         '<div>' +
-          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + repoName + '</strong>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">' + escapeHtml(branchName) + '</span>' +
+          '</div>' +
           '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
-            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + branchName + '</span>' +
+            '<span class="badge ' + (isEnabled ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.7rem;">' + (isEnabled ? 'VIGILANCIA ACTIVA 🩹' : 'PAUSADO ⚪') + '</span>' +
             '<span class="badge badge-green" style="font-size: 0.7rem;">CMD: ' + escapeHtml(cmd) + '</span>' +
             '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.7rem;">REINTENTOS: ' + retries + '</span>' +
             '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push [src/**, test/**]</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoNudus(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+      '<div style="display: flex; align-items: center; gap: 10px;">' +
+        '<label class="sphexn-switch emerald" style="transform: scale(0.9); margin-right: 4px;" title="' + (isEnabled ? 'Pausar vigilancia en este repositorio' : 'Activar vigilancia en este repositorio') + '">' +
+          '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoNudusRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
+          '<span class="sphexn-slider" style="background: rgba(16, 185, 129, 0.25);"></span>' +
+        '</label>' +
+        '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoNudus(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -7021,12 +7145,36 @@ function removeRepoFromAutoObscurus(repo, branch = 'main') {
 }
 window.removeRepoFromAutoObscurus = removeRepoFromAutoObscurus;
 
+function toggleAutoObscurusRepo(repo, branch, enabled) {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  list = list.map(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    if (itemRepo === repo && itemBranch === branch) {
+      if (typeof item === 'string') return { repo, branch, enabled: Boolean(enabled) };
+      return { ...item, enabled: Boolean(enabled) };
+    }
+    return item;
+  });
+  localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list));
+  renderAutoObscurusMonitoredRepos();
+}
+window.toggleAutoObscurusRepo = toggleAutoObscurusRepo;
+
 function renderAutoObscurusMonitoredRepos() {
   const container = document.getElementById('auto-obscurus-list');
   const countBadge = document.getElementById('auto-obscurus-count-badge');
   if (!container) return;
 
-  const list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  if (!Array.isArray(list) || list.length === 0) {
+    list = [
+      { repo: 'amglogicalis/testing', branch: 'main', targetFiles: '', maxRetries: 3, enabled: true },
+      { repo: 'amglogicalis/testing', branch: 'feature/auto-rex', targetFiles: '', maxRetries: 3, enabled: true },
+      { repo: 'amglogicalis/sphexn-repo-public', branch: 'main', targetFiles: '', maxRetries: 3, enabled: true }
+    ];
+    try { localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list)); } catch (e) {}
+  }
 
   if (countBadge) {
     countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
@@ -7044,21 +7192,31 @@ function renderAutoObscurusMonitoredRepos() {
     const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
     const files = (item && item.targetFiles && item.targetFiles.trim()) ? item.targetFiles.trim() : 'Auto (Todo el código)';
     const retries = (item && item.maxRetries) ? item.maxRetries : 3;
+    const isEnabled = typeof item === 'string' ? true : (item.enabled !== false);
 
-    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">' +
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid ' + (isEnabled ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 255, 255, 0.08)') + '; border-radius: 8px; opacity: ' + (isEnabled ? '1' : '0.65') + '; transition: all 0.2s ease;">' +
       '<div style="display: flex; align-items: center; gap: 14px;">' +
         '<span style="font-size: 1.3rem;">🛡️</span>' +
         '<div>' +
-          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + repoName + '</strong>' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+            '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">' + escapeHtml(branchName) + '</span>' +
+          '</div>' +
           '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
-            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + branchName + '</span>' +
+            '<span class="badge ' + (isEnabled ? 'badge-green' : 'badge-secondary') + '" style="font-size: 0.7rem;">' + (isEnabled ? 'VIGILANCIA ACTIVA 🛡️' : 'PAUSADO ⚪') + '</span>' +
             '<span class="badge badge-amber" style="font-size: 0.7rem;">ARCHIVOS: ' + escapeHtml(files) + '</span>' +
             '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.7rem;">REINTENTOS: ' + retries + '</span>' +
             '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push</code></span>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoObscurus(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+      '<div style="display: flex; align-items: center; gap: 10px;">' +
+        '<label class="sphexn-switch amber" style="transform: scale(0.9); margin-right: 4px;" title="' + (isEnabled ? 'Pausar vigilancia en este repositorio' : 'Activar vigilancia en este repositorio') + '">' +
+          '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoObscurusRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
+          '<span class="sphexn-slider" style="background: rgba(245, 158, 11, 0.25);"></span>' +
+        '</label>' +
+        '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoObscurus(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex11">
+  <link rel="stylesheet" href="style.css?v=20260907_rex12">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
     #rex-plan-content::placeholder,
@@ -1144,12 +1144,12 @@
                 </div>
 
                 <!-- SPACIOUS 2-COLUMN INPUT FORM -->
-                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 18px; align-items: end;">
+                <div style="display: grid; grid-template-columns: 1fr 1.2fr 0.8fr; gap: 14px; align-items: end;">
                   <div class="form-group" style="margin: 0;">
                     <label for="autopr-repo-search" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
                       🔍 Filtrar por Nombre:
                     </label>
-                    <input type="text" id="autopr-repo-search" class="form-control" placeholder="Escribe para filtrar (ej: pokemon, terra)..." oninput="filterAutoPrRepos(this.value)">
+                    <input type="text" id="autopr-repo-search" class="form-control" placeholder="Escribe para filtrar..." oninput="filterAutoPrRepos(this.value)">
                   </div>
                   <div class="form-group" style="margin: 0;">
                     <label for="autopr-repo-picker" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
@@ -1157,6 +1157,16 @@
                     </label>
                     <select id="autopr-repo-picker" class="form-control">
                       <option value="">Consultando repositorios en GitHub API...</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin: 0;">
+                    <label for="autopr-branch-select" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block; color: var(--text-muted);">
+                      🌿 Rama Base (PR Target):
+                    </label>
+                    <select id="autopr-branch-select" class="form-control">
+                      <option value="main">🌿 main</option>
+                      <option value="dev">🌿 dev</option>
+                      <option value="develop">🌿 develop</option>
                     </select>
                   </div>
                 </div>
@@ -1902,6 +1912,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex11"></script>
+  <script src="app.js?v=20260907_rex12"></script>
 </body>
 </html>
