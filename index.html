@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex10">
+  <link rel="stylesheet" href="style.css?v=20260907_rex11">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
     #rex-plan-content::placeholder,
@@ -959,13 +959,26 @@
               
               <!-- PLAN EDITOR -->
               <div class="form-group mt-20">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <label for="rex-plan-content" style="font-weight: 600; font-size: 0.95rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                  <label for="rex-plan-content" style="font-weight: 600; font-size: 0.95rem; margin: 0;">
                     Definición Declarativa del Plan (<code>sphexn_rex.md</code>):
                   </label>
-                  <span class="text-muted" style="font-size: 0.8rem;">Sintaxis Markdown estándar de Sphexn Rex</span>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <span class="text-muted" style="font-size: 0.78rem;">Arrastra un archivo .md o</span>
+                    <input type="file" id="rex-file-input" accept=".md" style="display: none;" onchange="handleRexPlanFileUpload(event, 'rex')">
+                    <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('rex-file-input').click()" style="padding: 4px 10px; font-size: 0.76rem; display: flex; align-items: center; gap: 6px;" title="Cargar archivo .md desde tu ordenador">
+                      <span>📁</span> Subir Archivo .md
+                    </button>
+                  </div>
                 </div>
-                <textarea id="rex-plan-content" class="code-textarea" rows="10" oninput="updateRexDagPreview()" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.88rem; line-height: 1.5;"></textarea>
+                <div id="rex-dropzone" class="plan-dropzone">
+                  <textarea id="rex-plan-content" class="code-textarea" rows="10" oninput="updateRexDagPreview()" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.88rem; line-height: 1.5; width: 100%; box-sizing: border-box;"></textarea>
+                  <div id="rex-dropzone-overlay" class="dropzone-overlay" style="display: none;">
+                    <div style="font-size: 2rem; margin-bottom: 6px;">📥</div>
+                    <div style="font-weight: 700; font-size: 1rem; color: #f8fafc;">Suelta tu archivo .md aquí</div>
+                    <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Inyección automática en sphexn_rex.md</div>
+                  </div>
+                </div>
               </div>
 
               <!-- VISUAL DAG PIPELINE PREVIEW -->
@@ -1515,12 +1528,26 @@
 
                 <!-- DECLARATIVE PLAN EDITOR (sphexn_rex.md) WITHOUT CLEAN/LOAD BUTTONS -->
                 <div style="margin-top: 28px;">
-                  <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <label for="auto-rex-plan-content" style="font-weight: 700; font-size: 0.9rem; color: #f8fafc; display: flex; align-items: center; gap: 8px; margin: 0;">
                       <span>📝</span> Definición del Plan Declarativo (sphexn_rex.md)
                     </label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <span class="text-muted" style="font-size: 0.78rem;">Arrastra un archivo .md o</span>
+                      <input type="file" id="auto-rex-file-input" accept=".md" style="display: none;" onchange="handleRexPlanFileUpload(event, 'autorex')">
+                      <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('auto-rex-file-input').click()" style="padding: 4px 10px; font-size: 0.76rem; display: flex; align-items: center; gap: 6px;" title="Cargar archivo .md desde tu ordenador">
+                        <span>📁</span> Subir Archivo .md
+                      </button>
+                    </div>
                   </div>
-                  <textarea id="auto-rex-plan-content" class="form-control" style="width: 100%; height: 260px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.84rem; line-height: 1.55; background: #080c14; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 14px; color: #f1f5f9; resize: vertical; box-sizing: border-box;" placeholder=""></textarea>
+                  <div id="auto-rex-dropzone" class="plan-dropzone">
+                    <textarea id="auto-rex-plan-content" class="form-control" style="width: 100%; height: 260px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.84rem; line-height: 1.55; background: #080c14; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 14px; color: #f1f5f9; resize: vertical; box-sizing: border-box;" placeholder=""></textarea>
+                    <div id="auto-rex-dropzone-overlay" class="dropzone-overlay" style="display: none;">
+                      <div style="font-size: 2rem; margin-bottom: 6px;">📥</div>
+                      <div style="font-weight: 700; font-size: 1rem; color: #f8fafc;">Suelta tu archivo .md aquí</div>
+                      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Inyección automática en sphexn_rex.md</div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- REAL-TIME TOPOLOGICAL DAG PREVIEW FOR AUTO-REX -->
@@ -1875,6 +1902,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex10"></script>
+  <script src="app.js?v=20260907_rex11"></script>
 </body>
 </html>

@@ -439,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMermaid();
   if (typeof initRexUI === "function") initRexUI();
   if (typeof loadAudits === "function") loadAudits();
+  if (typeof setupRexPlanDropzones === "function") setupRexPlanDropzones();
 });
 
 // ─── GITHUB PAT AUTHENTICATION GATE ───────────────────────────────────────────
@@ -645,6 +646,7 @@ function switchTab(tabId) {
     if (typeof window.loadRexRepositories === 'function') window.loadRexRepositories();
     if (typeof window.loadRexAudits === 'function') window.loadRexAudits();
     if (typeof window.syncRexRunsWithGitHub === 'function') window.syncRexRunsWithGitHub();
+    if (typeof window.setupRexPlanDropzones === 'function') window.setupRexPlanDropzones();
   }
   if (tabId === 'obscurus') {
     if (typeof window.initObscurusUI === 'function') window.initObscurusUI();
@@ -7639,6 +7641,7 @@ function deleteRexAudit(id) {
   list = list.filter(a => a.id !== id);
   localStorage.setItem('sphexn_rex_audits', JSON.stringify(list));
   renderRexAudits();
+  setupRexPlanDropzones();
 }
 window.deleteRexAudit = deleteRexAudit;
 
@@ -8252,3 +8255,128 @@ function renderAutoRexMonitoredRepos() {
   }).join('');
 }
 window.renderAutoRexMonitoredRepos = renderAutoRexMonitoredRepos;
+
+// ==========================================
+// SPHEXN REX & AUTO-REX PLAN FILE UPLOAD & DRAG/DROP
+// ==========================================
+
+function injectRexPlanContent(mode, content, fileName = 'sphexn_rex.md') {
+  if (typeof content !== 'string') return;
+  const isAuto = mode === 'autorex';
+  const textareaId = isAuto ? 'auto-rex-plan-content' : 'rex-plan-content';
+  const textarea = document.getElementById(textareaId);
+  if (!textarea) return;
+
+  textarea.value = content;
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+  if (isAuto && typeof updateAutoRexDagPreview === 'function') {
+    updateAutoRexDagPreview();
+  } else if (!isAuto && typeof updateRexDagPreview === 'function') {
+    updateRexDagPreview();
+  }
+
+  if (typeof sphexnAlert === 'function') {
+    const modeLabel = isAuto ? 'Auto-Rex' : 'Sphexn Rex';
+    sphexnAlert('Plan "' + escapeHtml(fileName) + '" inyectado con éxito en ' + modeLabel + ' (' + content.length + ' caracteres). El grafo DAG se ha actualizado.', 'Plan Inyectado', '📄');
+  }
+}
+window.injectRexPlanContent = injectRexPlanContent;
+
+function handleRexPlanFileUpload(event, mode) {
+  const file = event && event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.md')) {
+    if (typeof sphexnAlert === 'function') {
+      sphexnAlert('Solo se admiten archivos de plan en formato Markdown (.md). El archivo "' + escapeHtml(file.name) + '" no es válido.', 'Extensión Inválida', '⚠️');
+    }
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    injectRexPlanContent(mode, content, file.name);
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+window.handleRexPlanFileUpload = handleRexPlanFileUpload;
+
+function setupRexPlanDropzones() {
+  const configs = [
+    { dropzoneId: 'rex-dropzone', overlayId: 'rex-dropzone-overlay', textareaId: 'rex-plan-content', mode: 'rex' },
+    { dropzoneId: 'auto-rex-dropzone', overlayId: 'auto-rex-dropzone-overlay', textareaId: 'auto-rex-plan-content', mode: 'autorex' }
+  ];
+
+  configs.forEach(cfg => {
+    const dropzone = document.getElementById(cfg.dropzoneId);
+    const overlay = document.getElementById(cfg.overlayId);
+    const textarea = document.getElementById(cfg.textareaId);
+    if (!dropzone || dropzone.dataset.dropzoneInit) return;
+
+    dropzone.dataset.dropzoneInit = 'true';
+
+    let dragCounter = 0;
+
+    const onDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter++;
+      dropzone.classList.add('dragover');
+      if (overlay) overlay.style.display = 'flex';
+    };
+
+    const onDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      dropzone.classList.add('dragover');
+      if (overlay) overlay.style.display = 'flex';
+    };
+
+    const onDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        dropzone.classList.remove('dragover');
+        if (overlay) overlay.style.display = 'none';
+      }
+    };
+
+    const onDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter = 0;
+      dropzone.classList.remove('dragover');
+      if (overlay) overlay.style.display = 'none';
+
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      if (!file.name.toLowerCase().endsWith('.md')) {
+        if (typeof sphexnAlert === 'function') {
+          sphexnAlert('Solo se permite arrastrar y soltar archivos Markdown (.md). El archivo "' + escapeHtml(file.name) + '" no es un archivo .md válido.', 'Archivo No Válido', '⚠️');
+        }
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        injectRexPlanContent(cfg.mode, evt.target.result, file.name);
+      };
+      reader.readAsText(file);
+    };
+
+    dropzone.addEventListener('dragenter', onDragEnter);
+    dropzone.addEventListener('dragover', onDragOver);
+    dropzone.addEventListener('dragleave', onDragLeave);
+    dropzone.addEventListener('drop', onDrop);
+  });
+}
+window.setupRexPlanDropzones = setupRexPlanDropzones;

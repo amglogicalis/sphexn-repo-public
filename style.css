@@ -1454,3 +1454,41 @@ select option:checked {
   border-color: #dc2626 !important;
   box-shadow: 0 0 14px rgba(239, 68, 68, 0.5) !important;
 }
+
+/* Plan Dropzone & Drag and Drop Overlay */
+.plan-dropzone {
+  position: relative;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.plan-dropzone.dragover {
+  box-shadow: 0 0 0 2px #38bdf8, 0 0 24px rgba(56, 189, 248, 0.45);
+}
+
+.plan-dropzone.dragover textarea {
+  border-color: #38bdf8 !important;
+  opacity: 0.35;
+}
+
+.dropzone-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 17, 26, 0.92);
+  border: 2px dashed #38bdf8;
+  border-radius: 8px;
+  color: #38bdf8;
+  pointer-events: none;
+  z-index: 20;
+  backdrop-filter: blur(3px);
+  animation: pulse-dropzone 1.4s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-dropzone {
+  from { border-color: #38bdf8; box-shadow: inset 0 0 16px rgba(56, 189, 248, 0.2); }
+  to { border-color: #818cf8; box-shadow: inset 0 0 24px rgba(129, 140, 248, 0.35); }
+}
