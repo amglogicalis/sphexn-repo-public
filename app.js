@@ -7702,13 +7702,8 @@ function initAutoRexConfigUI() {
 
   // Init Master Toggle State
   const masterEnabled = localStorage.getItem('sphexn_auto_rex_master_enabled') !== 'false';
-  const masterToggle = document.getElementById('auto-rex-master-toggle');
-  const masterStatus = document.getElementById('auto-rex-master-status');
+  const masterToggle = document.getElementById('master-toggle-auto-rex');
   if (masterToggle) masterToggle.checked = masterEnabled;
-  if (masterStatus) {
-    masterStatus.className = masterEnabled ? 'badge badge-green' : 'badge badge-secondary';
-    masterStatus.textContent = masterEnabled ? '🟢 ACTIVO' : '⚪ PAUSADO';
-  }
 
   // Init Editor and Placeholder
   const planTextarea = document.getElementById('auto-rex-plan-content');
@@ -7728,11 +7723,6 @@ window.initAutoRexConfigUI = initAutoRexConfigUI;
 
 function toggleAutoRexMaster(enabled) {
   localStorage.setItem('sphexn_auto_rex_master_enabled', enabled ? 'true' : 'false');
-  const masterStatus = document.getElementById('auto-rex-master-status');
-  if (masterStatus) {
-    masterStatus.className = enabled ? 'badge badge-green' : 'badge badge-secondary';
-    masterStatus.textContent = enabled ? '🟢 ACTIVO' : '⚪ PAUSADO';
-  }
   sphexnAlert(
     enabled ? 'Modo Auto-Rex activado: los triggers automáticos responderán en GitHub.' : 'Modo Auto-Rex pausado: los triggers automáticos quedan temporalmente en reposo.',
     enabled ? 'Auto-Rex Activado' : 'Auto-Rex Pausado',
@@ -8015,10 +8005,23 @@ function addRepoToAutoRex() {
   const repoSelect = document.getElementById('auto-rex-repo-select');
   const branchSelect = document.getElementById('auto-rex-branch-select');
   const planTextarea = document.getElementById('auto-rex-plan-content');
+  const triggerPush = document.getElementById('auto-rex-trigger-push')?.checked ?? true;
+  const triggerPr = document.getElementById('auto-rex-trigger-pr')?.checked ?? true;
+  const triggerDispatch = document.getElementById('auto-rex-trigger-dispatch')?.checked ?? true;
 
   const repo = repoSelect ? repoSelect.value.trim() : '';
   const branch = (branchSelect ? branchSelect.value.trim() : 'main') || 'main';
   const plan = planTextarea ? planTextarea.value.trim() : '';
+
+  const triggers = [];
+  if (triggerPush) triggers.push('push');
+  if (triggerPr) triggers.push('pull_request');
+  if (triggerDispatch) triggers.push('workflow_dispatch');
+
+  if (triggers.length === 0) {
+    sphexnAlert('Debes seleccionar al menos un trigger activo (push, pull_request o workflow_dispatch).', 'Trigger Requerido', '⚠️');
+    return;
+  }
 
   if (!repo) {
     sphexnAlert('Selecciona un repositorio válido para monitorizar con Auto-Rex.', 'Repositorio Requerido', '⚠️');
@@ -8063,6 +8066,7 @@ function addRepoToAutoRex() {
     webhook,
     selfHeal,
     maxRetries,
+    triggers,
     enabled: true,
     updatedAt: new Date().toISOString()
   };
@@ -8102,6 +8106,11 @@ function loadAutoRexRepoPlanIntoEditor(repo, branch) {
     updateAutoRexDagPreview();
     planTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+
+  const triggers = item.triggers || ['push', 'pull_request', 'workflow_dispatch'];
+  if (document.getElementById('auto-rex-trigger-push')) document.getElementById('auto-rex-trigger-push').checked = triggers.includes('push');
+  if (document.getElementById('auto-rex-trigger-pr')) document.getElementById('auto-rex-trigger-pr').checked = triggers.includes('pull_request');
+  if (document.getElementById('auto-rex-trigger-dispatch')) document.getElementById('auto-rex-trigger-dispatch').checked = triggers.includes('workflow_dispatch');
 
   sphexnAlert('Plan declarativo cargado en el editor para ' + repo + ' (' + branch + ').', 'Plan Cargado', '📝');
 }
@@ -8160,7 +8169,7 @@ function renderAutoRexMonitoredRepos() {
             planBadge +
             emailInfo +
             webhookInfo +
-            '<span class="text-muted" style="font-size: 0.74rem;">Triggers: <code>push, PR, dispatch</code></span>' +
+            '<span class="text-muted" style="font-size: 0.74rem;">Triggers: ' + (item.triggers && item.triggers.length ? item.triggers.map(t => '<span class="badge" style="font-size: 0.64rem; padding: 1px 4px; background: rgba(255,255,255,0.08); color: #cbd5e1;">' + t + '</span>').join(' ') : '<span class="badge" style="font-size: 0.64rem; padding: 1px 4px;">push, PR, dispatch</span>') + '</span>' +
           '</div>' +
         '</div>' +
       '</div>' +

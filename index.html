@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex07">
+  <link rel="stylesheet" href="style.css?v=20260907_rex08">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
     #rex-plan-content::placeholder,
@@ -1462,34 +1462,23 @@
             </div>
 
           
-                        <!-- SUBTAB 6: AUTO-REX (CI/CD CONTINUO & GITHUB TRIGGERS) -->
+                                    <!-- SUBTAB 6: AUTO-REX (CI/CD CONTINUO & GITHUB TRIGGERS) -->
             <div id="cfg-subtab-autorex-container" style="display: none;">
               <div class="card" style="padding: 22px 28px; margin-bottom: 24px;">
-                <!-- HEADER WITH TITLE, BADGE & MASTER TOGGLE -->
-                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-                  <div>
-                    <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px;">
-                      <span>👑</span> Configuración de Auto-Rex (Orquestación Continua)
+                <!-- HEADER WITH EXACT SPECIES TOGGLE & WITHOUT ESPECIE SUPREMA BADGE -->
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px; color: #f59e0b;">
+                      <span>👑</span> Vigilancia Continua con Auto-Rex
                     </h3>
-                    <p class="text-muted" style="font-size: 0.86rem; margin: 0;">
-                      Ejecuta automáticamente planes declarativos de DevOps ante eventos de <code>push</code>, <code>pull_request</code> o <code>workflow_dispatch</code> en GitHub con auto-sanación y despacho de correo HTML.
+                    <p class="text-muted" style="font-size: 0.86rem; margin: 0; line-height: 1.5;">
+                      Ejecuta automáticamente planes declarativos de DevOps ante eventos de push, pull_request o workflow_dispatch en GitHub con auto-sanación y despacho de correo HTML.
                     </p>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 12px;">
-                    <span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.8rem; padding: 4px 10px;">
-                      👑 Especie Suprema
-                    </span>
-                    <!-- MASTER TOGGLE SWITCH -->
-                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.7); padding: 5px 12px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.12);">
-                      <span id="auto-rex-master-status" class="badge badge-green" style="font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">
-                        🟢 ACTIVO
-                      </span>
-                      <label class="switch-toggle" style="margin: 0;" title="Activar o pausar el modo de orquestación continua Auto-Rex">
-                        <input type="checkbox" id="auto-rex-master-toggle" checked onchange="toggleAutoRexMaster(this.checked)">
-                        <span class="slider"></span>
-                      </label>
-                    </div>
-                  </div>
+                  <label class="sphexn-switch amber" style="transform: scale(1.1); flex-shrink: 0; margin-left: 12px;" title="Activar / Desactivar Auto-Rex">
+                    <input type="checkbox" id="master-toggle-auto-rex" checked onchange="toggleAutoRexMaster(this.checked)">
+                    <span class="sphexn-slider" style="background: rgba(245, 158, 11, 0.25);"></span>
+                  </label>
                 </div>
 
                 <!-- ROW 1: REPOSITORY & TARGET BRANCH -->
@@ -1524,20 +1513,12 @@
                   </div>
                 </div>
 
-                <!-- DECLARATIVE PLAN EDITOR (sphexn_rex.md) -->
+                <!-- DECLARATIVE PLAN EDITOR (sphexn_rex.md) WITHOUT CLEAN/LOAD BUTTONS -->
                 <div class="mt-20">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                  <div style="margin-bottom: 8px;">
                     <label for="auto-rex-plan-content" style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; display: flex; align-items: center; gap: 6px; margin: 0;">
                       <span>📝</span> Definición del Plan Declarativo (sphexn_rex.md)
                     </label>
-                    <div style="display: flex; gap: 6px;">
-                      <button type="button" class="btn btn-secondary btn-xs" onclick="clearAutoRexPlan()" title="Limpiar editor" style="font-size: 0.74rem; padding: 4px 10px;">
-                        🧹 Limpiar
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-xs" onclick="loadSyntheticAutoRexPlan()" title="Cargar ejemplo con todas las opciones" style="font-size: 0.74rem; padding: 4px 10px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">
-                        📋 Cargar Ejemplo Sintético
-                      </button>
-                    </div>
                   </div>
                   <textarea id="auto-rex-plan-content" class="form-control" style="width: 100%; height: 260px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.84rem; line-height: 1.55; background: #080c14; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 14px; color: #f1f5f9; resize: vertical; box-sizing: border-box;" placeholder=""></textarea>
                 </div>
@@ -1557,14 +1538,24 @@
                   </div>
                 </div>
 
-                <!-- FOOTER WITH TRIGGERS AND ACTION BUTTON -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 12px;">
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <span class="badge badge-blue" style="font-size: 0.74rem;">⚡ Trigger: push</span>
-                    <span class="badge badge-amber" style="font-size: 0.74rem;">⚡ Trigger: pull_request</span>
-                    <span class="badge badge-green" style="font-size: 0.74rem;">⚡ Trigger: workflow_dispatch</span>
+                <!-- FOOTER WITH INTERACTIVE TRIGGER CHECKBOXES AND ACTION BUTTON -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 16px;">
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-right: 2px;">Triggers Activos:</span>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(37, 99, 235, 0.12); border: 1px solid rgba(37, 99, 235, 0.3); padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #93c5fd; user-select: none;">
+                      <input type="checkbox" id="auto-rex-trigger-push" checked style="accent-color: #3b82f6; width: 16px; height: 16px; cursor: pointer;">
+                      <span>⚡ Trigger: push</span>
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #fde047; user-select: none;">
+                      <input type="checkbox" id="auto-rex-trigger-pr" checked style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+                      <span>⚡ Trigger: pull_request</span>
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #6ee7b7; user-select: none;">
+                      <input type="checkbox" id="auto-rex-trigger-dispatch" checked style="accent-color: #10b981; width: 16px; height: 16px; cursor: pointer;">
+                      <span>⚡ Trigger: workflow_dispatch</span>
+                    </label>
                   </div>
-                  <button class="btn btn-primary" onclick="addRepoToAutoRex()" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; font-weight: 700; font-size: 0.88rem; padding: 10px 22px; box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);">
+                  <button class="btn btn-primary" onclick="addRepoToAutoRex()" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; font-weight: 700; font-size: 0.88rem; padding: 10px 24px; box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);">
                     + Añadir Repositorio a Auto-Rex
                   </button>
                 </div>
@@ -1885,6 +1876,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex07"></script>
+  <script src="app.js?v=20260907_rex08"></script>
 </body>
 </html>

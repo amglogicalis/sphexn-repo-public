@@ -1437,3 +1437,14 @@ select option:checked {
   transform: translateX(18px);
 }
 
+
+.sphexn-switch.amber input:checked + .sphexn-slider {
+  background-color: #f59e0b !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4) !important;
+}
+.sphexn-switch.rose input:checked + .sphexn-slider {
+  background-color: #f43f5e !important;
+  border-color: #e11d48 !important;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.4) !important;
+}
