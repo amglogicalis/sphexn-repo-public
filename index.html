@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex09">
+  <link rel="stylesheet" href="style.css?v=20260907_rex10">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
     #rex-plan-content::placeholder,
@@ -1468,8 +1468,8 @@
                 <!-- HEADER WITH EXACT SPECIES TOGGLE & WITHOUT ESPECIE SUPREMA BADGE -->
                 <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; gap: 16px;">
                   <div style="flex: 1; min-width: 0;">
-                    <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px; color: #f59e0b;">
-                      <span>👑</span> Vigilancia Continua con Auto-Rex
+                    <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px; color: #ef4444;">
+                      <span style="filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));">👑</span> Vigilancia Continua con Auto-Rex
                     </h3>
                     <p class="text-muted" style="font-size: 0.86rem; margin: 0; line-height: 1.5;">
                       Ejecuta automáticamente planes declarativos de DevOps ante eventos de push, pull_request o workflow_dispatch en GitHub con auto-sanación y despacho de correo HTML.
@@ -1575,43 +1575,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- RECENT AUTO-REX EXECUTIONS TABLE -->
-              <div class="card mt-20" style="padding: 22px 28px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                  <div>
-                    <h4 style="font-size: 1.05rem; font-weight: 700; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; color: #f8fafc;">
-                      <span>📜</span> Historial de Ejecuciones & Triggers de Auto-Rex
-                    </h4>
-                    <p class="text-muted" style="margin: 0; font-size: 0.8rem;">
-                      Registro de auditorías orquestadas de forma reactiva ante eventos de CI/CD.
-                    </p>
-                  </div>
-                  <div style="display: flex; gap: 10px; align-items: center;">
-                    <span id="auto-rex-exec-count-badge" class="badge badge-amber">0 Registros</span>
-                    <button class="btn btn-secondary btn-xs" onclick="syncRexRunsWithGitHub(true)" title="Sincronizar ejecuciones desde GitHub" style="padding: 5px 12px; font-size: 0.76rem;">🔄 Sincronizar</button>
-                  </div>
-                </div>
-                <div id="auto-rex-execs-table-container" class="table-wrapper">
-                  <table class="data-table">
-                    <thead>
-                      <tr>
-                        <th>Fecha</th>
-                        <th>Repo / Rama</th>
-                        <th>Plan</th>
-                        <th>Estado</th>
-                        <th>Tareas</th>
-                        <th>Duración</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody id="auto-rex-execs-tbody">
-                      <tr><td colspan="7" class="text-center text-muted" style="padding: 20px;">No hay ejecuciones de Auto-Rex registradas.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
 
           </section>
 
@@ -1912,6 +1875,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex09"></script>
+  <script src="app.js?v=20260907_rex10"></script>
 </body>
 </html>

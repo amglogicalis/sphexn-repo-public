@@ -7630,14 +7630,7 @@ function renderRexAudits() {
   }).join('');
   tbody.innerHTML = rowsHtml;
 
-  const autoRexExecsTbody = document.getElementById('auto-rex-execs-tbody');
-  const autoRexExecCountBadge = document.getElementById('auto-rex-exec-count-badge');
-  if (autoRexExecsTbody) {
-    autoRexExecsTbody.innerHTML = rowsHtml;
-  }
-  if (autoRexExecCountBadge) {
-    autoRexExecCountBadge.textContent = list.length + ' Registros';
-  }
+
 }
 window.renderRexAudits = renderRexAudits;
 
