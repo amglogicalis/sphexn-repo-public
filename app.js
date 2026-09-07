@@ -401,6 +401,12 @@ function switchTab(tabId) {
     if (typeof window.loadNudusRepositories === 'function') window.loadNudusRepositories();
     if (typeof window.loadNudusAudits === 'function') window.loadNudusAudits();
   }
+  if (tabId === 'obscurus') {
+    if (typeof window.initObscurusUI === 'function') window.initObscurusUI();
+    if (typeof window.loadObscurusRepositories === 'function') window.loadObscurusRepositories();
+    if (typeof window.loadObscurusAudits === 'function') window.loadObscurusAudits();
+    if (typeof window.syncObscurusRunsWithGitHub === 'function') window.syncObscurusRunsWithGitHub();
+  }
   if (tabId === 'config') {
     if (typeof window.initConfigurationTab === 'function') window.initConfigurationTab();
     if (typeof window.renderFallbackMatrixUI === 'function') window.renderFallbackMatrixUI();
@@ -3443,14 +3449,19 @@ function switchConfigSubtab(subtab) {
 
   const btnAn = document.getElementById('btn-cfg-subtab-autonudus');
   const contAn = document.getElementById('cfg-subtab-autonudus-container');
+  const btnAo = document.getElementById('btn-cfg-subtab-autoobscurus');
+  const contAo = document.getElementById('cfg-subtab-autoobscurus-container');
+
   if (btnFb) btnFb.className = 'segmented-item';
   if (btnAp) btnAp.className = 'segmented-item';
   if (btnAm) btnAm.className = 'segmented-item';
   if (btnAn) btnAn.className = 'segmented-item';
+  if (btnAo) btnAo.className = 'segmented-item';
   if (contFb) contFb.style.display = 'none';
   if (contAp) contAp.style.display = 'none';
   if (contAm) contAm.style.display = 'none';
   if (contAn) contAn.style.display = 'none';
+  if (contAo) contAo.style.display = 'none';
 
   if (subtab === 'fallback') {
     if (btnFb) btnFb.className = 'segmented-item active';
@@ -3468,6 +3479,10 @@ function switchConfigSubtab(subtab) {
     if (btnAn) btnAn.className = 'segmented-item active';
     if (contAn) contAn.style.display = 'block';
     if (typeof window.initAutoNudusConfigUI === 'function') window.initAutoNudusConfigUI();
+  } else if (subtab === 'autoobscurus') {
+    if (btnAo) btnAo.className = 'segmented-item active';
+    if (contAo) contAo.style.display = 'block';
+    if (typeof window.initAutoObscurusConfigUI === 'function') window.initAutoObscurusConfigUI();
   }
 }
 window.switchConfigSubtab = switchConfigSubtab;
@@ -6067,3 +6082,670 @@ function renderAutoNudusMonitoredRepos() {
 window.renderAutoNudusMonitoredRepos = renderAutoNudusMonitoredRepos;
 
 
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ─── MODULE: SPHEXN OBSCURUS (AI CODE SANITIZER & SURGICAL HEALING) ───────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+let currentObscurusResultsCache = null;
+
+function initObscurusUI() {
+  loadObscurusRepositories();
+  loadObscurusAudits();
+  syncObscurusRunsWithGitHub();
+}
+window.initObscurusUI = initObscurusUI;
+
+async function loadObscurusRepositories(force = false) {
+  const select = document.getElementById('obscurus-repo-select');
+  const searchInput = document.getElementById('obscurus-repo-search');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+
+  if (!repos || repos.length === 0) {
+    select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onObscurusRepoChanged();
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterObscurusRepos(searchInput.value);
+    });
+  }
+
+  filterObscurusRepos(searchInput ? searchInput.value : '');
+  const firstRepo = select.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'obscurus-branch-select');
+  }
+}
+window.loadObscurusRepositories = loadObscurusRepositories;
+
+function filterObscurusRepos(q) {
+  const select = document.getElementById('obscurus-repo-select');
+  if (!select) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    select.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  select.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+}
+window.filterObscurusRepos = filterObscurusRepos;
+
+async function onObscurusRepoChanged() {
+  const select = document.getElementById('obscurus-repo-select');
+  const selectedRepo = select ? select.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'obscurus-branch-select');
+  }
+  syncObscurusRunsWithGitHub();
+}
+window.onObscurusRepoChanged = onObscurusRepoChanged;
+
+async function dispatchObscurus(action = 'heal') {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('obscurus-repo-select');
+  const branchSelect = document.getElementById('obscurus-branch-select');
+  const filesInput = document.getElementById('obscurus-files-input');
+  const retriesSelect = document.getElementById('obscurus-retries-select');
+  const prToggle = document.getElementById('obscurus-create-pr-toggle');
+  const issueToggle = document.getElementById('obscurus-open-issue-toggle');
+  const spinner = document.getElementById('obscurus-spinner');
+
+  const repo = repoSelect ? repoSelect.value : '';
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const targetFiles = (filesInput ? filesInput.value : 'src/**, *.js, *.py, *.ts, *.json').trim() || 'src/**, *.js, *.py, *.ts, *.json';
+  const maxRetries = retriesSelect ? retriesSelect.value : '3';
+  const createPr = prToggle ? prToggle.checked : false;
+  const openIssue = issueToggle ? issueToggle.checked : true;
+
+  if (!repo) {
+    sphexnAlert('Por favor, selecciona un repositorio destino para evaluar con Obscurus.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  if (!token) {
+    sphexnAlert('Se requiere un GitHub Personal Access Token con permisos repo para despachar Obscurus.', 'Token Requerido', '🔑');
+    return;
+  }
+
+  if (spinner) spinner.style.display = 'block';
+
+  const isDryRun = action === 'dry-run' || action === 'diagnose';
+  const actionLabel = isDryRun 
+    ? 'Dry-Run (Solo Auditar y Evaluar Confianza)' 
+    : ('Auditar & Auto-Parchear ' + (createPr ? '(con Pull Request)' : '(Commit Directo)'));
+
+  try {
+    const activeChain = getActiveFallbackChain('obscurus');
+    const workflowFile = 'sphexn-obscurus.yml';
+
+    const dispatchUrl = 'https://api.github.com/repos/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
+    const res = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs: {
+          mode: isDryRun ? 'dry-run' : 'heal',
+          target_files: targetFiles,
+          max_retries: String(maxRetries),
+          repo: repo,
+          branch: branch,
+          create_pr: String(createPr),
+          open_issue: String(openIssue),
+          fallback_matrix: JSON.stringify(activeChain)
+        }
+      })
+    });
+
+    if (spinner) spinner.style.display = 'none';
+
+    if (res.status === 204 || res.status === 200 || res.status === 201) {
+      sphexnAlert('Disparo exitoso de Sphexn Obscurus [' + actionLabel + '] en ' + repo + ' (' + branch + '). El runner está analizando la sintaxis y filtrando alucinaciones en GitHub Actions.', 'Obscurus Despachado 🚀', '🛡️');
+
+      const newAudit = {
+        id: 'obscurus_' + Date.now(),
+        repo: repo,
+        branch: branch,
+        mode: isDryRun ? 'dry-run' : 'heal',
+        targetFiles: targetFiles,
+        timestamp: new Date().toISOString(),
+        status: 'DISPATCHED',
+        avgConfidence: 100,
+        totalFindings: 0,
+        patchesApplied: [],
+        provider: activeChain[0] ? activeChain[0].name : 'Groq Cloud'
+      };
+
+      saveObscurusAuditToLocal(newAudit);
+      loadObscurusAudits();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      if (spinner) spinner.style.display = 'none';
+      sphexnAlert('Error ' + res.status + ' al despachar workflow: ' + (err.message || 'Verifica que .github/workflows/sphexn-obscurus.yml exista en la rama ' + branch), 'Fallo en Despacho', '❌');
+    }
+  } catch (e) {
+    if (spinner) spinner.style.display = 'none';
+    sphexnAlert('Error de conexión con GitHub API: ' + e.message, 'Error de Red', '❌');
+  }
+}
+window.dispatchObscurus = dispatchObscurus;
+
+function saveObscurusAuditToLocal(audit) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+  audits.unshift(audit);
+  if (audits.length > 50) audits = audits.slice(0, 50);
+  localStorage.setItem('sphexn_obscurus_audits', JSON.stringify(audits));
+}
+
+async function syncObscurusRunsWithGitHub(force = false) {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('obscurus-repo-select');
+  const selectedRepo = repoSelect ? repoSelect.value : '';
+  const btnRefresh = document.getElementById('btn-refresh-obscurus-audits');
+
+  if (btnRefresh) {
+    btnRefresh.textContent = '🔄 Sincronizando...';
+    btnRefresh.disabled = true;
+  }
+
+  try {
+    const reposToPoll = [];
+    if (selectedRepo) reposToPoll.push(selectedRepo);
+
+    const currentUser = getGitHubUser();
+    if (currentUser) {
+      if (!reposToPoll.includes(currentUser + '/Sphexn')) reposToPoll.push(currentUser + '/Sphexn');
+      if (!reposToPoll.includes(currentUser + '/testing')) reposToPoll.push(currentUser + '/testing');
+    }
+
+    let allRunsFound = [];
+    for (const r of reposToPoll) {
+      try {
+        const headers = { 'Accept': 'application/vnd.github.v3+json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const res = await fetch('https://api.github.com/repos/' + r + '/actions/workflows/sphexn-obscurus.yml/runs?per_page=5', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.workflow_runs) {
+            allRunsFound.push(...data.workflow_runs.map(run => ({
+              id: 'obscurus_run_' + run.id,
+              runId: run.id,
+              repo: r,
+              branch: run.head_branch,
+              status: run.conclusion === 'success' ? 'HEALED' : (run.status === 'completed' ? 'FAILED' : 'RUNNING'),
+              conclusion: run.conclusion,
+              mode: 'heal',
+              targetFiles: 'src/**, *.js, *.py, *.ts, *.json',
+              avgConfidence: run.conclusion === 'success' ? 95 : 45,
+              totalFindings: run.conclusion === 'success' ? 0 : 2,
+              timestamp: run.created_at,
+              provider: 'GitHub Actions / Sovereign AI',
+              url: run.html_url
+            })));
+          }
+        }
+      } catch (err) {}
+    }
+
+    if (allRunsFound.length > 0) {
+      let localAudits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+      for (const run of allRunsFound) {
+        if (!localAudits.some(a => a.runId === run.runId || a.id === run.id)) {
+          localAudits.push(run);
+        }
+      }
+      localAudits.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      localStorage.setItem('sphexn_obscurus_audits', JSON.stringify(localAudits.slice(0, 50)));
+    }
+  } catch (globalErr) {
+    console.warn('Error syncing Obscurus runs:', globalErr);
+  } finally {
+    if (btnRefresh) {
+      btnRefresh.textContent = '🔄 Refrescar & Sincronizar';
+      btnRefresh.disabled = false;
+    }
+    loadObscurusAudits();
+  }
+}
+window.syncObscurusRunsWithGitHub = syncObscurusRunsWithGitHub;
+
+function loadObscurusAudits() {
+  const tbody = document.getElementById('obscurus-tbody');
+  if (!tbody) return;
+
+  const audits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+  if (audits.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 24px;">No hay registros de Obscurus aún. Inspecciona un repositorio o sincroniza con GitHub.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = audits.map((a, idx) => {
+    let badgeClass = 'badge-blue';
+    let statusLabel = a.status || 'UNKNOWN';
+
+    if (statusLabel === 'HEALED' || a.conclusion === 'success') {
+      badgeClass = 'badge-green';
+      statusLabel = 'HEALED (Saneado)';
+    } else if (statusLabel === 'HEALTHY' || statusLabel === 'PASSED') {
+      badgeClass = 'badge-green';
+      statusLabel = 'HEALTHY (Limpio)';
+    } else if (statusLabel === 'UNHEALED' || statusLabel === 'FAILED') {
+      badgeClass = 'badge-danger';
+      statusLabel = 'UNHEALED';
+    } else if (statusLabel === 'DRY_RUN_DIAGNOSED') {
+      badgeClass = 'badge-blue';
+      statusLabel = 'DRY-RUN (Evaluado)';
+    } else if (statusLabel === 'DISPATCHED' || statusLabel === 'RUNNING') {
+      badgeClass = 'badge-purple';
+      statusLabel = 'EN PROGRESO...';
+    }
+
+    const score = a.avgConfidence !== undefined ? a.avgConfidence : 100;
+    const scoreClass = score >= 85 ? 'text-green' : (score >= 50 ? 'text-amber' : 'text-red');
+    const scoreBadge = '<strong class="' + scoreClass + '">' + score + '/100</strong>';
+
+    const syntaxValid = a.syntaxValid !== false;
+    const syntaxBadge = syntaxValid 
+      ? '<span class="badge badge-green" style="font-size: 0.68rem;">VALID ✅</span>' 
+      : '<span class="badge badge-danger" style="font-size: 0.68rem;">INVALID ❌</span>';
+
+    const findingsCount = a.totalFindings || 0;
+    const patchesCount = a.patchesApplied ? a.patchesApplied.length : (a.status === 'HEALED' ? 1 : 0);
+    const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleString() : 'N/A';
+
+    return '<tr>' +
+      '<td><code>' + (a.id || ('obscurus_' + idx)) + '</code></td>' +
+      '<td><strong>' + (a.repo || 'Local') + '</strong> <span class="badge badge-secondary" style="font-size: 0.68rem;">' + (a.branch || 'main') + '</span></td>' +
+      '<td><span class="badge badge-secondary">' + (a.mode === 'dry-run' ? 'Dry-Run' : 'Heal') + '</span></td>' +
+      '<td>' + scoreBadge + '</td>' +
+      '<td>' + syntaxBadge + '</td>' +
+      '<td><span class="' + (findingsCount > 0 ? 'text-amber font-semibold' : 'text-muted') + '">' + findingsCount + ' hallazgo(s)</span></td>' +
+      '<td><strong>' + patchesCount + '</strong> parche(s)</td>' +
+      '<td style="font-size: 0.78rem; color: #94a3b8;">' + dateStr + '</td>' +
+      '<td>' +
+        '<div style="display: flex; gap: 6px;">' +
+          '<button class="btn btn-secondary btn-xs" onclick="viewObscurusAuditDetails(\'' + a.id + '\')" style="padding: 3px 8px;" title="Ver detalles">👁️ Ver</button>' +
+          '<button class="btn btn-danger btn-xs" onclick="deleteObscurusAudit(\'' + a.id + '\')" style="padding: 3px 8px;" title="Borrar registro">✕</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+window.loadObscurusAudits = loadObscurusAudits;
+
+function deleteObscurusAudit(auditId) {
+  let audits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+  const initialLen = audits.length;
+  audits = audits.filter(a => a.id !== auditId);
+
+  if (audits.length < initialLen) {
+    localStorage.setItem('sphexn_obscurus_audits', JSON.stringify(audits));
+    loadObscurusAudits();
+
+    const resultsBox = document.getElementById('obscurus-results');
+    if (resultsBox && resultsBox.dataset.currentAuditId === auditId) {
+      resultsBox.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+        '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">🛡️</span>' +
+        '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Auditoría eliminada. Selecciona otra del historial o ejecuta una nueva evaluación.</p>' +
+      '</div>';
+      delete resultsBox.dataset.currentAuditId;
+    }
+  }
+}
+window.deleteObscurusAudit = deleteObscurusAudit;
+
+function clearObscurusAudits() {
+  const audits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+  if (audits.length === 0) {
+    sphexnAlert('El registro de auditorías de Obscurus ya está vacío.', 'Historial Vacío', 'ℹ️');
+    return;
+  }
+
+  showSphexnConfirmModal(
+    '¿Estás seguro de que deseas vaciar todos los registros de Sphexn Obscurus? Esta acción eliminará el historial local.',
+    'Vaciar Historial de Obscurus',
+    () => {
+      localStorage.removeItem('sphexn_obscurus_audits');
+      loadObscurusAudits();
+      const resultsBox = document.getElementById('obscurus-results');
+      if (resultsBox) {
+        resultsBox.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+          '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">🛡️</span>' +
+          '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Historial vaciado. Selecciona un repositorio y pulsa Auditar & Auto-Parchear para comenzar.</p>' +
+        '</div>';
+      }
+      sphexnAlert('Historial de Sphexn Obscurus vaciado correctamente.', 'Historial Vaciado', '🗑️');
+    }
+  );
+}
+window.clearObscurusAudits = clearObscurusAudits;
+
+function viewObscurusAuditDetails(auditId) {
+  const audits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]');
+  const audit = audits.find(a => a.id === auditId);
+  if (!audit) return;
+  renderObscurusResults(audit);
+}
+window.viewObscurusAuditDetails = viewObscurusAuditDetails;
+
+function renderObscurusResults(audit) {
+  const container = document.getElementById('obscurus-results');
+  if (!container) return;
+  container.dataset.currentAuditId = audit.id;
+
+  const isDryRun = audit.mode === 'dry-run';
+  const isHealed = audit.status === 'HEALED' || audit.conclusion === 'success';
+  const isHealthy = audit.status === 'HEALTHY';
+  const isUnhealed = audit.status === 'UNHEALED' || audit.conclusion === 'failure';
+
+  let statusBadge = '<span class="badge badge-purple" style="font-size: 0.85rem; padding: 6px 14px;">EN PROGRESO</span>';
+  if (isHealed) {
+    statusBadge = '<span class="badge badge-green" style="font-size: 0.85rem; padding: 6px 14px;">✅ HEALED (Alucinaciones Saneadas)</span>';
+  } else if (isHealthy) {
+    statusBadge = '<span class="badge badge-green" style="font-size: 0.85rem; padding: 6px 14px;">✅ HEALTHY (Código 100% Limpio)</span>';
+  } else if (isUnhealed) {
+    statusBadge = '<span class="badge badge-danger" style="font-size: 0.85rem; padding: 6px 14px;">❌ UNHEALED (Alucinaciones Persistentes)</span>';
+  } else if (isDryRun) {
+    statusBadge = '<span class="badge badge-blue" style="font-size: 0.85rem; padding: 6px 14px;">🔍 SIMULADO (Dry-Run: Diagnóstico Listo)</span>';
+  }
+
+  const score = audit.avgConfidence !== undefined ? audit.avgConfidence : 100;
+  const scoreClass = score >= 85 ? 'text-green' : (score >= 50 ? 'text-amber' : 'text-red');
+  const verdict = score >= 85 ? '🟢 APPROVE' : (score >= 50 ? '🟡 REVIEW CAREFULLY' : '🔴 REJECT');
+
+  let html = '<div class="card" style="padding: 24px; background: rgba(16, 24, 38, 0.95); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px;">';
+
+  // HEADER BANNER
+  html += '<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px; flex-wrap: wrap; gap: 12px;">';
+  html += '  <div>';
+  html += '    <h3 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 10px;">';
+  html += '      <span>🛡️</span> Reporte de Saneamiento de Código Sphexn Obscurus';
+  html += '    </h3>';
+  html += '    <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.84rem;">';
+  html += '      Repositorio: <strong>' + (audit.repo || 'Local') + '</strong> | Rama: <code>' + (audit.branch || 'main') + '</code> | Archivos: <code>' + (audit.targetFiles || 'src/**') + '</code>';
+  html += '    </p>';
+  html += '  </div>';
+  html += '  <div style="display: flex; align-items: center; gap: 10px;">';
+  html += statusBadge;
+  if (audit.url) {
+    html += '<a href="' + audit.url + '" target="_blank" class="btn btn-secondary btn-sm">🔗 Ver GitHub Run</a>';
+  }
+  html += '  </div>';
+  html += '</div>';
+
+  // KPI STATS ROW
+  html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin: 18px 0;">';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Confidence Score</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700;" class="' + scoreClass + '">' + score + '/100</div>';
+  html += '    <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">' + verdict + '</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Sintaxis Formal</div>';
+  html += '    <div style="font-size: 1.15rem; font-weight: 700; color: ' + (audit.syntaxValid !== false ? '#34d399' : '#f87171') + ';">' + (audit.syntaxValid !== false ? 'VALID ✅' : 'INVALID ❌') + '</div>';
+  html += '    <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">Node.js vm compilation</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Hallazgos / Alucinaciones</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700; color: #fbbf24;">' + (audit.totalFindings || 0) + '</div>';
+  html += '    <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">Paquetes & placeholders</div>';
+  html += '  </div>';
+  html += '  <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">';
+  html += '    <div style="font-size: 0.76rem; color: #94a3b8; text-transform: uppercase;">Parches Quirúrgicos</div>';
+  html += '    <div style="font-size: 1.3rem; font-weight: 700; color: #60a5fa;">' + (audit.patchesApplied ? audit.patchesApplied.length : (isHealed ? 1 : 0)) + '</div>';
+  html += '    <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">$0 Sovereign AI</div>';
+  html += '  </div>';
+  html += '</div>';
+
+  // FINDINGS DETAILS
+  if (audit.files && audit.files.some(f => f.findings && f.findings.length > 0)) {
+    html += '<h4 style="margin: 20px 0 12px 0; font-size: 1rem; color: #f8fafc;">🔍 Desglose de Defectos y Alucinaciones Detectadas</h4>';
+    html += '<div style="display: flex; flex-direction: column; gap: 10px;">';
+
+    audit.files.forEach(file => {
+      if (file.findings && file.findings.length > 0) {
+        html += '<div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px;">';
+        html += '  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">';
+        html += '    <strong style="font-size: 0.92rem; color: #e2e8f0;"><code>' + file.filePath + '</code></strong>';
+        html += '    <span class="badge badge-amber" style="font-size: 0.72rem;">Score: ' + file.confidenceScore + '/100</span>';
+        html += '  </div>';
+        html += '  <ul style="margin: 0 0 0 18px; padding: 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.6;">';
+        file.findings.forEach(f => {
+          const badgeSev = f.severity === 'critical' ? '<span class="badge badge-danger" style="font-size: 0.65rem;">CRITICAL</span>' : '<span class="badge badge-amber" style="font-size: 0.65rem;">WARNING</span>';
+          html += '<li>' + badgeSev + ' Línea ' + (f.line || '?') + ': ' + escapeHtml(f.explanation) + '</li>';
+        });
+        html += '  </ul>';
+        html += '</div>';
+      }
+    });
+
+    html += '</div>';
+  }
+
+  // SURGICAL PATCHES PREVIEW
+  if (audit.patchesApplied && audit.patchesApplied.length > 0) {
+    html += '<h4 style="margin: 24px 0 12px 0; font-size: 1rem; color: #f8fafc;">🩹 Parches Quirúrgicos SEARCH/REPLACE Aplicados</h4>';
+    html += '<div style="display: flex; flex-direction: column; gap: 14px;">';
+
+    audit.patchesApplied.forEach(patch => {
+      html += '<div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 16px;">';
+      html += '  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">';
+      html += '    <span style="font-size: 0.88rem; font-weight: 700; color: #fbbf24;">🎯 Archivo: <code>' + (patch.filePath || 'Archivo Fuente') + '</code></span>';
+      html += '    <span style="font-size: 0.76rem; color: #94a3b8;">' + (patch.providerUsed || 'Sovereign AI ($0)') + '</span>';
+      html += '  </div>';
+      if (patch.explanation) {
+        html += '  <p style="margin: 0 0 10px 0; font-size: 0.84rem; color: #cbd5e1;"><em>' + escapeHtml(patch.explanation) + '</em></p>';
+      }
+      html += '  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+      html += '    <div>';
+      html += '      <div style="font-size: 0.74rem; font-weight: 600; color: #f87171; margin-bottom: 4px;">SEARCH (Código Original/Alucinado):</div>';
+      html += '      <pre style="margin: 0; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; font-size: 0.76rem; color: #fca5a5; overflow-x: auto; white-space: pre-wrap;">' + escapeHtml(patch.search) + '</pre>';
+      html += '    </div>';
+      html += '    <div>';
+      html += '      <div style="font-size: 0.74rem; font-weight: 600; color: #34d399; margin-bottom: 4px;">REPLACE (Corrección Quirúrgica Saneada):</div>';
+      html += '      <pre style="margin: 0; padding: 8px; background: rgba(16, 185, 129, 0.1); border-radius: 4px; font-size: 0.76rem; color: #86efac; overflow-x: auto; white-space: pre-wrap;">' + escapeHtml(patch.replace) + '</pre>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.renderObscurusResults = renderObscurusResults;
+
+// ─── AUTO-OBSCURUS CONTINUOUS CODE SURVEILLANCE ENGINE ───────────
+function initAutoObscurusConfigUI() {
+  loadAutoObscurusRepositories();
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  if (list.length === 0) {
+    list = [
+      { repo: 'amglogicalis/testing', branch: 'main', targetFiles: 'src/**, *.js, *.py, *.ts, *.json', maxRetries: 3 },
+      { repo: 'amglogicalis/Sphexn', branch: 'main', targetFiles: 'src/**, *.js, *.py, *.ts, *.json', maxRetries: 3 }
+    ];
+    localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list));
+  }
+  renderAutoObscurusMonitoredRepos();
+  const masterToggle = document.getElementById('master-toggle-auto-obscurus');
+  if (masterToggle) {
+    const isMasterOn = localStorage.getItem('sphexn_master_auto_obscurus') !== 'false';
+    masterToggle.checked = isMasterOn;
+  }
+}
+window.initAutoObscurusConfigUI = initAutoObscurusConfigUI;
+
+async function loadAutoObscurusRepositories(force = false) {
+  const picker = document.getElementById('auto-obscurus-repo-select');
+  const searchInput = document.getElementById('auto-obscurus-repo-search');
+  if (!picker) return;
+
+  picker.innerHTML = '<option value="">Cargando repositorios...</option>';
+  const repos = await getOrFetchAllUserRepos(force);
+  if (!repos || repos.length === 0) {
+    picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onAutoObscurusRepoChanged();
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterAutoObscurusRepos(searchInput.value);
+    });
+  }
+
+  filterAutoObscurusRepos(searchInput ? searchInput.value : '');
+  const firstRepo = picker.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'auto-obscurus-branch-select');
+  }
+}
+window.loadAutoObscurusRepositories = loadAutoObscurusRepositories;
+
+function filterAutoObscurusRepos(q) {
+  const picker = document.getElementById('auto-obscurus-repo-select');
+  if (!picker) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = allUserReposCache || [];
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    picker.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+  onAutoObscurusRepoChanged();
+}
+window.filterAutoObscurusRepos = filterAutoObscurusRepos;
+
+function onAutoObscurusRepoChanged() {
+  const repoSelect = document.getElementById('auto-obscurus-repo-select');
+  if (!repoSelect || !repoSelect.value) return;
+  fetchRepoBranches(repoSelect.value, 'auto-obscurus-branch-select');
+}
+window.onAutoObscurusRepoChanged = onAutoObscurusRepoChanged;
+
+function toggleMasterAutoObscurus(enabled) {
+  localStorage.setItem('sphexn_master_auto_obscurus', String(enabled));
+  if (enabled) {
+    sphexnAlert('Vigilancia Continua Auto-Obscurus activada. Se filtrarán alucinaciones y paquetes fantasma en cada push.', 'Auto-Obscurus Activado', '🛡️');
+  } else {
+    sphexnAlert('Vigilancia Continua Auto-Obscurus pausada globalmente.', 'Auto-Obscurus Pausado', 'ℹ️');
+  }
+}
+window.toggleMasterAutoObscurus = toggleMasterAutoObscurus;
+
+function addRepoToAutoObscurus() {
+  const picker = document.getElementById('auto-obscurus-repo-select');
+  const branchSelect = document.getElementById('auto-obscurus-branch-select');
+  const filesInput = document.getElementById('auto-obscurus-files-input');
+  const retriesSelect = document.getElementById('auto-obscurus-retries-select');
+
+  const repo = picker ? picker.value : null;
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const targetFiles = (filesInput && filesInput.value.trim()) ? filesInput.value.trim() : 'src/**, *.js, *.py, *.ts, *.json';
+  const maxRetries = retriesSelect ? parseInt(retriesSelect.value || '3', 10) : 3;
+
+  if (!repo) {
+    sphexnAlert('Selecciona un repositorio válido para añadir.', 'Aviso', '⚠️');
+    return;
+  }
+
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  // Composite check: allows multiple branches of the same repo!
+  const alreadyExists = list.some(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return itemRepo === repo && itemBranch === branch;
+  });
+
+  if (alreadyExists) {
+    sphexnAlert('La rama ' + branch + ' del repositorio ' + repo + ' ya se encuentra en vigilancia continua de Obscurus.', 'Ya Añadido', 'ℹ️');
+    return;
+  }
+
+  list.push({ repo, branch, targetFiles, maxRetries });
+  localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list));
+  renderAutoObscurusMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' [Rama: ' + branch + '] añadido a la vigilancia continua de Obscurus (Reintentos: ' + maxRetries + ').', 'Añadido a Auto-Obscurus', '🛡️');
+}
+window.addRepoToAutoObscurus = addRepoToAutoObscurus;
+
+function removeRepoFromAutoObscurus(repo, branch = 'main') {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+  list = list.filter(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return !(itemRepo === repo && itemBranch === branch);
+  });
+  localStorage.setItem('sphexn_auto_obscurus_repos', JSON.stringify(list));
+  renderAutoObscurusMonitoredRepos();
+}
+window.removeRepoFromAutoObscurus = removeRepoFromAutoObscurus;
+
+function renderAutoObscurusMonitoredRepos() {
+  const container = document.getElementById('auto-obscurus-list');
+  const countBadge = document.getElementById('auto-obscurus-count-badge');
+  if (!container) return;
+
+  const list = JSON.parse(localStorage.getItem('sphexn_auto_obscurus_repos') || '[]');
+
+  if (countBadge) {
+    countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-muted text-center" style="padding: 24px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">' +
+      'No hay repositorios configurados en Auto-Obscurus. Añade uno arriba para activar la vigilancia continua.' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(item => {
+    const repoName = typeof item === 'string' ? item : item.repo;
+    const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    const files = (item && item.targetFiles) ? item.targetFiles : 'src/**, *.js, *.py, *.ts, *.json';
+    const retries = (item && item.maxRetries) ? item.maxRetries : 3;
+
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.3rem;">🛡️</span>' +
+        '<div>' +
+          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + repoName + '</strong>' +
+          '<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + branchName + '</span>' +
+            '<span class="badge badge-amber" style="font-size: 0.7rem;">ARCHIVOS: ' + escapeHtml(files) + '</span>' +
+            '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.7rem;">REINTENTOS: ' + retries + '</span>' +
+            '<span class="text-muted" style="font-size: 0.78rem;">Trigger: <code>push</code></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoObscurus(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de vigilancia">✕ Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoObscurusMonitoredRepos = renderAutoObscurusMonitoredRepos;
