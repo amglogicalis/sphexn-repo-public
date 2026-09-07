@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260907_rex12">
+  <link rel="stylesheet" href="style.css?v=20260907_rex13">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
     #rex-plan-content::placeholder,
@@ -905,74 +905,79 @@
 
                     <!-- 7. REX TAB -->
           <section id="tab-rex" class="tab-pane">
-            <div class="card" style="padding: 24px; margin-bottom: 24px;">
-              <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
-                <div>
-                  <h2 style="display: flex; align-items: center; gap: 10px; margin: 0 0 6px 0;">
+            <div class="card" style="padding: 28px 32px; margin-bottom: 28px;">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 24px; padding: 0 0 24px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 28px;">
+                <div style="flex: 1; min-width: 280px; max-width: 680px;">
+                  <h2 style="display: flex; align-items: center; gap: 10px; margin: 0 0 8px 0; font-size: 1.35rem; font-weight: 700;">
                     <span>👑</span> Sphexn Rex — Declarative Markdown DevOps Platform & Notifier
                   </h2>
-                  <p class="text-muted" style="margin: 0; font-size: 0.9rem;">
+                  <p class="text-muted" style="margin: 0; font-size: 0.88rem; line-height: 1.55;">
                     Orquesta pipelines declarativos autónomos desde <code>sphexn_rex.md</code> con resolución DAG, generación de lambdas, auto-sanación con IA y reportes ejecutivos vía correo HTML y webhooks.
                   </p>
                 </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                  <button class="btn btn-secondary" id="btn-preview-rex-email" onclick="previewRexEmailReport()" style="display: flex; align-items: center; gap: 6px;">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                  <button class="btn btn-secondary" id="btn-preview-rex-email" onclick="previewRexEmailReport()" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; font-weight: 600; font-size: 0.84rem; border-radius: 8px;" title="Previsualizar correo ejecutivo HTML con resumen de arquitectura">
                     <span>📧</span> Previsualizar Correo HTML
                   </button>
-                  <button class="btn btn-secondary" onclick="syncRexRunsWithGitHub(true)" title="Sincronizar con GitHub Actions" style="display: flex; align-items: center; gap: 6px;">
+                  <button class="btn btn-secondary" onclick="syncRexRunsWithGitHub(true)" title="Sincronizar con GitHub Actions" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; font-weight: 600; font-size: 0.84rem; border-radius: 8px;">
                     <span>🔄</span> Sincronizar
                   </button>
-                  <button class="btn btn-primary" id="btn-run-rex" onclick="dispatchRex()" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e;">
+                  <button class="btn btn-primary" id="btn-run-rex" onclick="dispatchRex()" style="display: flex; align-items: center; gap: 8px; padding: 10px 22px; font-weight: 700; font-size: 0.88rem; background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; box-shadow: 0 4px 16px rgba(244, 63, 94, 0.4); border-radius: 8px;">
                     <span>👑</span> Ejecutar Orquestación Rex
                   </button>
                 </div>
               </div>
 
-              <!-- CONTROLS ROW -->
-              <div class="grid-2-col mt-20" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="form-group">
-                  <label for="rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Repositorio Destino:</label>
-                  <div style="display: flex; gap: 6px;">
-                    <select id="rex-repo-select" class="form-control" onchange="onRexRepoChanged()" style="flex: 1;">
+              <!-- CONTROLS ROW: REPO DESTINO & RAMA GIT -->
+              <div class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-bottom: 26px;">
+                <div class="form-group" style="margin: 0;">
+                  <label for="rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.88rem; color: #f8fafc;">Repositorio Destino:</label>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="rex-repo-select" class="form-control" onchange="onRexRepoChanged()" style="flex: 1; height: 42px; font-size: 0.88rem;">
                       <option value="amglogicalis/testing">amglogicalis/testing</option>
                       <option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>
                     </select>
-                    <button class="btn btn-secondary btn-xs" onclick="loadRexRepositories(true)" title="Refrescar lista" style="flex-shrink: 0;">🔄</button>
+                    <button class="btn btn-secondary" onclick="loadRexRepositories(true)" title="Refrescar lista de repositorios" style="flex-shrink: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 8px; font-size: 0.95rem;">🔄</button>
                   </div>
-                  <input type="text" id="rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar entre todos los repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
+                  <input type="text" id="rex-repo-search" class="form-control" placeholder="🔍 Filtrar entre todos los repositorios..." style="font-size: 0.82rem; padding: 8px 12px; margin-top: 10px;" />
                 </div>
 
-                <div class="form-group">
-                  <label for="rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Rama Git:</label>
-                  <select id="rex-branch-select" class="form-control">
+                <div class="form-group" style="margin: 0;">
+                  <label for="rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 8px; font-size: 0.88rem; color: #f8fafc;">Rama Git:</label>
+                  <select id="rex-branch-select" class="form-control" style="height: 42px; font-size: 0.88rem;">
                     <option value="main">main</option>
                     <option value="develop">develop</option>
                   </select>
+                  <div class="text-muted" style="font-size: 0.78rem; margin-top: 10px; line-height: 1.4;">
+                    Rama sobre la que se ejecutará el workflow <code>sphexn-rex.yml</code> en GitHub Actions.
+                  </div>
                 </div>
               </div>
 
-              <!-- NOTIFICATIONS & SELF HEAL NOTE -->
-              <div class="mt-12" style="font-size: 0.82rem; color: #94a3b8; display: flex; align-items: center; gap: 8px; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.06); padding: 8px 14px; border-radius: 6px;">
-                <span>💡</span>
-                <span><strong>GitOps Declarativo:</strong> Destinatarios (<code>## Destinatario</code>), webhooks (<code>## Webhook</code>), auto-healing (<code>## Auto-Healing</code>) y reintentos (<code>## Reintentos</code>) se configuran directamente dentro del propio plan markdown.</span>
+              <!-- GITOPS DECLARATIVO NOTE -->
+              <div style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 8px; padding: 14px 18px; margin-top: 24px; margin-bottom: 28px; display: flex; align-items: center; gap: 12px; font-size: 0.84rem; color: #93c5fd; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
+                <span style="font-size: 1.25rem;">💡</span>
+                <div>
+                  <strong>GitOps Declarativo:</strong> Destinatarios (<code>## Destinatario</code>), webhooks (<code>## Webhook</code>), auto-healing (<code>## Auto-Healing</code>) y reintentos (<code>## Reintentos</code>) se configuran directamente dentro del propio plan markdown.
+                </div>
               </div>
               
               <!-- PLAN EDITOR -->
-              <div class="form-group mt-20">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                  <label for="rex-plan-content" style="font-weight: 600; font-size: 0.95rem; margin: 0;">
-                    Definición Declarativa del Plan (<code>sphexn_rex.md</code>):
+              <div class="form-group" style="margin-top: 28px; margin-bottom: 28px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+                  <label for="rex-plan-content" style="font-weight: 700; font-size: 0.95rem; margin: 0; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                    <span>📝</span> Definición Declarativa del Plan (<code>sphexn_rex.md</code>):
                   </label>
-                  <div style="display: flex; gap: 10px; align-items: center;">
-                    <span class="text-muted" style="font-size: 0.78rem;">Arrastra un archivo .md o</span>
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <span class="text-muted" style="font-size: 0.8rem;">Arrastra un archivo .md o</span>
                     <input type="file" id="rex-file-input" accept=".md" style="display: none;" onchange="handleRexPlanFileUpload(event, 'rex')">
-                    <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('rex-file-input').click()" style="padding: 4px 10px; font-size: 0.76rem; display: flex; align-items: center; gap: 6px;" title="Cargar archivo .md desde tu ordenador">
+                    <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('rex-file-input').click()" style="padding: 6px 14px; font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 6px; border-radius: 6px;" title="Cargar archivo .md desde tu ordenador">
                       <span>📁</span> Subir Archivo .md
                     </button>
                   </div>
                 </div>
                 <div id="rex-dropzone" class="plan-dropzone">
-                  <textarea id="rex-plan-content" class="code-textarea" rows="10" oninput="updateRexDagPreview()" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.88rem; line-height: 1.5; width: 100%; box-sizing: border-box;"></textarea>
+                  <textarea id="rex-plan-content" class="code-textarea" rows="10" oninput="updateRexDagPreview()" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.88rem; line-height: 1.55; width: 100%; box-sizing: border-box;"></textarea>
                   <div id="rex-dropzone-overlay" class="dropzone-overlay" style="display: none;">
                     <div style="font-size: 2rem; margin-bottom: 6px;">📥</div>
                     <div style="font-weight: 700; font-size: 1rem; color: #f8fafc;">Suelta tu archivo .md aquí</div>
@@ -982,16 +987,17 @@
               </div>
 
               <!-- VISUAL DAG PIPELINE PREVIEW -->
-              <div class="mt-20">
-                <label style="font-weight: 600; font-size: 0.9rem; color: #f43f5e; display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+              <div class="mt-24" style="margin-top: 28px; margin-bottom: 28px;">
+                <label style="font-weight: 600; font-size: 0.9rem; color: #f43f5e; display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
                   <span>🔗</span> Grafo de Ejecución DAG (Topological Pipeline):
                 </label>
-                <div id="rex-dag-container" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 18px; background: rgba(11, 15, 25, 0.8); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 8px;">
-                  <span class="text-muted" style="font-size: 0.85rem;">Escribe tareas en el editor para previsualizar el grafo de dependencias...</span>
+                <div id="rex-dag-container" style="background: rgba(11, 17, 26, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; min-height: 80px; overflow-x: auto;">
+                  <div class="text-muted text-center" style="padding: 18px; font-size: 0.85rem;">
+                    Escribe tareas en el editor superior para proyectar dinámicamente el grafo topológico Kahn DAG.
+                  </div>
                 </div>
               </div>
 
-              <!-- SPINNER -->
               <div id="rex-spinner" style="display: none; text-align: center; padding: 24px;">
                 <div class="spinner"></div>
                 <div class="mt-8 text-muted">Despachando Sphexn Rex a GitHub Actions...</div>
@@ -1912,6 +1918,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex12"></script>
+  <script src="app.js?v=20260907_rex13"></script>
 </body>
 </html>
