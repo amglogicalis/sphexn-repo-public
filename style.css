@@ -1448,3 +1448,9 @@ select option:checked {
   border-color: #e11d48 !important;
   box-shadow: 0 0 12px rgba(244, 63, 94, 0.4) !important;
 }
+
+.sphexn-switch.red input:checked + .sphexn-slider {
+  background-color: #ef4444 !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.5) !important;
+}

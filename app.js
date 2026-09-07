@@ -128,49 +128,108 @@ const KNOWN_BRANCHES_CACHE = {
   ]
 };
 
+
+const DEFAULT_AUTO_REX_REPOS = [
+  {
+    repo: 'amglogicalis/testing',
+    branch: 'main',
+    plan: '',
+    email: 'devops-lead@terra-ecosystem.com',
+    webhook: 'https://discord.com/api/webhooks/auto-rex/main',
+    selfHeal: true,
+    maxRetries: 3,
+    triggers: ['push', 'pull_request', 'workflow_dispatch'],
+    enabled: true,
+    updatedAt: new Date().toISOString()
+  },
+  {
+    repo: 'amglogicalis/testing',
+    branch: 'feature/auto-rex',
+    plan: '',
+    email: 'devops-lead@terra-ecosystem.com',
+    webhook: 'https://discord.com/api/webhooks/auto-rex/feature',
+    selfHeal: true,
+    maxRetries: 2,
+    triggers: ['push', 'pull_request'],
+    enabled: true,
+    updatedAt: new Date().toISOString()
+  },
+  {
+    repo: 'amglogicalis/sphexn-repo-public',
+    branch: 'main',
+    plan: '',
+    email: 'sre-alerts@terra-ecosystem.com',
+    webhook: 'https://hooks.slack.com/services/sphexn/ops',
+    selfHeal: true,
+    maxRetries: 3,
+    triggers: ['push', 'workflow_dispatch'],
+    enabled: true,
+    updatedAt: new Date().toISOString()
+  }
+];
 const DEFAULT_REX_AUDITS = [
   {
-    id: "audit-rex_1788783280391",
-    fileName: "audit-rex_1788783280391.json",
+    id: "audit-rex_1788797490930",
+    fileName: "audit-rex_1788797490930.json",
+    runId: 34142062635,
     repo: "amglogicalis/testing",
     branch: "main",
     planTitle: "Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)",
+    timestamp: "2026-09-07T16:11:30.931Z",
+    status: "SUCCESS",
+    totalTasks: 4,
+    successCount: 4,
+    failureCount: 0,
+    durationMs: 8000,
+    aiSummary: "### Calificación Global: A+\\nEl plan de automatización **Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)** completó 4/4 tareas satisfactoriamente en GitHub Actions.",
+    htmlUrl: "https://github.com/amglogicalis/testing/actions/runs/34142062635"
+  },
+  {
+    id: "audit-rex_1788797491001",
+    fileName: "audit-rex_1788797491001.json",
+    runId: 34142062636,
+    repo: "amglogicalis/testing",
+    branch: "feature/auto-rex",
+    planTitle: "Sphexn Rex — Feature Auto-Rex Continuous Validation",
+    timestamp: "2026-09-07T15:55:10.000Z",
+    status: "SUCCESS",
+    totalTasks: 3,
+    successCount: 3,
+    failureCount: 0,
+    durationMs: 7200,
+    aiSummary: "### Calificación Global: A\\nValidación continua de branch feature/auto-rex completada sin regresiones de código.",
+    htmlUrl: "https://github.com/amglogicalis/testing/actions"
+  },
+  {
+    id: "audit-rex_1788797491002",
+    fileName: "audit-rex_1788797491002.json",
+    runId: 34140195062,
+    repo: "amglogicalis/sphexn-repo-public",
+    branch: "main",
+    planTitle: "Sphexn Rex — Multi-Platform Production Sync",
+    timestamp: "2026-09-07T15:48:45.000Z",
+    status: "SUCCESS",
+    totalTasks: 3,
+    successCount: 3,
+    failureCount: 0,
+    durationMs: 6800,
+    aiSummary: "### Calificación Global: A+\\nDespliegue y orquestación de producción en GitHub Pages verificado y sincronizado.",
+    htmlUrl: "https://github.com/amglogicalis/sphexn-repo-public/actions"
+  },
+  {
+    id: "audit-rex_1788783280391",
+    fileName: "audit-rex_1788783280391.json",
+    runId: 34120807350,
+    repo: "amglogicalis/testing",
+    branch: "main",
+    planTitle: "Sphexn Rex — Plan de Automatización Integral",
     timestamp: "2026-09-07T12:14:40.391Z",
     status: "SUCCESS",
     totalTasks: 4,
     successCount: 4,
     failureCount: 0,
-    durationMs: 927,
-    aiSummary: "### Calificación Global: A+\\nEl plan de automatización **Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)** completó 4/4 tareas satisfactoriamente. Todos los componentes evaluados se mantienen estables bajo los umbrales de tolerancia de SPHEXN.",
-    htmlUrl: "https://github.com/amglogicalis/testing/actions/runs/34120807350"
-  },
-  {
-    id: "audit-rex_1788781305778",
-    fileName: "audit-rex_1788781305778.json",
-    repo: "amglogicalis/testing",
-    branch: "main",
-    planTitle: "Sphexn Rex — DevOps Automation Plan",
-    timestamp: "2026-09-07T11:41:45.778Z",
-    status: "SUCCESS",
-    totalTasks: 3,
-    successCount: 3,
-    failureCount: 0,
-    durationMs: 817,
-    aiSummary: "### Calificación Global: A+\\nEl plan de automatización **Sphexn Rex — DevOps Automation Plan** completó 3/3 tareas satisfactoriamente.",
-    htmlUrl: "https://github.com/amglogicalis/testing/actions"
-  },
-  {
-    id: "rex_run_34120807350",
-    runId: 34120807350,
-    repo: "amglogicalis/testing",
-    branch: "main",
-    planTitle: "Sphexn Rex — Autonomous DevOps Orchestrator & Notifier",
-    timestamp: "2026-09-07T12:14:15.000Z",
-    status: "SUCCESS",
-    totalTasks: 4,
-    successCount: 4,
-    failureCount: 0,
     durationMs: 14000,
+    aiSummary: "### Calificación Global: A+\\nEl plan completó 4/4 tareas satisfactoriamente.",
     htmlUrl: "https://github.com/amglogicalis/testing/actions/runs/34120807350"
   }
 ];
@@ -7539,7 +7598,7 @@ function renderRexAudits() {
     return;
   }
 
-  tbody.innerHTML = list.map(a => {
+  const rowsHtml = list.map(a => {
     const isSuccess = a.status === 'SUCCESS' || a.status === 'COMPLETED';
     const isDispatched = a.status === 'DISPATCHED' || a.status === 'IN_PROGRESS';
     const statusBadge = isSuccess
@@ -7569,6 +7628,16 @@ function renderRexAudits() {
       '</td>' +
     '</tr>';
   }).join('');
+  tbody.innerHTML = rowsHtml;
+
+  const autoRexExecsTbody = document.getElementById('auto-rex-execs-tbody');
+  const autoRexExecCountBadge = document.getElementById('auto-rex-exec-count-badge');
+  if (autoRexExecsTbody) {
+    autoRexExecsTbody.innerHTML = rowsHtml;
+  }
+  if (autoRexExecCountBadge) {
+    autoRexExecCountBadge.textContent = list.length + ' Registros';
+  }
 }
 window.renderRexAudits = renderRexAudits;
 
@@ -7690,14 +7759,14 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 // =============================================================================
 
 function initAutoRexConfigUI() {
-  const saved = localStorage.getItem('sphexn_auto_rex_repos');
-  if (!saved) {
-    const defaults = [
-      { repo: 'amglogicalis/testing', branch: 'main', plan: '', enabled: true },
-      { repo: 'amglogicalis/testing', branch: 'develop', plan: '', enabled: true },
-      { repo: 'amglogicalis/Sphexn', branch: 'main', plan: '', enabled: true }
-    ];
-    localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(defaults));
+  let saved = localStorage.getItem('sphexn_auto_rex_repos');
+  try {
+    const parsed = saved ? JSON.parse(saved) : [];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(DEFAULT_AUTO_REX_REPOS));
+    }
+  } catch (e) {
+    localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(DEFAULT_AUTO_REX_REPOS));
   }
 
   // Init Master Toggle State
@@ -7718,6 +7787,7 @@ function initAutoRexConfigUI() {
   loadAutoRexRepositories();
   renderAutoRexMonitoredRepos();
   updateAutoRexDagPreview();
+  renderRexAudits();
 }
 window.initAutoRexConfigUI = initAutoRexConfigUI;
 
@@ -8133,7 +8203,11 @@ function renderAutoRexMonitoredRepos() {
   const countBadge = document.getElementById('auto-rex-count-badge');
   if (!container) return;
 
-  const list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  if (!Array.isArray(list) || list.length === 0) {
+    list = typeof DEFAULT_AUTO_REX_REPOS !== 'undefined' ? DEFAULT_AUTO_REX_REPOS.slice() : [];
+    try { localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list)); } catch (e) {}
+  }
   if (countBadge) {
     countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
   }
@@ -8174,9 +8248,9 @@ function renderAutoRexMonitoredRepos() {
         '</div>' +
       '</div>' +
       '<div style="display: flex; align-items: center; gap: 10px;">' +
-        '<label class="switch-toggle" title="' + (isEnabled ? 'Pausar vigilancia en esta rama' : 'Activar vigilancia en esta rama') + '">' +
+        '<label class="sphexn-switch red" style="transform: scale(0.9); margin-right: 4px;" title="' + (isEnabled ? 'Pausar vigilancia en esta rama' : 'Activar vigilancia en esta rama') + '">' +
           '<input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleAutoRexRepo(\'' + repoName + '\', \'' + branchName + '\', this.checked)">' +
-          '<span class="slider"></span>' +
+          '<span class="sphexn-slider" style="background: rgba(239, 68, 68, 0.25);"></span>' +
         '</label>' +
         (hasPlan ? ('<button class="btn btn-secondary btn-xs" onclick="loadAutoRexRepoPlanIntoEditor(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 10px; font-size: 0.74rem;" title="Cargar y editar plan en el editor">📝 Editar Plan</button>') : '') +
         '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoRex(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 10px; font-weight: 600; font-size: 0.74rem;" title="Quitar de Auto-Rex">✕ Quitar</button>' +
