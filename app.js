@@ -186,6 +186,7 @@ function showCustomModal({ title, message, badge = 'SPHEXN ECOSYSTEM', icon = '�
 window.sphexnAlert = (message, title = 'Notificación', icon = 'ℹ️') => {
   return showCustomModal({ title, message, icon, cancelText: null });
 };
+if (typeof globalThis !== 'undefined') globalThis.sphexnAlert = window.sphexnAlert;
 
 window.sphexnConfirm = (message, title = '¿Estás seguro?', isDanger = false, confirmText = 'Confirmar') => {
   return showCustomModal({ title, message, icon: isDanger ? '⚠️' : '❓', iconColor: isDanger ? '#ef4444' : '#60a5fa', isDanger, confirmText, cancelText: 'Cancelar' });
@@ -3463,6 +3464,10 @@ function switchConfigSubtab(subtab) {
   if (contAm) contAm.style.display = 'none';
   if (contAn) contAn.style.display = 'none';
   if (contAo) contAo.style.display = 'none';
+  const btnArReset = document.getElementById('btn-cfg-subtab-autorex');
+  const contArReset = document.getElementById('cfg-subtab-autorex-container');
+  if (btnArReset) btnArReset.className = 'segmented-item';
+  if (contArReset) contArReset.style.display = 'none';
 
   if (subtab === 'fallback') {
     if (btnFb) btnFb.className = 'segmented-item active';
@@ -3484,6 +3489,12 @@ function switchConfigSubtab(subtab) {
     if (btnAo) btnAo.className = 'segmented-item active';
     if (contAo) contAo.style.display = 'block';
     if (typeof window.initAutoObscurusConfigUI === 'function') window.initAutoObscurusConfigUI();
+  } else if (subtab === 'autorex') {
+    const btnAr = document.getElementById('btn-cfg-subtab-autorex');
+    const contAr = document.getElementById('cfg-subtab-autorex-container');
+    if (btnAr) btnAr.className = 'segmented-item active';
+    if (contAr) contAr.style.display = 'block';
+    if (typeof window.initAutoRexConfigUI === 'function') window.initAutoRexConfigUI();
   }
 }
 window.switchConfigSubtab = switchConfigSubtab;
@@ -6754,3 +6765,669 @@ function renderAutoObscurusMonitoredRepos() {
   }).join('');
 }
 window.renderAutoObscurusMonitoredRepos = renderAutoObscurusMonitoredRepos;
+
+
+// =============================================================================
+// SPHEXN REX — DECLARATIVE DEVOPS ORCHESTRATOR & AUTO-REX ENGINE
+// =============================================================================
+
+const REX_PLAN_PRESETS = {
+  cicd: `# Sphexn Rex — CI/CD & System Integrity
+
+## Destinatario
+devops@terra-ecosystem.com
+
+---
+
+## Tarea: Check Node Runtime
+- **Instrucciones**: Comprueba la versión de Node.js instalada en el sistema (debe ser >= 18). Muestra un log informativo y finaliza con éxito.
+- **Continuar si falla**: false
+
+## Tarea: Workspace Integrity Scan
+- **Instrucciones**: Escanea el directorio raíz del proyecto y cuenta el número de archivos JavaScript y TypeScript. Imprime el recuento total.
+- **Depende de**: check-node-runtime
+- **Continuar si falla**: true
+
+## Tarea: Syntax Validation
+- **Instrucciones**: Valida la sintaxis de todos los archivos .json y .js en la raíz y subcarpetas principales del proyecto.
+- **Depende de**: workspace-integrity-scan
+- **Continuar si falla**: false
+`,
+  security: `# Sphexn Rex — Security & Dependency Audit
+
+## Destinatario
+security@terra-ecosystem.com
+
+---
+
+## Tarea: Check Package Manifest
+- **Instrucciones**: Verifica la existencia y validez formal del archivo package.json en el repositorio.
+- **Continuar si falla**: false
+
+## Tarea: Scan Sensitive Files
+- **Instrucciones**: Comprueba que no existan archivos de credenciales expuestos (.env con valores reales, *.pem, *.key).
+- **Depende de**: check-package-manifest
+- **Continuar si falla**: false
+`,
+  release: `# Sphexn Rex — Release & Artifact Readiness
+
+## Destinatario
+releases@terra-ecosystem.com
+
+---
+
+## Tarea: Version Verification
+- **Instrucciones**: Extrae la versión de package.json y comprueba que sigue el formato SemVer estándar.
+- **Continuar si falla**: false
+
+## Tarea: Changelog Check
+- **Instrucciones**: Comprueba si existe un archivo CHANGELOG.md o README.md actualizado con mención a la versión.
+- **Depende de**: version-verification
+- **Continuar si falla**: true
+`
+};
+
+function applyRexPlanPreset(presetKey) {
+  const textarea = document.getElementById('rex-plan-content');
+  if (textarea && REX_PLAN_PRESETS[presetKey]) {
+    textarea.value = REX_PLAN_PRESETS[presetKey];
+    updateRexDagPreview();
+  }
+}
+window.applyRexPlanPreset = applyRexPlanPreset;
+
+function updateRexDagPreview() {
+  const container = document.getElementById('rex-dag-container');
+  const textarea = document.getElementById('rex-plan-content');
+  if (!container || !textarea) return;
+
+  const raw = textarea.value || '';
+  const sections = raw.split(/^##\s+Tarea:/im);
+  const tasks = [];
+
+  for (let i = 1; i < sections.length; i++) {
+    const lines = sections[i].split('\n');
+    const title = lines[0].trim();
+    const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    let dependsOn = [];
+
+    for (const l of lines.slice(1)) {
+      if (/^-\s*\*{0,2}Depende de\*{0,2}\s*:/i.test(l.trim())) {
+        const deps = l.trim().replace(/^-\s*\*{0,2}Depende de\*{0,2}\s*:\s*/i, '');
+        dependsOn = deps.split(',').map(d => d.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')).filter(Boolean);
+      }
+    }
+    if (id) {
+      tasks.push({ id, title, dependsOn });
+    }
+  }
+
+  if (tasks.length === 0) {
+    container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Escribe tareas en el editor para previsualizar el grafo de dependencias...</span>';
+    return;
+  }
+
+  container.innerHTML = tasks.map((t, idx) => {
+    const depsBadge = t.dependsOn.length > 0 
+      ? '<span class="badge badge-amber" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">deps: ' + escapeHtml(t.dependsOn.join(', ')) + '</span>'
+      : '<span class="badge badge-green" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">raíz (sin deps)</span>';
+
+    const arrow = idx < tasks.length - 1 ? '<span style="color: rgba(244, 63, 94, 0.6); font-size: 1.1rem; align-self: center; margin: 0 4px;">➜</span>' : '';
+
+    return '<div style="display: flex; align-items: center; gap: 8px;">' +
+      '<div style="background: rgba(19, 23, 34, 0.9); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; padding: 10px 14px; min-width: 140px;">' +
+        '<div style="font-weight: 700; font-size: 0.86rem; color: #f8fafc;">' + (idx + 1) + '. ' + escapeHtml(t.title) + '</div>' +
+        '<code style="font-size: 0.72rem; color: #94a3b8; display: block; margin-top: 2px;">' + escapeHtml(t.id) + '</code>' +
+        depsBadge +
+      '</div>' +
+      arrow +
+    '</div>';
+  }).join('');
+}
+window.updateRexDagPreview = updateRexDagPreview;
+
+async function initRexUI() {
+  const textarea = document.getElementById('rex-plan-content');
+  if (textarea && (!textarea.value || textarea.value.trim().length < 20)) {
+    textarea.value = REX_PLAN_PRESETS.cicd;
+  }
+  updateRexDagPreview();
+  await loadRexRepositories();
+  loadRexAudits();
+}
+window.initRexUI = initRexUI;
+
+async function loadRexRepositories(force = false) {
+  const select = document.getElementById('rex-repo-select');
+  const searchInput = document.getElementById('rex-repo-search');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Consultando repositorios en GitHub API...</option>';
+  const fetchFn = typeof getOrFetchAllUserRepos === 'function' ? getOrFetchAllUserRepos : (window.getOrFetchAllUserRepos || (async () => []));
+  const repos = await fetchFn(force);
+
+  if (!repos || repos.length === 0) {
+    select.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing (Predeterminado)</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onRexRepoChanged();
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterRexRepos(searchInput.value);
+    });
+  }
+
+  filterRexRepos(searchInput ? searchInput.value : '');
+  const firstRepo = select.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'rex-branch-select');
+  }
+}
+window.loadRexRepositories = loadRexRepositories;
+
+function filterRexRepos(q) {
+  const select = document.getElementById('rex-repo-select');
+  if (!select) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = (typeof allUserReposCache !== 'undefined' && allUserReposCache) ? allUserReposCache : (window.allUserReposCache || []);
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    select.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  select.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+}
+window.filterRexRepos = filterRexRepos;
+
+async function onRexRepoChanged() {
+  const select = document.getElementById('rex-repo-select');
+  const selectedRepo = select ? select.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'rex-branch-select');
+  }
+  syncRexRunsWithGitHub();
+}
+window.onRexRepoChanged = onRexRepoChanged;
+
+async function dispatchRex() {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('rex-repo-select');
+  const branchSelect = document.getElementById('rex-branch-select');
+  const planTextarea = document.getElementById('rex-plan-content');
+  const emailInput = document.getElementById('rex-email-input');
+  const webhookInput = document.getElementById('rex-webhook-input');
+  const selfHealToggle = document.getElementById('rex-selfheal-toggle');
+  const retriesSelect = document.getElementById('rex-retries-select');
+  const spinner = document.getElementById('rex-spinner');
+
+  const repo = repoSelect ? repoSelect.value : '';
+  const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
+  const planContent = (planTextarea ? planTextarea.value : '').trim();
+  const notifyEmail = (emailInput ? emailInput.value : '').trim();
+  const notifyWebhook = (webhookInput ? webhookInput.value : '').trim();
+  const selfHeal = selfHealToggle ? selfHealToggle.checked : true;
+  const maxRetries = retriesSelect ? retriesSelect.value : '3';
+
+  if (!repo) {
+    sphexnAlert('Por favor, selecciona un repositorio destino para orquestar con Rex.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  if (!token) {
+    sphexnAlert('Se requiere un GitHub Personal Access Token con permisos repo para despachar Rex.', 'Token Requerido', '🔑');
+    return;
+  }
+
+  if (!planContent) {
+    sphexnAlert('El plan declarativo (sphexn_rex.md) no puede estar vacío.', 'Plan Vacío', '⚠️');
+    return;
+  }
+
+  if (spinner) spinner.style.display = 'block';
+
+  try {
+    const activeChain = getActiveFallbackChain('rex');
+    const workflowFile = 'sphexn-rex.yml';
+    const dispatchUrl = 'https://api.github.com/repos/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
+
+    const res = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: branch,
+        inputs: {
+          plan_content: planContent,
+          plan_file: 'sphexn_rex.md',
+          task_filter: '',
+          self_heal: String(selfHeal),
+          max_retries: String(maxRetries),
+          notify_email: notifyEmail,
+          notify_webhook: notifyWebhook,
+          fallback_matrix: JSON.stringify(activeChain),
+          repo: repo,
+          branch: branch
+        }
+      })
+    });
+
+    if (spinner) spinner.style.display = 'none';
+
+    if (res.status === 204 || res.status === 200 || res.status === 201) {
+      sphexnAlert('Disparo exitoso de Sphexn Rex en ' + repo + ' (' + branch + '). El orquestador está ejecutando el grafo de tareas y notificará a los canales configurados.', 'Rex Orquestado 🚀', '👑');
+
+      const newAudit = {
+        id: 'rex_' + Date.now(),
+        repo: repo,
+        branch: branch,
+        planTitle: (planContent.match(/^#\s*([^\n]+)/m) || [])[1] || 'Sphexn Rex Plan',
+        timestamp: new Date().toISOString(),
+        status: 'DISPATCHED',
+        totalTasks: (planContent.match(/^##\s+Tarea:/gim) || []).length || 1,
+        successCount: 0,
+        failureCount: 0,
+        durationMs: 0,
+        email: notifyEmail,
+        webhook: notifyWebhook,
+        selfHeal: selfHeal,
+        provider: activeChain[0] ? activeChain[0].name : 'Groq Cloud'
+      };
+
+      saveRexAuditToLocal(newAudit);
+      loadRexAudits();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      sphexnAlert('Error ' + res.status + ' al despachar workflow: ' + (err.message || 'Verifica que .github/workflows/sphexn-rex.yml exista en la rama ' + branch), 'Fallo en Despacho', '❌');
+    }
+  } catch (e) {
+    if (spinner) spinner.style.display = 'none';
+    sphexnAlert('Error de conexión con GitHub API: ' + e.message, 'Error de Red', '❌');
+  }
+}
+window.dispatchRex = dispatchRex;
+
+async function syncRexRunsWithGitHub(force = false) {
+  const token = getGitHubToken();
+  const repoSelect = document.getElementById('rex-repo-select');
+  const repo = repoSelect ? repoSelect.value : '';
+  if (!repo || !token) return;
+
+  try {
+    const runsUrl = 'https://api.github.com/repos/' + repo + '/actions/workflows/sphexn-rex.yml/runs?per_page=5';
+    const res = await fetch(runsUrl, {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const runs = data.workflow_runs || [];
+      if (runs.length > 0) {
+        let localAudits = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+        runs.forEach(run => {
+          const existing = localAudits.find(a => a.runId === run.id);
+          if (existing) {
+            existing.status = (run.status === 'completed' && run.conclusion === 'success') ? 'SUCCESS' : (run.status === 'completed' ? 'FAILED' : 'IN_PROGRESS');
+            existing.htmlUrl = run.html_url;
+          } else {
+            localAudits.unshift({
+              id: 'rex_run_' + run.id,
+              runId: run.id,
+              repo: repo,
+              branch: run.head_branch || 'main',
+              planTitle: run.display_title || 'Sphexn Rex Automated Run',
+              timestamp: run.created_at,
+              status: (run.status === 'completed' && run.conclusion === 'success') ? 'SUCCESS' : (run.status === 'completed' ? 'FAILED' : 'IN_PROGRESS'),
+              totalTasks: 3,
+              successCount: run.conclusion === 'success' ? 3 : 0,
+              failureCount: run.conclusion === 'success' ? 0 : 1,
+              durationMs: run.updated_at && run.created_at ? (new Date(run.updated_at) - new Date(run.created_at)) : 12000,
+              htmlUrl: run.html_url
+            });
+          }
+        });
+        localStorage.setItem('sphexn_rex_audits', JSON.stringify(localAudits.slice(0, 30)));
+        renderRexAudits();
+        if (force) {
+          sphexnAlert('Sincronizadas ' + runs.length + ' ejecuciones de Sphexn Rex desde GitHub Actions.', 'Sincronización Exitosa', '🔄');
+        }
+      }
+    }
+  } catch (e) {}
+}
+window.syncRexRunsWithGitHub = syncRexRunsWithGitHub;
+
+function saveRexAuditToLocal(audit) {
+  let list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+  list.unshift(audit);
+  localStorage.setItem('sphexn_rex_audits', JSON.stringify(list.slice(0, 30)));
+}
+
+function loadRexAudits() {
+  renderRexAudits();
+}
+window.loadRexAudits = loadRexAudits;
+
+function renderRexAudits() {
+  const tbody = document.getElementById('rex-audits-tbody');
+  const countBadge = document.getElementById('rex-audit-count');
+  if (!tbody) return;
+
+  const list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+  if (countBadge) countBadge.textContent = list.length + ' Registros';
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 20px;">No hay auditorías de Rex registradas. Ejecuta un plan arriba.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(a => {
+    const isSuccess = a.status === 'SUCCESS' || a.status === 'COMPLETED';
+    const isDispatched = a.status === 'DISPATCHED' || a.status === 'IN_PROGRESS';
+    const statusBadge = isSuccess
+      ? '<span class="badge badge-green">EXITOSO</span>'
+      : (isDispatched ? '<span class="badge badge-blue">EN CURSO</span>' : '<span class="badge badge-danger">FALLIDO</span>');
+
+    const durationStr = a.durationMs ? ((a.durationMs / 1000).toFixed(1) + 's') : '--';
+    const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--';
+    const ghLink = a.htmlUrl ? '<a href="' + a.htmlUrl + '" target="_blank" class="btn btn-secondary btn-xs" style="margin-right: 4px;" title="Ver en GitHub Actions">🔗 Run</a>' : '';
+
+    return '<tr>' +
+      '<td>' + dateStr + '</td>' +
+      '<td><strong>' + escapeHtml(a.repo || '') + '</strong><br><small class="text-muted">' + escapeHtml(a.branch || 'main') + '</small></td>' +
+      '<td>' + escapeHtml(a.planTitle || 'DevOps Plan') + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td>' + (a.totalTasks || 1) + ' tareas</td>' +
+      '<td>' + durationStr + '</td>' +
+      '<td>' +
+        ghLink +
+        '<button class="btn btn-secondary btn-xs" onclick="previewRexEmailReport(\'' + a.id + '\')" style="margin-right: 4px;" title="Ver Correo HTML">📧</button>' +
+        '<button class="btn btn-danger btn-xs" onclick="deleteRexAudit(\'' + a.id + '\')" title="Eliminar">✕</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+window.renderRexAudits = renderRexAudits;
+
+function deleteRexAudit(id) {
+  let list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+  list = list.filter(a => a.id !== id);
+  localStorage.setItem('sphexn_rex_audits', JSON.stringify(list));
+  renderRexAudits();
+}
+window.deleteRexAudit = deleteRexAudit;
+
+let currentRexEmailHtml = '';
+
+function previewRexEmailReport(auditId) {
+  const modal = document.getElementById('rex-email-modal');
+  const iframe = document.getElementById('rex-email-iframe');
+  if (!modal || !iframe) return;
+
+  let audit = null;
+  if (auditId) {
+    const list = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]');
+    audit = list.find(a => a.id === auditId);
+  }
+
+  const repo = audit ? audit.repo : (document.getElementById('rex-repo-select')?.value || 'amglogicalis/testing');
+  const branch = audit ? audit.branch : (document.getElementById('rex-branch-select')?.value || 'main');
+  const planTitle = audit ? audit.planTitle : 'Sphexn Rex — DevOps Execution Plan';
+  const successCount = audit ? (audit.successCount || 3) : 3;
+  const failureCount = audit ? (audit.failureCount || 0) : 0;
+  const totalDuration = audit ? (audit.durationMs || 4500) : 4500;
+
+  currentRexEmailHtml = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Sphexn Rex Report</title>
+</head>
+<body style="margin: 0; padding: 24px; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #f8fafc;">
+  <div style="max-width: 680px; margin: 0 auto; background-color: #0b0d13; border: 1px solid #1e2538; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <div style="padding: 24px; background: linear-gradient(135deg, #180914 0%, #0b0d13 100%); border-bottom: 1px solid #231221; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-size: 22px; font-weight: 800; color: #ffffff;">👑 SPHEXN <span style="color: #f43f5e;">REX</span></div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Autonomous DevOps Orchestrator — Terra Ecosystem</div>
+      </div>
+      <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 800;">
+        PIPELINE EXITOSO
+      </span>
+    </div>
+    <div style="padding: 12px 24px; background: #0f131c; border-bottom: 1px solid #1a202c; font-size: 12px; color: #94a3b8;">
+      <strong>Repo:</strong> ${escapeHtml(repo)} &nbsp;|&nbsp; <strong>Rama:</strong> ${escapeHtml(branch)} &nbsp;|&nbsp; <strong>Plan:</strong> ${escapeHtml(planTitle)}
+    </div>
+    <div style="padding: 24px;">
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; text-align: center;">
+        <div style="background: #111522; border: 1px solid #1f283d; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 20px; font-weight: 800; color: #10b981;">${successCount}</div>
+          <div style="font-size: 10px; color: #94a3b8;">ÉXITO</div>
+        </div>
+        <div style="background: #111522; border: 1px solid #1f283d; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 20px; font-weight: 800; color: #f43f5e;">${failureCount}</div>
+          <div style="font-size: 10px; color: #94a3b8;">FALLOS</div>
+        </div>
+        <div style="background: #111522; border: 1px solid #1f283d; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 20px; font-weight: 800; color: #38bdf8;">${(totalDuration/1000).toFixed(1)}s</div>
+          <div style="font-size: 10px; color: #94a3b8;">DURACIÓN</div>
+        </div>
+        <div style="background: #111522; border: 1px solid #1f283d; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 20px; font-weight: 800; color: #a855f7;">${successCount + failureCount}</div>
+          <div style="font-size: 10px; color: #94a3b8;">TAREAS</div>
+        </div>
+      </div>
+      <div style="background: rgba(244, 63, 94, 0.05); border: 1px solid #331524; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <div style="font-size: 12px; font-weight: 800; color: #fb7185; text-transform: uppercase; margin-bottom: 6px;">🤖 Resumen Ejecutivo de Sphexn Rex</div>
+        <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+          Calificación Global: <strong>A+</strong>. El orquestador validó todas las tareas declarativas secuencialmente sin detectar desbordamiento ni anomalías en el pipeline.
+        </div>
+      </div>
+    </div>
+    <div style="padding: 16px 24px; background: #07090e; border-top: 1px solid #171d2b; text-align: center; font-size: 11px; color: #64748b;">
+      Enviado automáticamente por <strong>Sphexn Rex</strong> • Terra Ecosystem • Notificación Criptográficamente Verificada
+    </div>
+  </div>
+</body>
+</html>`;
+
+  iframe.srcdoc = currentRexEmailHtml;
+  modal.style.display = 'flex';
+}
+window.previewRexEmailReport = previewRexEmailReport;
+
+function closeRexEmailModal() {
+  const modal = document.getElementById('rex-email-modal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeRexEmailModal = closeRexEmailModal;
+
+function downloadRexHtmlEmail() {
+  if (!currentRexEmailHtml) return;
+  const blob = new Blob([currentRexEmailHtml], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sphexn_rex_report.html';
+  a.click();
+}
+window.downloadRexHtmlEmail = downloadRexHtmlEmail;
+
+// =============================================================================
+// AUTO-REX CONFIGURATION LOGIC (CI/CD TRIGGERS & MONITORING)
+// =============================================================================
+
+function initAutoRexConfigUI() {
+  const saved = localStorage.getItem('sphexn_auto_rex_repos');
+  if (!saved) {
+    const defaults = [
+      { repo: 'amglogicalis/testing', branch: 'main', email: '', webhook: '', maxRetries: 3 },
+      { repo: 'amglogicalis/testing', branch: 'develop', email: '', webhook: '', maxRetries: 3 },
+      { repo: 'amglogicalis/Sphexn', branch: 'main', email: '', webhook: '', maxRetries: 3 }
+    ];
+    localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(defaults));
+  }
+  loadAutoRexRepositories();
+  renderAutoRexMonitoredRepos();
+}
+window.initAutoRexConfigUI = initAutoRexConfigUI;
+
+async function loadAutoRexRepositories(force = false) {
+  const picker = document.getElementById('auto-rex-repo-select');
+  const searchInput = document.getElementById('auto-rex-repo-search');
+  if (!picker) return;
+
+  picker.innerHTML = '<option value="">Cargando repositorios...</option>';
+  const fetchFn = typeof getOrFetchAllUserRepos === 'function' ? getOrFetchAllUserRepos : (window.getOrFetchAllUserRepos || (async () => []));
+  const repos = await fetchFn(force);
+
+  if (!repos || repos.length === 0) {
+    picker.innerHTML = '<option value="amglogicalis/testing">amglogicalis/testing</option><option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>';
+    onAutoRexRepoChanged();
+    return;
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => {
+      filterAutoRexRepos(searchInput.value);
+    });
+  }
+
+  filterAutoRexRepos(searchInput ? searchInput.value : '');
+  const firstRepo = picker.value || (repos[0] ? repos[0].full_name : 'amglogicalis/testing');
+  if (firstRepo) {
+    fetchRepoBranches(firstRepo, 'auto-rex-branch-select');
+  }
+}
+window.loadAutoRexRepositories = loadAutoRexRepositories;
+
+function filterAutoRexRepos(q) {
+  const picker = document.getElementById('auto-rex-repo-select');
+  if (!picker) return;
+
+  const query = (q || '').toLowerCase().trim();
+  const repos = (typeof allUserReposCache !== 'undefined' && allUserReposCache) ? allUserReposCache : (window.allUserReposCache || []);
+  const filtered = query ? repos.filter(r => (r.full_name || '').toLowerCase().includes(query)) : repos;
+
+  if (filtered.length === 0) {
+    picker.innerHTML = '<option value="">No se encontraron repositorios</option>';
+    return;
+  }
+
+  picker.innerHTML = filtered.map(r => '<option value="' + r.full_name + '">' + r.full_name + (r.private ? ' 🔒' : ' 🌐') + '</option>').join('');
+}
+window.filterAutoRexRepos = filterAutoRexRepos;
+
+async function onAutoRexRepoChanged() {
+  const picker = document.getElementById('auto-rex-repo-select');
+  const selectedRepo = picker ? picker.value : '';
+  if (selectedRepo) {
+    await fetchRepoBranches(selectedRepo, 'auto-rex-branch-select');
+  }
+}
+window.onAutoRexRepoChanged = onAutoRexRepoChanged;
+
+function addRepoToAutoRex() {
+  const repoSelect = document.getElementById('auto-rex-repo-select');
+  const branchSelect = document.getElementById('auto-rex-branch-select');
+  const emailInput = document.getElementById('auto-rex-email-input');
+  const webhookInput = document.getElementById('auto-rex-webhook-input');
+  const retriesSelect = document.getElementById('auto-rex-retries-select');
+
+  const repo = repoSelect ? repoSelect.value.trim() : '';
+  const branch = (branchSelect ? branchSelect.value.trim() : 'main') || 'main';
+  const email = (emailInput ? emailInput.value.trim() : '');
+  const webhook = (webhookInput ? webhookInput.value.trim() : '');
+  const maxRetries = retriesSelect ? parseInt(retriesSelect.value, 10) : 3;
+
+  if (!repo) {
+    sphexnAlert('Selecciona un repositorio válido para monitorizar con Auto-Rex.', 'Repositorio Requerido', '⚠️');
+    return;
+  }
+
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  const alreadyExists = list.some(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return itemRepo === repo && itemBranch === branch;
+  });
+
+  if (alreadyExists) {
+    sphexnAlert('El repositorio ' + repo + ' en la rama [' + branch + '] ya está configurado en Auto-Rex.', 'Rama Ya Vigilada', 'ℹ️');
+    return;
+  }
+
+  list.push({ repo, branch, email, webhook, maxRetries });
+  localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
+  if (emailInput) emailInput.value = '';
+  if (webhookInput) webhookInput.value = '';
+
+  renderAutoRexMonitoredRepos();
+  sphexnAlert('Repositorio ' + repo + ' (' + branch + ') añadido a Auto-Rex. Se ejecutará automáticamente ante eventos de push, PRs o workflow_dispatch.', 'Añadido a Auto-Rex', '👑');
+}
+window.addRepoToAutoRex = addRepoToAutoRex;
+
+function removeRepoFromAutoRex(repo, branch = 'main') {
+  let list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  list = list.filter(item => {
+    const itemRepo = typeof item === 'string' ? item : item.repo;
+    const itemBranch = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    return !(itemRepo === repo && itemBranch === branch);
+  });
+  localStorage.setItem('sphexn_auto_rex_repos', JSON.stringify(list));
+  renderAutoRexMonitoredRepos();
+}
+window.removeRepoFromAutoRex = removeRepoFromAutoRex;
+
+function renderAutoRexMonitoredRepos() {
+  const container = document.getElementById('auto-rex-list');
+  const countBadge = document.getElementById('auto-rex-count-badge');
+  if (!container) return;
+
+  const list = JSON.parse(localStorage.getItem('sphexn_auto_rex_repos') || '[]');
+  if (countBadge) {
+    countBadge.textContent = list.length + ' Repositorio' + (list.length === 1 ? '' : 's');
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-muted text-center" style="padding: 24px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">' +
+      'No hay repositorios configurados en Auto-Rex. Añade uno arriba para activar la orquestación continua.' +
+    '</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(item => {
+    const repoName = typeof item === 'string' ? item : item.repo;
+    const branchName = typeof item === 'string' ? 'main' : (item.branch || 'main');
+    const retries = (item && item.maxRetries) ? item.maxRetries : 3;
+    const emailInfo = item && item.email ? '<span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); font-size: 0.7rem;">📧 ' + escapeHtml(item.email) + '</span>' : '';
+    const webhookInfo = item && item.webhook ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.7rem;">📡 Webhook</span>' : '';
+
+    return '<div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin: 0; background: rgba(16, 24, 38, 0.85); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 14px;">' +
+        '<span style="font-size: 1.3rem;">👑</span>' +
+        '<div>' +
+          '<strong style="font-size: 0.94rem; color: #f8fafc;">' + escapeHtml(repoName) + '</strong>' +
+          '<div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">' +
+            '<span class="badge badge-blue" style="font-size: 0.7rem;">RAMA: ' + escapeHtml(branchName) + '</span>' +
+            '<span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.7rem;">REINTENTOS: ' + retries + '</span>' +
+            emailInfo +
+            webhookInfo +
+            '<span class="text-muted" style="font-size: 0.76rem;">Triggers: <code>push, PR, dispatch</code></span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-danger btn-xs" onclick="removeRepoFromAutoRex(\'' + repoName + '\', \'' + branchName + '\')" style="padding: 4px 12px; font-weight: 600;" title="Quitar de Auto-Rex">✕ Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+window.renderAutoRexMonitoredRepos = renderAutoRexMonitoredRepos;

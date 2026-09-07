@@ -890,31 +890,149 @@
             </div>
           </section>
 
-          <!-- 7. REX TAB -->
+                    <!-- 7. REX TAB -->
           <section id="tab-rex" class="tab-pane">
-            <div class="card">
-              <div class="card-header">
+            <div class="card" style="padding: 24px; margin-bottom: 24px;">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
                 <div>
-                  <h2>Sphexn Rex — Declarative Markdown DevOps Platform</h2>
-                  <p class="text-muted">Executes tasks sequentially from <code>sphexn_rex.md</code> with step summaries and self-healing</p>
+                  <h2 style="display: flex; align-items: center; gap: 10px; margin: 0 0 6px 0;">
+                    <span>👑</span> Sphexn Rex — Declarative Markdown DevOps Platform & Notifier
+                  </h2>
+                  <p class="text-muted" style="margin: 0; font-size: 0.9rem;">
+                    Orquesta pipelines declarativos autónomos desde <code>sphexn_rex.md</code> con resolución DAG, generación de lambdas, auto-sanación con IA y reportes ejecutivos vía correo HTML y webhooks.
+                  </p>
                 </div>
-                <button class="btn btn-primary" id="btn-run-rex">Orchestrate Plan</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button class="btn btn-secondary" id="btn-preview-rex-email" onclick="previewRexEmailReport()" style="display: flex; align-items: center; gap: 6px;">
+                    <span>📧</span> Previsualizar Correo HTML
+                  </button>
+                  <button class="btn btn-secondary" onclick="syncRexRunsWithGitHub(true)" title="Sincronizar con GitHub Actions" style="display: flex; align-items: center; gap: 6px;">
+                    <span>🔄</span> Sincronizar
+                  </button>
+                  <button class="btn btn-primary" id="btn-run-rex" onclick="dispatchRex()" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e;">
+                    <span>👑</span> Ejecutar Orquestación Rex
+                  </button>
+                </div>
               </div>
-              <div class="form-group mt-16">
-                <label for="rex-plan-content">DevOps Plan Definition (<code>sphexn_rex.md</code>):</label>
-                <textarea id="rex-plan-content" class="code-textarea" rows="8"># Sphexn Rex — DevOps Execution Plan
 
-## task: validate-build - Compile Project
-Verify that the project compiles cleanly:
-`npm run build`
+              <!-- CONTROLS ROW -->
+              <div class="grid-3-col mt-20" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                <div class="form-group">
+                  <label for="rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Repositorio Destino:</label>
+                  <div style="display: flex; gap: 6px;">
+                    <select id="rex-repo-select" class="form-control" onchange="onRexRepoChanged()" style="flex: 1;">
+                      <option value="amglogicalis/testing">amglogicalis/testing</option>
+                      <option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>
+                    </select>
+                    <button class="btn btn-secondary btn-xs" onclick="loadRexRepositories(true)" title="Refrescar lista" style="flex-shrink: 0;">🔄</button>
+                  </div>
+                  <input type="text" id="rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
+                </div>
 
-## task: audit-health - Check Health
-Run health assessment:
-`node bin/sphexn.js lucae`
-continue-on-error: true
-</textarea>
+                <div class="form-group">
+                  <label for="rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Rama Git:</label>
+                  <select id="rex-branch-select" class="form-control">
+                    <option value="main">main</option>
+                    <option value="develop">develop</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="rex-preset-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Plantilla de Plan:</label>
+                  <select id="rex-preset-select" class="form-control" onchange="applyRexPlanPreset(this.value)">
+                    <option value="cicd">🚀 CI/CD & Build Health Check (Por defecto)</option>
+                    <option value="security">🔒 Auditoría de Dependencias y Seguridad</option>
+                    <option value="release">📦 Preparación de Release y Empaquetado</option>
+                  </select>
+                </div>
               </div>
-              <div id="rex-results" class="mt-16"></div>
+
+              <!-- NOTIFICATIONS & SELF HEAL ROW -->
+              <div class="grid-3-col mt-16" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                <div class="form-group">
+                  <label for="rex-email-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Destinatario de Correo (HTML):</label>
+                  <input type="email" id="rex-email-input" class="form-control" placeholder="ej: devops@empresa.com (opcional)" />
+                </div>
+
+                <div class="form-group">
+                  <label for="rex-webhook-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Webhook Notificación:</label>
+                  <input type="url" id="rex-webhook-input" class="form-control" placeholder="ej: https://discord.com/api/webhooks/... (opcional)" />
+                </div>
+
+                <div class="form-group">
+                  <label for="rex-retries-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Auto-Healing & Reintentos:</label>
+                  <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                      <input type="checkbox" id="rex-selfheal-toggle" checked />
+                      <span>Activar Auto-Healing</span>
+                    </label>
+                    <select id="rex-retries-select" class="form-control" style="width: 100px;">
+                      <option value="1">1 intento</option>
+                      <option value="2">2 intentos</option>
+                      <option value="3" selected>3 intentos</option>
+                      <option value="5">5 intentos</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLAN EDITOR -->
+              <div class="form-group mt-20">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label for="rex-plan-content" style="font-weight: 600; font-size: 0.95rem;">
+                    Definición Declarativa del Plan (<code>sphexn_rex.md</code>):
+                  </label>
+                  <span class="text-muted" style="font-size: 0.8rem;">Sintaxis Markdown estándar de Sphexn Rex</span>
+                </div>
+                <textarea id="rex-plan-content" class="code-textarea" rows="10" oninput="updateRexDagPreview()" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.88rem; line-height: 1.5;"></textarea>
+              </div>
+
+              <!-- VISUAL DAG PIPELINE PREVIEW -->
+              <div class="mt-20">
+                <label style="font-weight: 600; font-size: 0.9rem; color: #f43f5e; display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+                  <span>🔗</span> Grafo de Ejecución DAG (Topological Pipeline):
+                </label>
+                <div id="rex-dag-container" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 18px; background: rgba(11, 15, 25, 0.8); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 8px;">
+                  <span class="text-muted" style="font-size: 0.85rem;">Escribe tareas en el editor para previsualizar el grafo de dependencias...</span>
+                </div>
+              </div>
+
+              <!-- SPINNER -->
+              <div id="rex-spinner" style="display: none; text-align: center; padding: 24px;">
+                <div class="spinner"></div>
+                <div class="mt-8 text-muted">Despachando Sphexn Rex a GitHub Actions...</div>
+              </div>
+
+              <!-- RESULTS CONTAINER -->
+              <div id="rex-results" class="mt-24"></div>
+
+              <!-- AUDIT LEDGER TABLE -->
+              <div class="mt-28">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>📜</span> Historial de Orquestaciones Sphexn Rex
+                  </h3>
+                  <span id="rex-audit-count" class="badge badge-amber">0 Registros</span>
+                </div>
+                <div id="rex-audits-table-container" class="table-wrapper">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Repo / Rama</th>
+                        <th>Plan</th>
+                        <th>Estado</th>
+                        <th>Tareas</th>
+                        <th>Duración</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rex-audits-tbody">
+                      <tr><td colspan="7" class="text-center text-muted" style="padding: 20px;">No hay auditorías de Rex registradas. Ejecuta un plan arriba.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
           <!-- 8. GLOBAL CONFIGURATION TAB (FALLBACK MATRIX & AUTO-PRAEDATOR) -->
@@ -944,8 +1062,11 @@ continue-on-error: true
                   <button type="button" class="segmented-item" id="btn-cfg-subtab-autonudus" onclick="switchConfigSubtab('autonudus')" style="padding: 8px 18px; font-size: 0.86rem;">
                     <span>🩹</span> Auto-Nudus
                   </button>
-                  <button type="button" class="segmented-item" id="btn-cfg-subtab-autoobscurus" onclick="switchConfigSubtab('autoobscurus')" style="padding: 8px 18px; font-size: 0.86rem;">
+                                    <button type="button" class="segmented-item" id="btn-cfg-subtab-autoobscurus" onclick="switchConfigSubtab('autoobscurus')" style="padding: 8px 18px; font-size: 0.86rem;">
                     <span>🛡️</span> Auto-Obscurus
+                  </button>
+                  <button type="button" class="segmented-item" id="btn-cfg-subtab-autorex" onclick="switchConfigSubtab('autorex')" style="padding: 8px 18px; font-size: 0.86rem;">
+                    <span>👑</span> Auto-Rex
                   </button>
                 </div>
               </div>
@@ -1359,6 +1480,96 @@ continue-on-error: true
               </div>
             </div>
 
+          
+            <!-- SUBTAB 6: AUTO-REX (CI/CD CONTINUO & GITHUB TRIGGERS) -->
+            <div id="cfg-subtab-autorex-container" style="display: none;">
+              <div class="card" style="padding: 22px 28px; margin-bottom: 24px;">
+                <div class="card-header" style="padding: 0 0 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                  <div>
+                    <h3 style="font-size: 1.15rem; font-weight: 700; margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px;">
+                      <span>👑</span> Configuración de Auto-Rex (Orquestación Continua)
+                    </h3>
+                    <p class="text-muted" style="font-size: 0.86rem; margin: 0;">
+                      Ejecuta automáticamente planes declarativos de DevOps ante eventos de <code>push</code>, <code>pull_request</code> o <code>workflow_dispatch</code> en GitHub con auto-sanación y despacho de correo HTML.
+                    </p>
+                  </div>
+                  <span class="badge" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); font-size: 0.8rem; padding: 4px 10px;">
+                    👑 Especie Suprema
+                  </span>
+                </div>
+
+                <div class="grid-3-col mt-20" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                  <div class="form-group">
+                    <label for="auto-rex-repo-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Repositorio a Monitorizar:</label>
+                    <div style="display: flex; gap: 6px;">
+                      <select id="auto-rex-repo-select" class="form-control" onchange="onAutoRexRepoChanged()" style="flex: 1;">
+                        <option value="amglogicalis/testing">amglogicalis/testing</option>
+                        <option value="amglogicalis/Sphexn">amglogicalis/Sphexn</option>
+                      </select>
+                      <button class="btn btn-secondary btn-xs" onclick="loadAutoRexRepositories(true)" title="Forzar refresco" style="flex-shrink: 0; white-space: nowrap;">🔄 Refrescar</button>
+                    </div>
+                    <input type="text" id="auto-rex-repo-search" class="form-control mt-8" placeholder="🔍 Filtrar repositorios..." style="font-size: 0.8rem; padding: 4px 8px;" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="auto-rex-branch-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Rama a Vigilar:</label>
+                    <select id="auto-rex-branch-select" class="form-control">
+                      <option value="main">main</option>
+                      <option value="develop">develop</option>
+                    </select>
+                    <span class="text-muted" style="font-size: 0.76rem; margin-top: 4px; display: block;">Permite monitorizar múltiples ramas del mismo repo.</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="auto-rex-retries-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Max Reintentos Self-Heal:</label>
+                    <select id="auto-rex-retries-select" class="form-control">
+                      <option value="1">1 intento</option>
+                      <option value="2">2 intentos</option>
+                      <option value="3" selected>3 intentos (Recomendado)</option>
+                      <option value="5">5 intentos</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid-2-col mt-16" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group">
+                    <label for="auto-rex-email-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Destinatario Correo Notificación:</label>
+                    <input type="email" id="auto-rex-email-input" class="form-control" placeholder="ej: devops@empresa.com (opcional)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="auto-rex-webhook-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Webhook de Notificación:</label>
+                    <input type="url" id="auto-rex-webhook-input" class="form-control" placeholder="ej: https://discord.com/api/webhooks/... (opcional)" />
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; gap: 12px;">
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span class="badge badge-blue" style="font-size: 0.75rem;">⚡ Trigger: push</span>
+                    <span class="badge badge-amber" style="font-size: 0.75rem;">⚡ Trigger: pull_request</span>
+                    <span class="badge badge-green" style="font-size: 0.75rem;">⚡ Trigger: workflow_dispatch</span>
+                  </div>
+                  <button class="btn btn-primary" onclick="addRepoToAutoRex()" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); border-color: #f43f5e; font-weight: 600;">
+                    + Añadir Repositorio a Auto-Rex
+                  </button>
+                </div>
+              </div>
+
+              <!-- MONITORED REPOS LIST -->
+              <div class="card" style="padding: 22px 28px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                  <h4 style="font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>📋</span> Repositorios Vigilados por Auto-Rex
+                  </h4>
+                  <span id="auto-rex-count-badge" class="badge badge-green">0 Repositorios</span>
+                </div>
+                <div id="auto-rex-list" style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="text-muted text-center" style="padding: 24px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                    Cargando repositorios vigilados por Auto-Rex...
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </section>
 
 
@@ -1606,7 +1817,30 @@ continue-on-error: true
     </div>
   </div>
 
-  <!-- UNIVERSAL CUSTOM POPUP / MODAL (Follows Sphexn Web Console Aesthetic) -->
+  
+  <!-- REX EMAIL REPORT PREVIEW MODAL -->
+  <div id="rex-email-modal" class="custom-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(4, 7, 13, 0.88); backdrop-filter: blur(14px); z-index: 999999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+    <div style="width: 800px; max-width: 96vw; max-height: 90vh; background: #0b0d13; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.9), 0 0 35px rgba(244, 63, 94, 0.2); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #111522; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.3rem;">👑</span>
+          <div>
+            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Previsualización de Correo HTML — Sphexn Rex</h3>
+            <span class="text-muted" style="font-size: 0.76rem;">Plantilla responsive optimizada para clientes de correo (Gmail, Outlook, Apple Mail)</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-xs" onclick="downloadRexHtmlEmail()">💾 Descargar HTML</button>
+          <button class="btn btn-danger btn-xs" onclick="closeRexEmailModal()">✕ Cerrar</button>
+        </div>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 16px; background: #07090e;">
+        <iframe id="rex-email-iframe" style="width: 100%; min-height: 600px; border: none; border-radius: 8px; background: #0b0d13;" sandbox="allow-same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+
+<!-- UNIVERSAL CUSTOM POPUP / MODAL (Follows Sphexn Web Console Aesthetic) -->
   <div id="custom-modal-overlay" class="custom-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(4, 7, 13, 0.85); backdrop-filter: blur(14px); z-index: 999999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; opacity: 0; transition: opacity 0.2s ease;">
     <div id="custom-modal-card" class="custom-modal-card" style="width: 450px; max-width: 94vw; background: rgba(16, 24, 38, 0.98); border: 1px solid rgba(37, 99, 235, 0.4); border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.9), 0 0 35px rgba(37, 99, 235, 0.25); padding: 24px; box-sizing: border-box; transform: scale(0.96); transition: transform 0.2s ease;">
       
@@ -1635,6 +1869,6 @@ continue-on-error: true
     </div>
   </div>
 
-  <script src="app.js?v=20260907_02"></script>
+  <script src="app.js?v=20260907_rex01"></script>
 </body>
 </html>
