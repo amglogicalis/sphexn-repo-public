@@ -7015,78 +7015,191 @@ function updateRexDagPreview() {
   const textarea = document.getElementById('rex-plan-content');
   if (!container || !textarea) return;
 
-  const raw = (textarea.value && textarea.value.trim().length > 0) ? textarea.value : (textarea.placeholder || SYNTHETIC_REX_PLAN);
-  const sections = raw.split(/^##\s+Tarea:/im);
+  const raw = (textarea.value || '').trim();
+
+  // Si no se ha escrito nada, NO mostrar nada (estado limpio/inactivo)
+  if (!raw || raw.length === 0) {
+    container.innerHTML = '<div style="width: 100%; text-align: center; padding: 28px 16px; border: 1px dashed rgba(244, 63, 94, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.35); color: #94a3b8; font-size: 0.88rem;">' +
+      '👑 <strong>Grafo DAG inactivo</strong> — Escribe o pega tareas en el plan declarativo arriba (<code>## Tarea: ...</code>) para proyectar el pipeline topológico en tiempo real.' +
+    '</div>';
+    return;
+  }
+
+  // 1. Extraer Metadatos Globales del Markdown
+  const emailMatch = raw.match(/^##?\s*(?:Destinatario|Email|Notify-Email)[^\n]*\n([^\n]+)/im);
+  const webhookMatch = raw.match(/^##?\s*(?:Webhook|Notify-Webhook)[^\n]*\n([^\n]+)/im);
+  const autoHealMatch = raw.match(/^##?\s*(?:Auto-Healing|AutoHeal|Auto-Heal)[^\n]*\n([^\n]+)/im);
+  const retriesMatch = raw.match(/^##?\s*(?:Reintentos|Retries|Max-Retries)[^\n]*\n([^\n]+)/im);
+
+  const globalEmail = emailMatch ? emailMatch[1].trim().replace(/^[-*]\s*/, '') : '';
+  const globalWebhook = webhookMatch ? webhookMatch[1].trim().replace(/^[-*]\s*/, '') : '';
+  const globalSelfHeal = autoHealMatch ? !/^(?:false|no|0|off|desactivado)$/i.test(autoHealMatch[1].trim()) : true;
+  const globalRetries = retriesMatch ? parseInt(retriesMatch[1].trim(), 10) : 3;
+
+  // 2. Extraer Tareas de forma flexible
+  const sections = raw.split(/^#{2,3}\s*(?:Tarea|Task)\s*:/im);
   const tasks = [];
+  const tasksMap = new Map();
 
   for (let i = 1; i < sections.length; i++) {
     const lines = sections[i].split('\n');
     const title = lines[0].trim();
+    if (!title) continue;
     const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    let instructions = '';
+    let scriptPath = '';
     let dependsOn = [];
-    let isScript = false;
-    let autoHeal = true;
-    let retries = 3;
+    let timeoutSec = 60;
+    let continueOnError = false;
+    let autoHeal = undefined;
+    let retries = undefined;
 
     for (const l of lines.slice(1)) {
-      if (/^-\s*\*{0,2}Depende de\*{0,2}\s*:/i.test(l.trim())) {
-        const deps = l.trim().replace(/^-\s*\*{0,2}Depende de\*{0,2}\s*:\s*/i, '');
-        dependsOn = deps.split(',').map(d => d.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')).filter(Boolean);
-      }
-      if (/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:/i.test(l.trim())) {
-        isScript = true;
-      }
-      if (/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:/i.test(l.trim())) {
-        const val = l.trim().replace(/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:\s*/i, '');
+      const lineStr = l.trim();
+      if (/^-\s*\*{0,2}Instrucciones\*{0,2}\s*:/i.test(lineStr)) {
+        instructions = lineStr.replace(/^-\s*\*{0,2}Instrucciones\*{0,2}\s*:\s*/i, '').trim();
+      } else if (/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:/i.test(lineStr)) {
+        scriptPath = lineStr.replace(/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:\s*/i, '').trim();
+      } else if (/^-\s*\*{0,2}(?:Depende de|Depends on)\*{0,2}\s*:/i.test(lineStr)) {
+        const rawDeps = lineStr.replace(/^-\s*\*{0,2}(?:Depende de|Depends on)\*{0,2}\s*:\s*/i, '');
+        dependsOn = rawDeps.split(',').map(d => d.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')).filter(Boolean);
+      } else if (/^-\s*\*{0,2}(?:Auto-Healing|AutoHeal)\*{0,2}\s*:/i.test(lineStr)) {
+        const val = lineStr.replace(/^-\s*\*{0,2}(?:Auto-Healing|AutoHeal)\*{0,2}\s*:\s*/i, '').trim();
         autoHeal = !/^(?:false|no|0|off|desactivado)$/i.test(val);
-      }
-      if (/^-\s*\*{0,2}Reintentos\*{0,2}\s*:/i.test(l.trim())) {
-        const r = parseInt(l.trim().replace(/^-\s*\*{0,2}Reintentos\*{0,2}\s*:\s*/i, ''), 10);
-        if (!isNaN(r)) retries = r;
+      } else if (/^-\s*\*{0,2}(?:Reintentos|Retries)\*{0,2}\s*:/i.test(lineStr)) {
+        const r = parseInt(lineStr.replace(/^-\s*\*{0,2}(?:Reintentos|Retries)\*{0,2}\s*:\s*/i, '').trim(), 10);
+        if (!isNaN(r) && r >= 0) retries = r;
+      } else if (/^-\s*\*{0,2}Timeout\*{0,2}\s*:/i.test(lineStr)) {
+        const t = parseInt(lineStr.replace(/^-\s*\*{0,2}Timeout\*{0,2}\s*:\s*/i, '').trim(), 10);
+        if (!isNaN(t)) timeoutSec = t;
+      } else if (/^-\s*\*{0,2}(?:Continuar si falla|Continue on error)\*{0,2}\s*:/i.test(lineStr)) {
+        const val = lineStr.replace(/^-\s*\*{0,2}(?:Continuar si falla|Continue on error)\*{0,2}\s*:\s*/i, '').trim();
+        continueOnError = /^(?:true|s[ií]|yes|1)$/i.test(val);
       }
     }
-    if (id) {
-      tasks.push({ id, title, dependsOn, isScript, autoHeal, retries });
-    }
+
+    const taskObj = {
+      id,
+      title,
+      instructions,
+      scriptPath,
+      isScript: !!scriptPath,
+      dependsOn,
+      timeoutSec,
+      continueOnError,
+      autoHeal: autoHeal !== undefined ? autoHeal : globalSelfHeal,
+      retries: retries !== undefined ? retries : globalRetries
+    };
+    tasks.push(taskObj);
+    tasksMap.set(id, taskObj);
   }
 
   if (tasks.length === 0) {
-    container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Escribe tareas en el editor para previsualizar el grafo de dependencias...</span>';
+    container.innerHTML = '<div style="width: 100%; text-align: center; padding: 28px 16px; border: 1px dashed rgba(244, 63, 94, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.35); color: #94a3b8; font-size: 0.88rem;">' +
+      '👑 <strong>No se detectaron tareas</strong> — Agrega encabezados <code>## Tarea: Nombre</code> con directivas <code>- **Instrucciones**: ...</code> para generar el pipeline.' +
+    '</div>';
     return;
   }
 
-  const isBackground = !textarea.value || textarea.value.trim().length === 0;
+  // 3. Ordenación Topológica (Algoritmo de Kahn)
+  const inDegree = new Map();
+  const adj = new Map();
+  tasks.forEach(t => {
+    inDegree.set(t.id, 0);
+    adj.set(t.id, []);
+  });
 
-  container.innerHTML = tasks.map((t, idx) => {
+  tasks.forEach(t => {
+    t.dependsOn.forEach(depId => {
+      // Normalizar alias
+      const resolvedDep = tasksMap.has(depId) ? depId : Array.from(tasksMap.keys()).find(k => k.includes(depId) || depId.includes(k));
+      if (resolvedDep && adj.has(resolvedDep)) {
+        adj.get(resolvedDep).push(t.id);
+        inDegree.set(t.id, (inDegree.get(t.id) || 0) + 1);
+      }
+    });
+  });
+
+  const queue = [];
+  inDegree.forEach((deg, id) => {
+    if (deg === 0) queue.push(id);
+  });
+
+  const sortedTasks = [];
+  while (queue.length > 0) {
+    const currId = queue.shift();
+    sortedTasks.push(tasksMap.get(currId));
+    (adj.get(currId) || []).forEach(nextId => {
+      inDegree.set(nextId, inDegree.get(nextId) - 1);
+      if (inDegree.get(nextId) === 0) {
+        queue.push(nextId);
+      }
+    });
+  }
+
+  // Detección de ciclos
+  const hasCycle = sortedTasks.length < tasks.length;
+  if (hasCycle) {
+    // Añadir las tareas no resueltas al final
+    tasks.forEach(t => {
+      if (!sortedTasks.includes(t)) sortedTasks.push(t);
+    });
+  }
+
+  // 4. Renderizado Visual Dinámico y de Alta Calidad
+  let ribbonHtml = '';
+  if (globalEmail || globalWebhook || autoHealMatch || retriesMatch) {
+    ribbonHtml = '<div style="width: 100%; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding: 8px 12px; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 6px; font-size: 0.78rem; align-items: center;">' +
+      '<strong style="color: #fb7185; display: flex; align-items: center; gap: 4px;">👑 Directivas Declaradas:</strong>' +
+      (globalEmail ? '<span class="badge" style="background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3);">📧 ' + escapeHtml(globalEmail) + '</span>' : '') +
+      (globalWebhook ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">📡 Webhook Activo</span>' : '') +
+      '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">🛡️ Auto-Healing Global: ' + (globalSelfHeal ? globalRetries + 'x reintentos' : 'Desactivado') + '</span>' +
+    '</div>';
+  }
+
+  const cycleWarningHtml = hasCycle ? '<div style="width: 100%; margin-bottom: 12px; padding: 10px 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #f87171; font-size: 0.8rem; font-weight: 600;">⚠️ Advertencia: Se ha detectado una dependencia circular o referencia no resuelta en el grafo. Las tareas se ejecutarán en orden de seguridad.</div>' : '';
+
+  const pipelineCardsHtml = sortedTasks.map((t, idx) => {
     const depsBadge = t.dependsOn.length > 0 
-      ? '<span class="badge badge-amber" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">deps: ' + escapeHtml(t.dependsOn.join(', ')) + '</span>'
-      : '<span class="badge badge-green" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">raíz (sin deps)</span>';
+      ? '<span class="badge badge-amber" style="font-size: 0.68rem; margin-top: 5px; display: inline-block;">🔗 tras: ' + escapeHtml(t.dependsOn.join(', ')) + '</span>'
+      : '<span class="badge badge-green" style="font-size: 0.68rem; margin-top: 5px; display: inline-block;">🌱 Raíz (Paso Inicial)</span>';
 
     const typeBadge = t.isScript
-      ? '<span class="badge badge-blue" style="font-size: 0.65rem; margin-left: 4px;">Script</span>'
-      : '<span class="badge" style="background: rgba(244,63,94,0.15); color: #fb7185; font-size: 0.65rem; margin-left: 4px;">IA Lambda</span>';
+      ? '<span class="badge badge-blue" style="font-size: 0.65rem;" title="Script explícito en disco">📜 ' + escapeHtml(t.scriptPath) + '</span>'
+      : '<span class="badge" style="background: rgba(244,63,94,0.15); color: #fb7185; font-size: 0.65rem;" title="Generación autónoma vía IA">🤖 IA Lambda</span>';
 
     const healBadge = t.autoHeal
-      ? '<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; font-size: 0.65rem; margin-left: 4px;" title="Auto-Healing activo (' + t.retries + ' reintentos)">🛡️ ' + t.retries + 'x</span>'
-      : '<span class="badge" style="background: rgba(100,116,139,0.2); color: #94a3b8; font-size: 0.65rem; margin-left: 4px;">🛡️ Off</span>';
+      ? '<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; font-size: 0.65rem;" title="Auto-Healing granular activo">🛡️ ' + t.retries + 'x heal</span>'
+      : '<span class="badge" style="background: rgba(100,116,139,0.2); color: #94a3b8; font-size: 0.65rem;">🛡️ Off</span>';
 
-    const arrow = idx < tasks.length - 1 ? '<span style="color: rgba(244, 63, 94, 0.6); font-size: 1.1rem; align-self: center; margin: 0 4px;">➜</span>' : '';
+    const timeoutBadge = '<span class="badge" style="background: rgba(148,163,184,0.15); color: #cbd5e1; font-size: 0.65rem;">⏱️ ' + t.timeoutSec + 's</span>';
+    const errBadge = t.continueOnError
+      ? '<span class="badge" style="background: rgba(234,179,8,0.15); color: #facc15; font-size: 0.65rem;">⚠️ Tolera error</span>'
+      : '<span class="badge" style="background: rgba(168,85,247,0.15); color: #c084fc; font-size: 0.65rem;">🛑 Estricto</span>';
+
+    const arrow = idx < sortedTasks.length - 1 ? '<span style="color: rgba(244, 63, 94, 0.7); font-size: 1.25rem; align-self: center; margin: 0 4px; filter: drop-shadow(0 0 4px rgba(244,63,94,0.4));">➔</span>' : '';
 
     return '<div style="display: flex; align-items: center; gap: 8px;">' +
-      '<div style="background: rgba(19, 23, 34, 0.9); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; padding: 10px 14px; min-width: 150px;' + (isBackground ? ' opacity: 0.8;' : '') + '">' +
-        '<div style="display: flex; justify-content: space-between; align-items: center;">' +
-          '<div style="font-weight: 700; font-size: 0.86rem; color: #f8fafc;">' + (idx + 1) + '. ' + escapeHtml(t.title) + '</div>' +
-          '<div>' + typeBadge + healBadge + '</div>' +
+      '<div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; padding: 12px 16px; min-width: 170px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">' +
+          '<div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc;">Paso ' + (idx + 1) + ': ' + escapeHtml(t.title) + '</div>' +
         '</div>' +
-        '<code style="font-size: 0.72rem; color: #94a3b8; display: block; margin-top: 2px;">' + escapeHtml(t.id) + '</code>' +
+        '<div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">' +
+          typeBadge +
+          healBadge +
+          timeoutBadge +
+          errBadge +
+        '</div>' +
+        '<code style="font-size: 0.72rem; color: #94a3b8; display: block; margin-top: 2px;">#' + escapeHtml(t.id) + '</code>' +
         depsBadge +
       '</div>' +
       arrow +
     '</div>';
   }).join('');
+
+  container.innerHTML = '<div style="width: 100%;">' + ribbonHtml + cycleWarningHtml + '<div style="display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 8px;">' + pipelineCardsHtml + '</div></div>';
 }
-window.updateRexDagPreview = updateRexDagPreview;
-async function initRexUI() {
+window.updateRexDagPreview = updateRexDagPreview;async function initRexUI() {
   const textarea = document.getElementById('rex-plan-content');
   if (textarea) {
     textarea.placeholder = SYNTHETIC_REX_PLAN;
@@ -7182,19 +7295,13 @@ async function dispatchRex() {
   const repoSelect = document.getElementById('rex-repo-select');
   const branchSelect = document.getElementById('rex-branch-select');
   const planTextarea = document.getElementById('rex-plan-content');
-  const emailInput = document.getElementById('rex-email-input');
-  const webhookInput = document.getElementById('rex-webhook-input');
-  const selfHealToggle = document.getElementById('rex-selfheal-toggle');
-  const retriesSelect = document.getElementById('rex-retries-select');
   const spinner = document.getElementById('rex-spinner');
 
   const repo = repoSelect ? repoSelect.value : '';
   const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
-  const planContent = (planTextarea && planTextarea.value && planTextarea.value.trim().length > 0) ? planTextarea.value.trim() : (planTextarea && planTextarea.placeholder ? planTextarea.placeholder : SYNTHETIC_REX_PLAN);
-  const notifyEmail = (emailInput ? emailInput.value : '').trim();
-  const notifyWebhook = (webhookInput ? webhookInput.value : '').trim();
-  const selfHeal = selfHealToggle ? selfHealToggle.checked : true;
-  const maxRetries = retriesSelect ? retriesSelect.value : '3';
+  const planContent = (planTextarea && planTextarea.value && planTextarea.value.trim().length > 0) 
+    ? planTextarea.value.trim() 
+    : (planTextarea && planTextarea.placeholder ? planTextarea.placeholder : SYNTHETIC_REX_PLAN);
 
   if (!repo) {
     sphexnAlert('Por favor, selecciona un repositorio destino para orquestar con Rex.', 'Repositorio Requerido', '⚠️');
@@ -7209,6 +7316,28 @@ async function dispatchRex() {
   if (!planContent) {
     sphexnAlert('El plan declarativo (sphexn_rex.md) no puede estar vacío.', 'Plan Vacío', '⚠️');
     return;
+  }
+
+  // 1. Extraer Directivas declaradas en el propio plan Markdown
+  let notifyEmail = '';
+  const emailMatch = planContent.match(/^##?\s*(?:Destinatario|Email|Notify-Email)[^\n]*\n([^\n]+)/im);
+  if (emailMatch) notifyEmail = emailMatch[1].trim().replace(/^[-*]\s*/, '');
+
+  let notifyWebhook = '';
+  const webhookMatch = planContent.match(/^##?\s*(?:Webhook|Notify-Webhook)[^\n]*\n([^\n]+)/im);
+  if (webhookMatch) notifyWebhook = webhookMatch[1].trim().replace(/^[-*]\s*/, '');
+
+  let selfHeal = 'true';
+  const autoHealMatch = planContent.match(/^##?\s*(?:Auto-Healing|AutoHeal|Auto-Heal)[^\n]*\n([^\n]+)/im);
+  if (autoHealMatch) {
+    selfHeal = !/^(?:false|no|0|off|desactivado)$/i.test(autoHealMatch[1].trim()) ? 'true' : 'false';
+  }
+
+  let maxRetries = '3';
+  const retriesMatch = planContent.match(/^##?\s*(?:Reintentos|Retries|Max-Retries)[^\n]*\n([^\n]+)/im);
+  if (retriesMatch) {
+    const num = parseInt(retriesMatch[1].trim(), 10);
+    if (!isNaN(num) && num >= 0) maxRetries = String(num);
   }
 
   if (spinner) spinner.style.display = 'block';
@@ -7228,55 +7357,52 @@ async function dispatchRex() {
       body: JSON.stringify({
         ref: branch,
         inputs: {
-          plan_content: planContent,
+          repo: repo,
+          branch: branch,
           plan_file: 'sphexn_rex.md',
-          task_filter: '',
-          self_heal: String(selfHeal),
-          max_retries: String(maxRetries),
+          plan_content: planContent,
           notify_email: notifyEmail,
           notify_webhook: notifyWebhook,
-          fallback_matrix: JSON.stringify(activeChain),
-          repo: repo,
-          branch: branch
+          self_heal: selfHeal,
+          max_retries: maxRetries,
+          model_matrix: JSON.stringify(activeChain)
         }
       })
     });
 
-    if (spinner) spinner.style.display = 'none';
+    if (res.status === 204 || res.ok) {
+      sphexnAlert(
+        'Orquestación Sphexn Rex despachada con éxito en ' + repo + ' (Rama: ' + branch + ').\n' +
+        'Directivas aplicadas:\n' +
+        '• Destinatario: ' + (notifyEmail || '(No configurado)') + '\n' +
+        '• Webhook: ' + (notifyWebhook ? 'Activo' : '(No configurado)') + '\n' +
+        '• Auto-Healing: ' + (selfHeal === 'true' ? 'Activo (' + maxRetries + ' reintentos)' : 'Inactivo'),
+        'Sphexn Rex Despachado',
+        '👑'
+      );
 
-    if (res.status === 204 || res.status === 200 || res.status === 201) {
-      sphexnAlert('Disparo exitoso de Sphexn Rex en ' + repo + ' (' + branch + '). El orquestador está ejecutando el pipeline en GitHub Actions.', 'Rex Orquestado 🚀', '👑');
-
-      const newAudit = {
-        id: 'rex_' + Date.now(),
+      saveRexAuditToLocal({
+        id: 'rex_dispatched_' + Date.now(),
         repo: repo,
         branch: branch,
-        planTitle: (planContent.match(/^#\s*([^\n]+)/m) || [])[1] || 'Sphexn Rex Plan',
+        planTitle: (planContent.match(/^#\s*([^\n]+)/m) || [])[1] || 'Orquestación Declarativa',
         timestamp: new Date().toISOString(),
         status: 'DISPATCHED',
-        totalTasks: (planContent.match(/^##\s+Tarea:/gim) || []).length || 1,
-        successCount: 0,
-        failureCount: 0,
-        durationMs: 0,
-        email: notifyEmail,
-        webhook: notifyWebhook,
-        selfHeal: selfHeal,
-        provider: activeChain[0] ? activeChain[0].name : 'Groq Cloud'
-      };
-
-      saveRexAuditToLocal(newAudit);
+        totalTasks: (planContent.match(/^##\s+Tarea:/gim) || []).length || 3,
+        durationMs: 0
+      });
       loadRexAudits();
     } else {
-      const err = await res.json().catch(() => ({}));
-      sphexnAlert('Error ' + res.status + ' al despachar workflow: ' + (err.message || 'Verifica que .github/workflows/sphexn-rex.yml exista en la rama ' + branch), 'Fallo en Despacho', '❌');
+      const errText = await res.text();
+      sphexnAlert('Error al despachar el workflow sphexn-rex.yml (' + res.status + '):\n' + errText, 'Error de Despacho', '❌');
     }
-  } catch (e) {
+  } catch (err) {
+    sphexnAlert('Error de red al conectar con GitHub Actions: ' + err.message, 'Fallo de Red', '❌');
+  } finally {
     if (spinner) spinner.style.display = 'none';
-    sphexnAlert('Error de conexión con GitHub API: ' + e.message, 'Error de Red', '❌');
   }
 }
 window.dispatchRex = dispatchRex;
-
 async function syncRexRunsWithGitHub(force = false) {
   const token = getGitHubToken();
   const repoSelect = document.getElementById('rex-repo-select');

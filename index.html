@@ -950,35 +950,12 @@
                 </div>
               </div>
 
-              <!-- NOTIFICATIONS & SELF HEAL ROW -->
-              <div class="grid-3-col mt-16" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-                <div class="form-group">
-                  <label for="rex-email-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Destinatario de Correo (HTML):</label>
-                  <input type="email" id="rex-email-input" class="form-control" placeholder="ej: devops@empresa.com (opcional)" />
-                </div>
-
-                <div class="form-group">
-                  <label for="rex-webhook-input" style="font-weight: 600; display: block; margin-bottom: 6px;">Webhook Notificación:</label>
-                  <input type="url" id="rex-webhook-input" class="form-control" placeholder="ej: https://discord.com/api/webhooks/... (opcional)" />
-                </div>
-
-                <div class="form-group">
-                  <label for="rex-retries-select" style="font-weight: 600; display: block; margin-bottom: 6px;">Auto-Healing & Reintentos:</label>
-                  <div style="display: flex; gap: 12px; align-items: center; margin-top: 4px;">
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
-                      <input type="checkbox" id="rex-selfheal-toggle" checked />
-                      <span>Activar Auto-Healing</span>
-                    </label>
-                    <select id="rex-retries-select" class="form-control" style="width: 100px;">
-                      <option value="1">1 intento</option>
-                      <option value="2">2 intentos</option>
-                      <option value="3" selected>3 intentos</option>
-                      <option value="5">5 intentos</option>
-                    </select>
-                  </div>
-                </div>
+              <!-- NOTIFICATIONS & SELF HEAL NOTE -->
+              <div class="mt-12" style="font-size: 0.82rem; color: #94a3b8; display: flex; align-items: center; gap: 8px; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255, 255, 255, 0.06); padding: 8px 14px; border-radius: 6px;">
+                <span>💡</span>
+                <span><strong>GitOps Declarativo:</strong> Destinatarios (<code>## Destinatario</code>), webhooks (<code>## Webhook</code>), auto-healing (<code>## Auto-Healing</code>) y reintentos (<code>## Reintentos</code>) se configuran directamente dentro del propio plan markdown.</span>
               </div>
-
+              
               <!-- PLAN EDITOR -->
               <div class="form-group mt-20">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1872,6 +1849,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260907_rex04"></script>
+  <script src="app.js?v=20260907_rex05"></script>
 </body>
 </html>
