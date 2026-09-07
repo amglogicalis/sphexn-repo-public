@@ -7008,14 +7008,14 @@ window.renderAutoObscurusMonitoredRepos = renderAutoObscurusMonitoredRepos;
 // SPHEXN REX — DECLARATIVE DEVOPS ORCHESTRATOR & AUTO-REX ENGINE
 // =============================================================================
 
-const SYNTHETIC_REX_PLAN = "# Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)\n\n## Destinatario\ndevops-alerts@terra-ecosystem.com, admin@empresa.com\n\n## Webhook\nhttps://discord.com/api/webhooks/123456789/sphexn-alerts\n\n---\n\n## Tarea: Check Node Runtime\n- **Instrucciones**: Comprueba la versión de Node.js instalada en el sistema (debe ser >= 18). Muestra un log informativo y finaliza con éxito.\n- **Continuar si falla**: false\n- **Timeout**: 60\n- **Env**: NODE_ENV=production, STRICT_MODE=true\n\n## Tarea: Workspace Integrity Scan\n- **Instrucciones**: Escanea el directorio raíz del proyecto y cuenta el número de archivos JavaScript y TypeScript. Imprime el recuento total.\n- **Depende de**: check-node-runtime\n- **Continuar si falla**: true\n- **Timeout**: 120\n\n## Tarea: Syntax and Package Audit\n- **Instrucciones**: Valida la sintaxis formal de package.json y comprueba que contenga los campos name, version y scripts sin errores de parseo.\n- **Depende de**: workspace-integrity-scan\n- **Continuar si falla**: false\n- **Timeout**: 90\n\n## Tarea: Custom Automation Script\n- **Instrucciones**: Ejecuta un script explícito de compilación o preparación si existe en disco.\n- **Ejecutar**: .sphexn/rex/tasks/custom-step.js\n- **Depende de**: syntax-and-package-audit\n- **Continuar si falla**: true\n- **Timeout**: 180\n- **Env**: DEPLOY_TARGET=staging, RELEASE_CHANNEL=canary\n";
+const SYNTHETIC_REX_PLAN = "# Sphexn Rex — Plan de Automatización Integral (Ejemplo Sintético)\n\n## Destinatario\ndevops-alerts@terra-ecosystem.com, admin@empresa.com\n\n## Webhook\nhttps://discord.com/api/webhooks/123456789/sphexn-alerts\n\n## Auto-Healing\nactivado\n\n## Reintentos\n3\n\n---\n\n## Tarea: Check Node Runtime\n- **Instrucciones**: Comprueba la versión de Node.js instalada en el sistema (debe ser >= 18). Muestra un log informativo y finaliza con éxito.\n- **Auto-Healing**: true\n- **Reintentos**: 3\n- **Continuar si falla**: false\n- **Timeout**: 60\n- **Env**: NODE_ENV=production, STRICT_MODE=true\n\n## Tarea: Workspace Integrity Scan\n- **Instrucciones**: Escanea el directorio raíz del proyecto y cuenta el número de archivos JavaScript y TypeScript. Imprime el recuento total.\n- **Depende de**: check-node-runtime\n- **Auto-Healing**: true\n- **Reintentos**: 2\n- **Continuar si falla**: true\n- **Timeout**: 120\n\n## Tarea: Syntax and Package Audit\n- **Instrucciones**: Valida la sintaxis formal de package.json y comprueba que contenga los campos name, version y scripts sin errores de parseo.\n- **Depende de**: workspace-integrity-scan\n- **Auto-Healing**: true\n- **Reintentos**: 3\n- **Continuar si falla**: false\n- **Timeout**: 90\n\n## Tarea: Custom Automation Script\n- **Instrucciones**: Ejecuta un script explícito de compilación o preparación si existe en disco.\n- **Ejecutar**: .sphexn/rex/tasks/custom-step.js\n- **Depende de**: syntax-and-package-audit\n- **Auto-Healing**: false\n- **Continuar si falla**: true\n- **Timeout**: 180\n- **Env**: DEPLOY_TARGET=staging, RELEASE_CHANNEL=canary\n";
 
 function updateRexDagPreview() {
   const container = document.getElementById('rex-dag-container');
   const textarea = document.getElementById('rex-plan-content');
   if (!container || !textarea) return;
 
-  const raw = textarea.value || '';
+  const raw = (textarea.value && textarea.value.trim().length > 0) ? textarea.value : (textarea.placeholder || SYNTHETIC_REX_PLAN);
   const sections = raw.split(/^##\s+Tarea:/im);
   const tasks = [];
 
@@ -7025,6 +7025,8 @@ function updateRexDagPreview() {
     const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     let dependsOn = [];
     let isScript = false;
+    let autoHeal = true;
+    let retries = 3;
 
     for (const l of lines.slice(1)) {
       if (/^-\s*\*{0,2}Depende de\*{0,2}\s*:/i.test(l.trim())) {
@@ -7034,9 +7036,17 @@ function updateRexDagPreview() {
       if (/^-\s*\*{0,2}Ejecutar\*{0,2}\s*:/i.test(l.trim())) {
         isScript = true;
       }
+      if (/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:/i.test(l.trim())) {
+        const val = l.trim().replace(/^-\s*\*{0,2}Auto-Healing\*{0,2}\s*:\s*/i, '');
+        autoHeal = !/^(?:false|no|0|off|desactivado)$/i.test(val);
+      }
+      if (/^-\s*\*{0,2}Reintentos\*{0,2}\s*:/i.test(l.trim())) {
+        const r = parseInt(l.trim().replace(/^-\s*\*{0,2}Reintentos\*{0,2}\s*:\s*/i, ''), 10);
+        if (!isNaN(r)) retries = r;
+      }
     }
     if (id) {
-      tasks.push({ id, title, dependsOn, isScript });
+      tasks.push({ id, title, dependsOn, isScript, autoHeal, retries });
     }
   }
 
@@ -7044,6 +7054,8 @@ function updateRexDagPreview() {
     container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Escribe tareas en el editor para previsualizar el grafo de dependencias...</span>';
     return;
   }
+
+  const isBackground = !textarea.value || textarea.value.trim().length === 0;
 
   container.innerHTML = tasks.map((t, idx) => {
     const depsBadge = t.dependsOn.length > 0 
@@ -7054,13 +7066,17 @@ function updateRexDagPreview() {
       ? '<span class="badge badge-blue" style="font-size: 0.65rem; margin-left: 4px;">Script</span>'
       : '<span class="badge" style="background: rgba(244,63,94,0.15); color: #fb7185; font-size: 0.65rem; margin-left: 4px;">IA Lambda</span>';
 
+    const healBadge = t.autoHeal
+      ? '<span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; font-size: 0.65rem; margin-left: 4px;" title="Auto-Healing activo (' + t.retries + ' reintentos)">🛡️ ' + t.retries + 'x</span>'
+      : '<span class="badge" style="background: rgba(100,116,139,0.2); color: #94a3b8; font-size: 0.65rem; margin-left: 4px;">🛡️ Off</span>';
+
     const arrow = idx < tasks.length - 1 ? '<span style="color: rgba(244, 63, 94, 0.6); font-size: 1.1rem; align-self: center; margin: 0 4px;">➜</span>' : '';
 
     return '<div style="display: flex; align-items: center; gap: 8px;">' +
-      '<div style="background: rgba(19, 23, 34, 0.9); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; padding: 10px 14px; min-width: 150px;">' +
+      '<div style="background: rgba(19, 23, 34, 0.9); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; padding: 10px 14px; min-width: 150px;' + (isBackground ? ' opacity: 0.8;' : '') + '">' +
         '<div style="display: flex; justify-content: space-between; align-items: center;">' +
           '<div style="font-weight: 700; font-size: 0.86rem; color: #f8fafc;">' + (idx + 1) + '. ' + escapeHtml(t.title) + '</div>' +
-          typeBadge +
+          '<div>' + typeBadge + healBadge + '</div>' +
         '</div>' +
         '<code style="font-size: 0.72rem; color: #94a3b8; display: block; margin-top: 2px;">' + escapeHtml(t.id) + '</code>' +
         depsBadge +
@@ -7070,11 +7086,14 @@ function updateRexDagPreview() {
   }).join('');
 }
 window.updateRexDagPreview = updateRexDagPreview;
-
 async function initRexUI() {
   const textarea = document.getElementById('rex-plan-content');
-  if (textarea && (!textarea.value || textarea.value.trim().length < 20)) {
-    textarea.value = SYNTHETIC_REX_PLAN;
+  if (textarea) {
+    textarea.placeholder = SYNTHETIC_REX_PLAN;
+    // Si contiene el texto sintético idéntico o está vacío, dejarlo vacío para que se vea de fondo como placeholder
+    if (!textarea.value || textarea.value.trim() === SYNTHETIC_REX_PLAN.trim()) {
+      textarea.value = '';
+    }
   }
   updateRexDagPreview();
   await loadRexRepositories();
@@ -7082,7 +7101,6 @@ async function initRexUI() {
   syncRexRunsWithGitHub(false);
 }
 window.initRexUI = initRexUI;
-
 function renderRexRepoOptions(reposList) {
   const select = document.getElementById('rex-repo-select');
   if (!select) return;
@@ -7172,7 +7190,7 @@ async function dispatchRex() {
 
   const repo = repoSelect ? repoSelect.value : '';
   const branch = (branchSelect ? branchSelect.value : 'main').trim() || 'main';
-  const planContent = (planTextarea ? planTextarea.value : '').trim();
+  const planContent = (planTextarea && planTextarea.value && planTextarea.value.trim().length > 0) ? planTextarea.value.trim() : (planTextarea && planTextarea.placeholder ? planTextarea.placeholder : SYNTHETIC_REX_PLAN);
   const notifyEmail = (emailInput ? emailInput.value : '').trim();
   const notifyWebhook = (webhookInput ? webhookInput.value : '').trim();
   const selfHeal = selfHealToggle ? selfHealToggle.checked : true;
