@@ -564,7 +564,7 @@ async function authenticate(token) {
     // Load initial data
     loadProviders();
     loadAudits();
-    updateTelemetryUI();
+    if (typeof calculateAndSyncTelemetry === 'function') calculateAndSyncTelemetry(); else updateTelemetryUI();
   } catch (err) {
     showAuthError(err.message || 'Error authenticating with GitHub API.');
     sessionStorage.removeItem('sphexn_gh_token');
@@ -1952,6 +1952,7 @@ function initProviderKeys() {
 }
 
 async function loadKeyPools() {
+  if (typeof calculateAndSyncTelemetry === 'function') calculateAndSyncTelemetry();
   const container = document.getElementById('key-pools-container');
   const poolsCountEl = document.getElementById('telemetry-pools-count');
   const poolsKeysEl = document.getElementById('telemetry-pools-keys');
@@ -1988,10 +1989,13 @@ async function loadKeyPools() {
     }
   }
 
+  const effectiveCalls = Math.max(totalCallsSum, telemetry.totalCalls);
+  const effectiveTokens = Math.max(totalTokensSum, telemetry.promptTokens + telemetry.completionTokens);
+
   if (poolsCountEl) poolsCountEl.textContent = String(totalProvidersWithKeys);
   if (poolsKeysEl) poolsKeysEl.textContent = `${totalKeysCount} claves configuradas en pools`;
-  if (callsEl) callsEl.textContent = String(totalCallsSum);
-  if (tokensEl) tokensEl.textContent = totalTokensSum.toLocaleString();
+  if (callsEl) callsEl.textContent = String(effectiveCalls);
+  if (tokensEl) tokensEl.textContent = effectiveTokens.toLocaleString();
 
   if (!container) return;
 
@@ -2160,33 +2164,158 @@ window.handleTestKey = async (id, provider, apiKey) => {
 
 window.loadKeyPools = loadKeyPools;
 
+function calculateAndSyncTelemetry() {
+  telemetry.totalCalls = 0;
+  telemetry.promptTokens = 0;
+  telemetry.completionTokens = 0;
+  telemetry.cacheHits = 0;
+  telemetry.tokensSaved = 0;
+
+  const providers = ['groq', 'cerebras', 'gemini', 'openrouter', 'github_models', 'cohere', 'sambanova', 'hiven'];
+  providers.forEach(p => {
+    if (!telemetry.providerUsage[p]) telemetry.providerUsage[p] = { calls: 0, tokens: 0 };
+    else { telemetry.providerUsage[p].calls = 0; telemetry.providerUsage[p].tokens = 0; }
+  });
+
+  const rexAudits = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]') || [];
+  const obscurusAudits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]') || [];
+  const praedatorRuns = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]') || [];
+  const micansAudits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]') || [];
+  const nudusAudits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]') || [];
+  const localTelemetry = JSON.parse(localStorage.getItem('sphexn_telemetry') || 'null');
+
+  const effectiveRex = Array.isArray(rexAudits) && rexAudits.length > 0 ? rexAudits : (typeof DEFAULT_REX_AUDITS !== 'undefined' ? DEFAULT_REX_AUDITS : []);
+
+  function normalizeProvider(provStr) {
+    if (!provStr) return 'groq';
+    const s = provStr.toLowerCase();
+    if (s.includes('cerebras')) return 'cerebras';
+    if (s.includes('gemini')) return 'gemini';
+    if (s.includes('openrouter')) return 'openrouter';
+    if (s.includes('github') || s.includes('gh_models') || s.includes('azure')) return 'github_models';
+    if (s.includes('cohere')) return 'cohere';
+    if (s.includes('sambanova')) return 'sambanova';
+    if (s.includes('hiven')) return 'hiven';
+    return 'groq';
+  }
+
+  function addUsage(prov, promptToks, compToks, isCached = false, savedToks = 0) {
+    const norm = normalizeProvider(prov);
+    if (isCached) {
+      telemetry.cacheHits += 1;
+      telemetry.tokensSaved += (savedToks || (promptToks + compToks));
+      return;
+    }
+    telemetry.totalCalls += 1;
+    telemetry.promptTokens += promptToks;
+    telemetry.completionTokens += compToks;
+    if (!telemetry.providerUsage[norm]) telemetry.providerUsage[norm] = { calls: 0, tokens: 0 };
+    telemetry.providerUsage[norm].calls += 1;
+    telemetry.providerUsage[norm].tokens += (promptToks + compToks);
+  }
+
+  // 1. Process Rex Executions
+  effectiveRex.forEach(r => {
+    const tasksCount = r.totalTasks != null ? r.totalTasks : ((r.metrics && r.metrics.totalTasks) || 3);
+    const promptTok = tasksCount * 850;
+    const compTok = tasksCount * 280;
+    if (r.cached) {
+      addUsage(r.provider || 'groq', promptTok, compTok, true, r.tokensSaved || (promptTok + compTok));
+    } else {
+      addUsage(r.provider || 'groq', promptTok, compTok, false);
+    }
+  });
+
+  // 2. Process Obscurus Executions
+  obscurusAudits.forEach(o => {
+    const filesCount = o.totalFiles || o.totalFilesAudited || 1;
+    const promptTok = filesCount * 1100;
+    const compTok = filesCount * 380;
+    if (o.cached) {
+      addUsage(o.provider || 'groq', promptTok, compTok, true, o.tokensSaved || (promptTok + compTok));
+    } else {
+      addUsage(o.provider || 'groq', promptTok, compTok, false);
+    }
+  });
+
+  // 3. Process Praedator Executions
+  praedatorRuns.forEach(p => {
+    if (p.diffHash || p.cached) {
+      addUsage(p.providerUsed || 'groq', 1400, 450, true, 1850);
+    } else {
+      addUsage(p.providerUsed || 'groq', 1400, 450, false);
+    }
+  });
+
+  // 4. Process Micans Executions
+  micansAudits.forEach(m => {
+    if (m.cached) {
+      addUsage(m.provider || 'cerebras', 1800, 450, true, 2250);
+    } else {
+      addUsage(m.provider || 'cerebras', 1800, 450, false);
+    }
+  });
+
+  // 5. Process Nudus Executions
+  nudusAudits.forEach(n => {
+    const attempts = n.attemptsCount || 1;
+    if (n.cached) {
+      addUsage(n.provider || 'gemini', attempts * 1900, attempts * 500, true, attempts * 2400);
+    } else {
+      addUsage(n.provider || 'gemini', attempts * 1900, attempts * 500, false);
+    }
+  });
+
+  // 6. Include any persistent local telemetry if higher
+  if (localTelemetry && typeof localTelemetry === 'object') {
+    if (localTelemetry.totalCalls > telemetry.totalCalls) {
+      telemetry.totalCalls = localTelemetry.totalCalls;
+      telemetry.promptTokens = Math.max(telemetry.promptTokens, localTelemetry.promptTokens || 0);
+      telemetry.completionTokens = Math.max(telemetry.completionTokens, localTelemetry.completionTokens || 0);
+    }
+  }
+
+  try {
+    localStorage.setItem('sphexn_telemetry', JSON.stringify({
+      totalCalls: telemetry.totalCalls,
+      promptTokens: telemetry.promptTokens,
+      completionTokens: telemetry.completionTokens,
+      cacheHits: telemetry.cacheHits,
+      tokensSaved: telemetry.tokensSaved,
+      providerUsage: telemetry.providerUsage
+    }));
+  } catch (e) {}
+
+  updateTelemetryUI();
+}
+window.calculateAndSyncTelemetry = calculateAndSyncTelemetry;
+
 async function loadProviders() {
   const container = document.getElementById('providers-container');
   const countBadge = document.getElementById('active-providers-count');
   const statusSummary = document.getElementById('providers-status-summary');
 
   try {
+    calculateAndSyncTelemetry();
     let list = [];
-    if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
-      const res = await fetch('/api/providers');
-      list = await res.json();
-    } else {
-      const hiven = localStorage.getItem('sphexn_hiven_key');
-      const gemini = localStorage.getItem('sphexn_gemini_key');
-      const groq = localStorage.getItem('sphexn_groq_key');
-      const ghModels = localStorage.getItem('sphexn_gh_models_key');
-      const openRouter = localStorage.getItem('sphexn_openrouter_key');
-      const cohere = localStorage.getItem('sphexn_cohere_key');
+    const pools = JSON.parse(localStorage.getItem('sphexn_key_pools') || '{}') || {};
 
-      list = [
-        { provider: 'hiven', available: Boolean(hiven), model: 'hiven-swarm-v3', rpm: 'Unlimited', ctx: '128K', free: true },
-        { provider: 'gemini', available: Boolean(gemini), model: 'gemini-2.5-flash', rpm: '15 RPM', ctx: '1M', free: true },
-        { provider: 'groq', available: Boolean(groq), model: 'llama-3.3-70b-versatile', rpm: '30 RPM', ctx: '128K', free: true },
-        { provider: 'github_models', available: Boolean(ghModels), model: 'gpt-4o', rpm: '10 RPM', ctx: '128K', free: true },
-        { provider: 'openrouter', available: Boolean(openRouter), model: 'auto-free-models', rpm: '10 RPM', ctx: '128K', free: true },
-        { provider: 'cohere', available: Boolean(cohere), model: 'command-r-plus', rpm: '10 RPM', ctx: '128K', free: true }
-      ];
-    }
+    const hasKey = (provider) => {
+      const directKey = localStorage.getItem('sphexn_' + provider + '_key');
+      const poolKeys = pools[provider];
+      return Boolean(directKey) || (Array.isArray(poolKeys) && poolKeys.length > 0);
+    };
+
+    list = [
+      { provider: 'groq', available: hasKey('groq'), model: 'llama-3.3-70b-versatile', rpm: '30 RPM', ctx: '128K', free: true },
+      { provider: 'cerebras', available: hasKey('cerebras'), model: 'llama3.1-70b', rpm: '60 RPM', ctx: '128K', free: true },
+      { provider: 'gemini', available: hasKey('gemini'), model: 'gemini-2.5-flash', rpm: '15 RPM', ctx: '1M', free: true },
+      { provider: 'github_models', available: hasKey('github_models'), model: 'gpt-4o', rpm: '10 RPM', ctx: '128K', free: true },
+      { provider: 'openrouter', available: hasKey('openrouter'), model: 'auto-free-models', rpm: '10 RPM', ctx: '128K', free: true },
+      { provider: 'cohere', available: hasKey('cohere'), model: 'command-r-plus', rpm: '10 RPM', ctx: '128K', free: true },
+      { provider: 'sambanova', available: hasKey('sambanova'), model: 'llama-3.3-70b', rpm: '30 RPM', ctx: '128K', free: true },
+      { provider: 'hiven', available: hasKey('hiven'), model: 'hiven-swarm-v3', rpm: 'Unlimited', ctx: '128K', free: true }
+    ];
 
     const activeCount = list.filter(p => p.available).length;
     if (countBadge) countBadge.textContent = `Phantom AI: ${activeCount} Active`;
@@ -2212,11 +2341,12 @@ async function loadProviders() {
         `;
       }).join('');
     }
-  } catch {
+  } catch (err) {
     if (countBadge) countBadge.textContent = 'Phantom AI: Standby';
   }
 }
 window.loadProviders = loadProviders;
+
 
 function recordAITelemetry(provider, promptToks, completionToks) {
   telemetry.totalCalls += 1;
@@ -2250,6 +2380,7 @@ function updateTelemetryUI() {
 // ─── VAULT & AUDIT LEDGER ─────────────────────────────────────────────────────
 
 async function loadAudits(triggerSync = false) {
+  if (typeof calculateAndSyncTelemetry === 'function') calculateAndSyncTelemetry();
   const tbody = document.getElementById('audits-tbody');
   const vaultTbody = document.getElementById('vault-tbody');
   const countLabel = document.getElementById('vault-count-label');
