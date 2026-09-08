@@ -3303,7 +3303,7 @@ function renderLucaeRunsInventory() {
         '<div style="display: flex; gap: 6px; align-items: center;">' +
           '<button class="btn btn-secondary btn-xs" style="padding: 2px 8px;" onclick="event.stopPropagation(); displayLucaeRun(\'' + r.id + '\')">👁️ Ver</button>' +
           actionLink +
-          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deleteLucaeRun(\'' + r.id + '\')">🗑️</button>' +
+          '<button class="btn btn-danger btn-xs" style="padding: 3px 8px;" title="Borrar registro" onclick="event.stopPropagation(); deleteLucaeRun(\'' + r.id + '\')">✕</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -4558,7 +4558,7 @@ function renderPraedatorRunsInventory() {
         '<div style="display: flex; gap: 6px; align-items: center;">' +
           '<button class="btn btn-secondary btn-xs" style="padding: 2px 8px;" onclick="event.stopPropagation(); displayPraedatorRun(\'' + r.id + '\')">👁️ Ver</button>' +
           actionLink +
-          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deletePraedatorRun(\'' + r.id + '\')">🗑️</button>' +
+          '<button class="btn btn-danger btn-xs" style="padding: 3px 8px;" title="Borrar registro" onclick="event.stopPropagation(); deletePraedatorRun(\'' + r.id + '\')">✕</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -5138,7 +5138,7 @@ function loadMicansAudits() {
         '<div style="display: flex; gap: 6px; align-items: center;">' +
           '<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); viewMicansAuditDetail(' + idx + ')" style="padding: 3px 10px;">👁️ Ver</button>' +
           (a.actionUrl ? '<a href="' + a.actionUrl + '" target="_blank" onclick="event.stopPropagation();" class="btn btn-secondary btn-xs" style="padding: 3px 8px; text-decoration: none;">🔗 Action</a>' : '') +
-          '<button class="btn btn-danger btn-xs" style="padding: 2px 6px;" title="Eliminar del historial" onclick="event.stopPropagation(); deleteMicansAudit(\'' + a.id + '\')">🗑️</button>' +
+          '<button class="btn btn-danger btn-xs" style="padding: 3px 8px;" title="Borrar registro" onclick="event.stopPropagation(); deleteMicansAudit(\'' + a.id + '\')">✕</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
