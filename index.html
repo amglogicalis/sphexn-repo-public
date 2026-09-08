@@ -134,6 +134,13 @@
           </button>
         </nav>
 
+          <div class="nav-section-title">DOCUMENTATION &amp; ONBOARDING</div>
+          <button class="nav-item" data-tab="onboarding">
+            <span class="nav-icon">📖</span>
+            <span class="nav-label">Onboarding &amp; Guía</span>
+            <span class="nav-badge" style="color:#38bdf8; background:rgba(56,189,248,0.15)">Guía</span>
+          </button>
+        </div>
         <div class="sidebar-footer">
           <div class="ecosystem-tag">
             <span class="pulse-dot"></span>
@@ -1825,6 +1832,437 @@
             </div>
           </section>
 
+          <!-- 11. ONBOARDING, GUÍA DE USO & FAQ TAB -->
+          <section id="tab-onboarding" class="tab-pane">
+            <div class="onboarding-layout">
+              
+              <!-- STICKY DECOUPLED TOC (ÍNDICE ESTÁTICO NAVEGABLE) -->
+              <aside class="onboarding-toc">
+                <div style="font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                  <span>📑 ÍNDICE DE GUÍA &amp; FAQ</span>
+                </div>
+                <nav class="onboarding-nav" id="onboarding-toc-nav" style="display: flex; flex-direction: column; gap: 4px;">
+                  <a href="#onb-welcome" class="onb-nav-link active">
+                    <span>🚀</span><span>1. Bienvenida &amp; Arquitectura</span>
+                  </a>
+                  <a href="#onb-keys" class="onb-nav-link">
+                    <span>🔑</span><span>2. Obtención de API Keys</span>
+                  </a>
+                  <a href="#onb-species" class="onb-nav-link">
+                    <span>⚡</span><span>3. Las 6 Species: Uso &amp; Flujos</span>
+                  </a>
+                  <a href="#onb-vault" class="onb-nav-link">
+                    <span>📦</span><span>4. Vault &amp; Token-Saving Cache</span>
+                  </a>
+                  <a href="#onb-practices" class="onb-nav-link">
+                    <span>🛡️</span><span>5. Buenas &amp; Malas Prácticas</span>
+                  </a>
+                  <a href="#onb-faq" class="onb-nav-link">
+                    <span>❓</span><span>6. Preguntas Frecuentes (FAQ)</span>
+                  </a>
+                </nav>
+
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.74rem; color: #64748b; line-height: 1.5;">
+                  💡 <strong style="color: #94a3b8;">Navegación Fluida:</strong> Haz clic en cualquier sección para saltar directamente sin perder de vista este índice.
+                </div>
+              </aside>
+
+              <!-- MAIN DOCUMENTATION CONTENT -->
+              <div class="onboarding-content">
+
+                <!-- 1. BIENVENIDA & ARQUITECTURA -->
+                <article id="onb-welcome" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">🚀</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">1. Bienvenida a Sphexn Nest Studio</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Arquitectura Sovereign $0 Compute, Gobernanza de Código &amp; Verificación Continua</span>
+                    </div>
+                  </div>
+
+                  <p style="font-size: 0.92rem; line-height: 1.7; color: #cbd5e1; margin-bottom: 16px;">
+                    <strong>Sphexn</strong> es el motor de armadura estructural, gobernanza determinista y orquestación DevOps autónoma del <strong>Ecosistema Terra</strong>. Ha sido concebido bajo un principio inquebrantable: <strong>$0 coste de infraestructura fija</strong> y <strong>soberanía absoluta de datos</strong>.
+                  </p>
+
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0;">
+                    <div style="background: rgba(16,24,38,0.6); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px;">
+                      <div style="font-size: 1.2rem; margin-bottom: 6px;">💻</div>
+                      <div style="font-weight: 600; color: #f1f5f9; font-size: 0.9rem; margin-bottom: 4px;">1. Consola Web PWA</div>
+                      <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">Cliente ligero estático en tu navegador. Tus credenciales residen únicamente en tu máquina local.</div>
+                    </div>
+                    <div style="background: rgba(16,24,38,0.6); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px;">
+                      <div style="font-size: 1.2rem; margin-bottom: 6px;">⚡</div>
+                      <div style="font-weight: 600; color: #f1f5f9; font-size: 0.9rem; margin-bottom: 4px;">2. Runners Efímeros</div>
+                      <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">GitHub Actions en la nube ejecuta las species bajo demanda con la matriz de fallback inteligente.</div>
+                    </div>
+                    <div style="background: rgba(16,24,38,0.6); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px;">
+                      <div style="font-size: 1.2rem; margin-bottom: 6px;">📦</div>
+                      <div style="font-weight: 600; color: #f1f5f9; font-size: 0.9rem; margin-bottom: 4px;">3. Storage Vault</div>
+                      <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">Tu repositorio privado <code>.sphexn-storage</code> almacena registros inmutables y la caché de ahorro de tokens.</div>
+                    </div>
+                  </div>
+
+                  <div class="onb-pro-tip">
+                    🎯 <strong>Filosofía BYOAI (Bring Your Own AI):</strong> Sphexn no te cobra suscripciones ni intermediaciones de tokens. Conectas tus propias claves gratuitas de los proveedores líderes (Groq, Cerebras, Gemini, OpenRouter) y el sistema las gestiona con balanceo de carga y tolerancia a fallos automática.
+                  </div>
+                </article>
+
+                <!-- 2. OBTENCIÓN DE API KEYS -->
+                <article id="onb-keys" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">🔑</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">2. Obtención de API Keys (Guía Paso a Paso)</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Cómo generar tus claves en pocos minutos de forma gratuita en las plataformas oficiales</span>
+                    </div>
+                  </div>
+
+                  <p style="font-size: 0.92rem; line-height: 1.7; color: #cbd5e1;">
+                    Para dotar a Sphexn de máxima potencia e inmunidad ante límites de cuota (Rate Limits), se recomienda configurar al menos 2 proveedores diferentes. A continuación se detalla cómo obtener cada clave oficial sin intermediarios:
+                  </p>
+
+                  <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 20px;">
+                    
+                    <!-- GITHUB PAT -->
+                    <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 20px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 700; color: #38bdf8; font-size: 0.96rem;">🐙 GitHub Personal Access Token (PAT) — Requerido</span>
+                        <span class="badge badge-blue">Fundamental</span>
+                      </div>
+                      <p style="font-size: 0.86rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.6;">
+                        Permite a la consola comunicarse con tus repositorios, disparar las workflows de las species y sincronizar con tu bóveda privada <code>.sphexn-storage</code>.
+                      </p>
+                      <div style="font-size: 0.84rem; color: #cbd5e1; line-height: 1.65; background: rgba(0,0,0,0.35); padding: 14px 16px; border-radius: 8px;">
+                        <strong>Pasos para generarlo:</strong>
+                        <ol style="margin: 8px 0 0 20px; padding: 0;">
+                          <li>En tu perfil de GitHub, accede al menú superior derecho y haz clic en <strong>Settings (Configuración)</strong>.</li>
+                          <li>Baja en el menú lateral izquierdo hasta el final y entra en <strong>Developer settings (Ajustes de desarrollador)</strong>.</li>
+                          <li>Haz clic en <strong>Personal access tokens</strong> y selecciona <strong>Tokens (classic)</strong>.</li>
+                          <li>Pulsa en <strong>Generate new token (classic)</strong>. Asigna una descripción (ej: <code>Sphexn Sovereign Suite</code>).</li>
+                          <li>Marca <strong>únicamente dos permisos (scopes)</strong>:
+                            <ul style="margin: 4px 0 4px 20px;">
+                              <li><code>repo</code> (Acceso completo a repositorios para leer código y actualizar <code>.sphexn-storage</code>).</li>
+                              <li><code>workflow</code> (Para despachar los runners de las 6 species bajo demanda).</li>
+                            </ul>
+                          </li>
+                          <li>Haz clic en <strong>Generate token</strong> y copia la clave generada (empieza por <code>ghp_...</code>). Pégala en el login de Sphexn.</li>
+                        </ol>
+                      </div>
+                    </div>
+
+                    <!-- GROQ -->
+                    <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 700; color: #f59e0b; font-size: 0.96rem;">⚡ Groq Cloud (Llama 3.3 Versatile) — Altamente Recomendado</span>
+                        <span class="badge badge-amber">Alta Velocidad</span>
+                      </div>
+                      <p style="font-size: 0.86rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.6;">
+                        Proporciona inferencia a ultra-alta velocidad (cientos de tokens/segundo) con Llama 3.3 70B en hardware LPU sin coste inicial.
+                      </p>
+                      <div style="font-size: 0.84rem; color: #cbd5e1; line-height: 1.65; background: rgba(0,0,0,0.35); padding: 14px 16px; border-radius: 8px;">
+                        <strong>Pasos para generarla:</strong>
+                        <ol style="margin: 8px 0 0 20px; padding: 0;">
+                          <li>Inicia sesión con tu cuenta en la consola de desarrollador oficial de Groq.</li>
+                          <li>En la barra lateral izquierda, localiza la sección <strong>API Keys</strong>.</li>
+                          <li>Haz clic en el botón <strong>Create API Key</strong>.</li>
+                          <li>Escribe un nombre identificativo (ej: <code>Sphexn-Node-1</code>) y confirma.</li>
+                          <li>Copia el valor generado (comienza por <code>gsk_...</code>). Puedes pegarlo en la pestaña <em>BYOAI Providers</em> de Sphexn.</li>
+                        </ol>
+                      </div>
+                    </div>
+
+                    <!-- GEMINI -->
+                    <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 700; color: #60a5fa; font-size: 0.96rem;">✨ Google Gemini (Flash / Pro)</span>
+                        <span class="badge badge-blue">1M Contexto</span>
+                      </div>
+                      <p style="font-size: 0.86rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.6;">
+                        Ideal para análisis de repositorios extensos gracias a su ventana de contexto de 1 millón de tokens en el tier gratuito.
+                      </p>
+                      <div style="font-size: 0.84rem; color: #cbd5e1; line-height: 1.65; background: rgba(0,0,0,0.35); padding: 14px 16px; border-radius: 8px;">
+                        <strong>Pasos para generarla:</strong>
+                        <ol style="margin: 8px 0 0 20px; padding: 0;">
+                          <li>Entra en el portal de desarrollo de IA de Google (Google AI Studio) con tu cuenta de Google.</li>
+                          <li>En el panel superior izquierdo, haz clic en <strong>Get API key</strong> o <strong>Obtener clave de API</strong>.</li>
+                          <li>Selecciona <strong>Create API key in new project</strong> (Crear clave en proyecto nuevo).</li>
+                          <li>Copia el token resultante (empieza por <code>AIzaSy...</code>) y añádelo en la consola de Sphexn.</li>
+                        </ol>
+                      </div>
+                    </div>
+
+                    <!-- CEREBRAS & OPENROUTER -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                      <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px;">
+                        <span style="font-weight: 700; color: #ec4899; font-size: 0.92rem; display: block; margin-bottom: 8px;">🚀 Cerebras Cloud</span>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.55; margin-bottom: 10px;">
+                          Inicia sesión en la consola de inferencia de Cerebras, ve a <strong>API Keys</strong>, genera una nueva clave (comienza por <code>csk-...</code>) y agrégala al pool.
+                        </p>
+                      </div>
+                      <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px;">
+                        <span style="font-weight: 700; color: #10b981; font-size: 0.92rem; display: block; margin-bottom: 8px;">🌐 OpenRouter</span>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.55; margin-bottom: 10px;">
+                          En la plataforma OpenRouter, entra en <strong>Account &gt; Keys</strong>, genera una clave (empieza por <code>sk-or-...</code>) con acceso al catálogo de modelos gratuitos y de vanguardia.
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div class="onb-pro-tip" style="margin-top: 20px;">
+                    📂 <strong>Importación Rápida:</strong> Si tienes un archivo con múltiples claves, puedes hacer clic en el botón <strong>"Importar Claves Reales"</strong> dentro de la pestaña <em>BYOAI Providers</em>. El sistema auto-detectará el proveedor de cada clave sin que tengas que clasificarlas manualmente.
+                  </div>
+                </article>
+
+                <!-- 3. LAS 6 SPECIES -->
+                <article id="onb-species" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">⚡</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">3. Las 6 Species: Uso &amp; Flujos de Trabajo</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Especialización biomecánica para cada etapa del ciclo de vida del código</span>
+                    </div>
+                  </div>
+
+                  <p style="font-size: 0.92rem; line-height: 1.7; color: #cbd5e1;">
+                    Sphexn opera mediante 6 especies bio-inspiradas, cada una encargada de una disciplina de ingeniería concreta:
+                  </p>
+
+                  <div class="species-guide-grid">
+                    
+                    <!-- LUCAE -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #60a5fa; margin: 0;">🔍 Sphexn Lucae</h3>
+                          <span class="badge badge-blue">AST Nativo</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Arquitectura &amp; Topología:</strong> Mapea la estructura del repositorio, calcula la Complejidad Ciclomática (CC), identifica "God Files" y dibuja diagramas Mermaid interactivos.
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Consumo: <strong>0 Tokens</strong> ($0 Coste puro).</li>
+                          <li>Ideal para: Auditorías de deuda técnica antes de refactorizar.</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Seleccionar repo y rama &gt; "Analizar Topología".</div>
+                    </div>
+
+                    <!-- PRAEDATOR -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #f59e0b; margin: 0;">🦅 Sphexn Praedator</h3>
+                          <span class="badge badge-amber">PR Auditor</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Compuerta de Fusión &amp; Anti-Leaks:</strong> Audita los diffs de Pull Requests buscando secretos hardcodeados, fallos de seguridad y bugs con 0 falsos positivos (entropía Shannon).
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Caché: <strong>Diff-Hash SHA-256</strong> (0 tokens en re-auditorías).</li>
+                          <li>Ideal para: Protección de ramas principales (<code>main</code>, <code>master</code>).</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Indicar PR o diff &gt; Despachar Auditoría.</div>
+                    </div>
+
+                    <!-- MICANS -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #10b981; margin: 0;">📝 Sphexn Micans</h3>
+                          <span class="badge badge-green">Doc Sync</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Sincronización Docs $leftrightarrow$ Código:</strong> Compara tus archivos <code>README.md</code> y documentación contra las funciones y firmas del código real en el AST, curando discrepancias.
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Caché: <strong>Doc-Hash SHA-256</strong>.</li>
+                          <li>Ideal para: Mantener la documentación al día tras cada release.</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Elegir archivos de doc &gt; Modo <code>sync</code> o <code>audit</code>.</div>
+                    </div>
+
+                    <!-- NUDUS -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #38bdf8; margin: 0;">🩹 Sphexn Nudus</h3>
+                          <span class="badge badge-blue">Self-Heal</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Bucle Cerrado de Auto-Reparación:</strong> Ejecuta tu suite de tests (<code>npm test</code>), intercepta el stack trace de fallo, formula un parche quirúrgico y reintenta hasta que el test pase.
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Caché: <strong>Fail-Hash SHA-256</strong>.</li>
+                          <li>Ideal para: Auto-curación de tests rotos en CI/CD.</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Introducir comando de test &gt; Despachar Nudus.</div>
+                    </div>
+
+                    <!-- OBSCURUS -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #a855f7; margin: 0;">🛡️ Sphexn Obscurus</h3>
+                          <span class="badge badge-purple">Anti-Alucinación</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Filtro &amp; Desinfección de Código IA:</strong> Detecta librerías fantasma inexistentes, syntax errors y placeholders incompletos generados por IAs, aplicando rollback automático si no sana.
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Caché: <strong>Caché Dedicada de Runner</strong> (0 tokens).</li>
+                          <li>Ideal para: Sanear código tras sesiones de programación con asistentes.</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Patrón de archivos (<code>src/**</code>) &gt; Modo <code>heal</code>.</div>
+                    </div>
+
+                    <!-- REX -->
+                    <div class="species-guide-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                          <h3 style="font-size: 1.1rem; color: #f43f5e; margin: 0;">👑 Sphexn Rex</h3>
+                          <span class="badge badge-danger">DevOps DAG</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin-bottom: 12px;">
+                          <strong>Orquestador Declarativo &amp; Notificador:</strong> Ejecuta planes de infraestructura y automatización en Markdown (<code>sphexn_rex.md</code>) resolviendo DAGs topológicos y enviando reportes HTML.
+                        </p>
+                        <ul style="font-size: 0.8rem; color: #cbd5e1; margin: 0 0 14px 18px; padding: 0; line-height: 1.6;">
+                          <li>Caché: <strong>Caché Dedicada de Plan</strong> (0 tokens en planes idénticos).</li>
+                          <li>Ideal para: Despliegues continuos y flujos DevOps complejos.</li>
+                        </ul>
+                      </div>
+                      <div style="font-size: 0.76rem; color: #64748b;">Flujo: Redactar o subir <code>sphexn_rex.md</code> &gt; Despachar Rex.</div>
+                    </div>
+
+                  </div>
+                </article>
+
+                <!-- 4. VAULT & CACHE -->
+                <article id="onb-vault" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">📦</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">4. Storage Vault &amp; Caché Token-Saving</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Inmutabilidad descentralizada y ahorro del 100% de tokens en ejecuciones repetidas</span>
+                    </div>
+                  </div>
+
+                  <p style="font-size: 0.92rem; line-height: 1.7; color: #cbd5e1;">
+                    El repositorio <strong><code>.sphexn-storage</code></strong> actúa como la bóveda inmutable de auditoría. Cada vez que una especie se ejecuta, el resultado se almacena en formato JSON dentro de su directorio correspondiente (<code>audits/lucae</code>, <code>audits/praedator</code>, etc.).
+                  </p>
+
+                  <div style="background: rgba(16, 24, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px; margin: 20px 0;">
+                    <h4 style="color: #38bdf8; font-size: 1rem; margin: 0 0 10px 0;">¿Cómo garantiza la caché un 0% de Falsos Positivos?</h4>
+                    <p style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.65; margin-bottom: 12px;">
+                      La clave de la caché no es un timestamp ni un identificador superficial; es un hash <strong>SHA-256 de 64 caracteres hexadecimales</strong> calculado sobre el contenido íntegro:
+                    </p>
+                    <ul style="font-size: 0.85rem; color: #94a3b8; line-height: 1.7; margin: 0 0 0 20px;">
+                      <li>Si cambias un solo espacio, variable o línea en tus archivos &gt; el hash cambia de forma absoluta (efecto avalancha) &gt; <strong>Cache Miss y auditoría fresca garantizada</strong>.</li>
+                      <li>Si el código o el plan es idéntico &gt; <strong>Cache Hit</strong> &gt; El runner recupera el veredicto en milisegundos y consume <strong>0 tokens de LLM</strong>.</li>
+                      <li><strong>Solo se cachean éxitos:</strong> Las ejecuciones fallidas o con errores transitorios nunca se guardan en la caché, garantizando que el sistema reintente siempre ante anomalías.</li>
+                    </ul>
+                  </div>
+                </article>
+
+                <!-- 5. BUENAS & MALAS PRÁCTICAS -->
+                <article id="onb-practices" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">🛡️</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">5. Buenas &amp; Malas Prácticas (Do's &amp; Don'ts)</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Directrices para maximizar la seguridad, la velocidad y la eficiencia de cuota</span>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 18px;">
+                    
+                    <!-- BUENAS PRACTICAS -->
+                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 22px;">
+                      <h3 style="color: #10b981; font-size: 1.05rem; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
+                        <span>✅</span><span>Buenas Prácticas Recomendadas</span>
+                      </h3>
+                      <ul style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.7; margin: 0 0 0 18px; padding: 0;">
+                        <li><strong>Configura múltiples proveedores en el pool:</strong> Tener al menos Groq y Cerebras o Gemini asegura que si uno satura cuota (429), el runner conmute en milisegundos.</li>
+                        <li><strong>Utiliza ramas dedicadas para auto-healing:</strong> Al activar Sphexn Nudus u Obscurus, hazlo preferentemente en branches de feature para revisar los parches antes de la fusión.</li>
+                        <li><strong>Divide tus planes de Rex en tareas atómicas:</strong> En <code>sphexn_rex.md</code>, usa la directiva <code>- Depende de:</code> para crear secuencias DAG claras y predecibles.</li>
+                        <li><strong>Monitorea la complejidad en Lucae:</strong> Mantén la puntuación de salud arquitectónica por encima de 75/100 para evitar que tus módulos se conviertan en God Files.</li>
+                      </ul>
+                    </div>
+
+                    <!-- MALAS PRACTICAS -->
+                    <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 22px;">
+                      <h3 style="color: #ef4444; font-size: 1.05rem; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
+                        <span>❌</span><span>Malas Prácticas a Evitar</span>
+                      </h3>
+                      <ul style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.7; margin: 0 0 0 18px; padding: 0;">
+                        <li><strong>Nunca hardcodees secretos en el código:</strong> Sphexn Praedator bloqueará de inmediato cualquier PR que contenga claves o tokens en claro.</li>
+                        <li><strong>No otorgues permisos excesivos al GitHub PAT:</strong> Solo marca <code>repo</code> y <code>workflow</code>. Nunca concedas permisos <code>admin</code> o de organización innecesarios.</li>
+                        <li><strong>No ejecutes tests con efectos secundarios destructivos en Nudus:</strong> Asegúrate de que tu comando de test use mocks o bases de datos en memoria para no alterar datos de producción.</li>
+                        <li><strong>No intentes omitir los veredictos de seguridad:</strong> Si Obscurus detecta librerías fantasma, no las ignores; suelen ser vectores de inyección o dependencias alucinadas.</li>
+                      </ul>
+                    </div>
+
+                  </div>
+                </article>
+
+                <!-- 6. FAQ -->
+                <article id="onb-faq" class="onb-section-card">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="font-size: 2rem;">❓</span>
+                    <div>
+                      <h2 style="font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin: 0;">6. Preguntas Frecuentes (FAQ)</h2>
+                      <span class="text-muted" style="font-size: 0.82rem;">Dudas habituales sobre funcionamiento, límites, seguridad y persistencia</span>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; flex-direction: column;">
+                    
+                    <div class="onb-faq-item">
+                      <div class="onb-faq-q"><span>⚡</span>¿Qué sucede si un proveedor de IA se satura o devuelve Rate Limit (Error 429)?</div>
+                      <div class="onb-faq-a">
+                        No hay interrupción. Los runners de Sphexn disponen de un <strong>Fallback Matrix en cascada</strong>. Si por ejemplo Groq devuelve un error 429, el runner salta de forma instantánea al siguiente proveedor de la cadena (ej: Cerebras o Gemini) y reintenta la llamada de manera totalmente transparente.
+                      </div>
+                    </div>
+
+                    <div class="onb-faq-item">
+                      <div class="onb-faq-q"><span>🔒</span>¿Dónde se guardan mis API Keys y mi Personal Access Token de GitHub?</div>
+                      <div class="onb-faq-a">
+                        Tus claves se almacenan <strong>exclusivamente en el almacenamiento local de tu navegador</strong> (<code>localStorage</code>) o en los secretos cifrados de tu propio repositorio. No existe ningún backend intermedio ni servidor central de Sphexn recopilando tus credenciales.
+                      </div>
+                    </div>
+
+                    <div class="onb-faq-item">
+                      <div class="onb-faq-q"><span>💰</span>¿Por qué Sphexn es de coste $0 si utiliza modelos de Inteligencia Artificial?</div>
+                      <div class="onb-faq-a">
+                        Porque Sphexn aprovecha las capas gratuitas oficiales de los proveedores (como Groq Cloud, Google AI Studio, Cerebras) y el cómputo de GitHub Actions. Además, los motores de caché de diffs y de planes reducen a 0 el consumo de tokens en tareas repetitivas.
+                      </div>
+                    </div>
+
+                    <div class="onb-faq-item">
+                      <div class="onb-faq-q"><span>🔄</span>¿Cómo puedo forzar una ejecución completa si quiero ignorar la caché deliberadamente?</div>
+                      <div class="onb-faq-a">
+                        Dado que la caché depende del hash SHA-256 del contenido, basta con modificar cualquier detalle menor en tu archivo (por ejemplo, añadir un comentario o una línea en blanco en <code>sphexn_rex.md</code> o en los archivos de código). Esto generará un hash completamente nuevo y forzará una ejecución fresca de inmediato.
+                      </div>
+                    </div>
+
+                    <div class="onb-faq-item">
+                      <div class="onb-faq-q"><span>📁</span>¿Qué ocurre si mi repositorio <code>.sphexn-storage</code> no existe?</div>
+                      <div class="onb-faq-a">
+                        Al iniciar sesión con tu PAT por primera vez, Sphexn comprueba si <code>.sphexn-storage</code> existe en tu cuenta de GitHub. Si no está creado, la suite lo inicializa de manera automática como repositorio privado para custodiar tus auditorías y cachés.
+                      </div>
+                    </div>
+
+                  </div>
+                </article>
+
+              </div>
+            </div>
+          </section>
+
         </div>
       </main>
     </div>
@@ -1882,6 +2320,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260908_rex22"></script>
+  <script src="app.js?v=20260908_rex23"></script>
 </body>
 </html>

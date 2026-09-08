@@ -588,6 +588,54 @@ function initNavigation() {
   });
 }
 
+
+// ─── ONBOARDING & DOCUMENTATION CONTROLLER (DECOUPLED STICKY TOC) ────────────
+
+function initOnboardingTOC() {
+  const links = document.querySelectorAll('.onb-nav-link');
+  const sections = document.querySelectorAll('.onb-section-card');
+  const scrollContainer = document.querySelector('.content-scroll') || window;
+
+  if (links.length === 0) return;
+
+  // Smooth scroll handler for TOC clicks
+  links.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = link.getAttribute('href');
+      const targetEl = document.querySelector(targetId);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  });
+
+  // Scrollspy to update active link as content scrolls
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = '#' + entry.target.id;
+        links.forEach(l => {
+          if (l.getAttribute('href') === id) {
+            l.classList.add('active');
+          } else {
+            l.classList.remove('active');
+          }
+        });
+      }
+    });
+  }, {
+    root: document.querySelector('.content-scroll'),
+    rootMargin: '-10% 0px -70% 0px',
+    threshold: 0
+  });
+
+  sections.forEach(sec => observer.observe(sec));
+}
+window.initOnboardingTOC = initOnboardingTOC;
+
 function switchTab(tabId) {
   // Update sidebar buttons
   document.querySelectorAll('.nav-item').forEach(b => {
@@ -622,7 +670,8 @@ function switchTab(tabId) {
     rex: 'Sphexn Rex — DevOps Orchestrator',
     obscurus: 'Sphexn Obscurus — Hallucination Filter',
     vault: 'Storage Vault — .sphexn-storage',
-    providers: 'BYOAI Providers & Real-Time Usage'
+    providers: 'BYOAI Providers & Real-Time Usage',
+    onboarding: 'Onboarding, Guía de Uso & FAQ'
   };
   const titleElem = document.getElementById('page-title');
   if (titleElem && titleMap[tabId]) {
@@ -672,6 +721,9 @@ function switchTab(tabId) {
   }
   if (tabId === 'vault' || tabId === 'dashboard') {
     if (typeof window.loadAudits === 'function') window.loadAudits();
+  }
+  if (tabId === 'onboarding') {
+    if (typeof window.initOnboardingTOC === 'function') window.initOnboardingTOC();
   }
 }
 window.switchTab = switchTab;
