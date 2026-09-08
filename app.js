@@ -605,6 +605,13 @@ function switchTab(tabId) {
     targetPane.classList.add('active');
   }
 
+  // Reset scroll to top whenever tab changes
+  const contentScroll = document.querySelector('.content-scroll');
+  if (contentScroll) {
+    contentScroll.scrollTop = 0;
+  }
+  window.scrollTo(0, 0);
+
   // Update topbar title
   const titleMap = {
     dashboard: 'Dashboard Overview',
@@ -3233,9 +3240,7 @@ async function syncLucaeRunsWithGitHub() {
     localStorage.setItem('sphexn_lucae_runs', JSON.stringify(syncedRuns.slice(0, 50)));
     renderLucaeRunsInventory();
 
-    if (syncedRuns.length > 0) {
-      displayLucaeRun(syncedRuns[0].id);
-    }
+    // Note: Do not auto-display latest run on tab sync to prevent jumping scroll down
 
     if (statusPill) statusPill.textContent = 'Inventario sincronizado (' + syncedRuns.length + ' auditorías)';
     console.log('✅ Sincronización completa. Registros en tabla:', syncedRuns.length);
@@ -3404,11 +3409,7 @@ function deleteLucaeRun(runId) {
   // If the deleted run was the one being viewed, display next or placeholder
   const resContainer = document.getElementById('lucae-results-container');
   if (resContainer) {
-    if (runs.length > 0) {
-      displayLucaeRun(runs[0].id);
-    } else {
-      resContainer.innerHTML = '<div class="placeholder-box"><span class="large-icon">🔍</span><p>Inventario vacío. Ejecuta un análisis arriba para ver resultados.</p></div>';
-    }
+    resContainer.innerHTML = '<div class="placeholder-box"><span class="large-icon">🔍</span><p>Selecciona un repositorio arriba y ejecuta el análisis, o haz clic en cualquier ejecución del inventario para inspeccionar sus métricas y topología.</p></div>';
   }
 }
 window.deleteLucaeRun = deleteLucaeRun;
@@ -4497,9 +4498,7 @@ async function syncPraedatorRunsWithGitHub() {
     localStorage.setItem('sphexn_praedator_runs', JSON.stringify(syncedRuns.slice(0, 50)));
     renderPraedatorRunsInventory();
 
-    if (syncedRuns.length > 0) {
-      displayPraedatorRun(syncedRuns[0].id);
-    }
+    // Note: Do not auto-display latest run on tab sync to prevent jumping scroll down
   } catch (err) {
     console.error('Error syncing Praedator runs:', err);
   } finally {
@@ -4581,8 +4580,7 @@ function deletePraedatorRun(runId) {
   renderPraedatorRunsInventory();
   const container = document.getElementById('praedator-results-container');
   if (container) {
-    if (runs.length > 0) displayPraedatorRun(runs[0].id);
-    else container.innerHTML = '<div class="placeholder-box"><span class="large-icon">🦅</span><p>Inventario vacío. Ejecuta una auditoría arriba para ver resultados.</p></div>';
+    container.innerHTML = '<div class="placeholder-box"><span class="large-icon">🦅</span><p>Selecciona un modo arriba y ejecuta una auditoría de Praedator, o haz clic en cualquier ejecución del inventario para inspeccionar sus hallazgos de seguridad y sugerencias.</p></div>';
   }
 }
 window.deletePraedatorRun = deletePraedatorRun;
@@ -5088,11 +5086,7 @@ async function syncMicansRunsWithGitHub(force = false) {
     localStorage.setItem('sphexn_micans_audits', JSON.stringify(syncedAudits.slice(0, 50)));
     loadMicansAudits();
 
-    // If there's an active audit and results box is showing placeholder, auto-display latest
-    const resultsContainer = document.getElementById('micans-results');
-    if (syncedAudits.length > 0 && resultsContainer && resultsContainer.querySelector('.placeholder-box')) {
-      renderMicansDriftReport(syncedAudits[0]);
-    }
+    // Note: Do not auto-display latest audit on sync to prevent jumping scroll down
   } catch (err) {
     console.error('Error syncing Micans runs:', err);
   } finally {
@@ -5177,15 +5171,11 @@ function deleteMicansAudit(auditId) {
 
   const container = document.getElementById('micans-results');
   if (container) {
-    if (audits.length > 0) {
-      renderMicansDriftReport(audits[0]);
-    } else {
-      container.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
-        '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">📝</span>' +
-        '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Historial de Micans vacío. Selecciona un repositorio arriba y pulsa <strong>Auditar Drift</strong> para auditar.</p>' +
-        '<span class="text-muted" style="font-size: 0.8rem;">Cero falsos positivos garantizados por extracción de firmas AST y caché SHA-256 de $0 Compute.</span>' +
-      '</div>';
-    }
+    container.innerHTML = '<div class="placeholder-box" style="padding: 40px 20px; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(11, 17, 26, 0.4);">' +
+      '<span class="large-icon" style="font-size: 2.2rem; display: block; margin-bottom: 12px;">📝</span>' +
+      '<p style="font-size: 0.92rem; color: #cbd5e1; margin: 0 0 6px 0;">Selecciona un repositorio y pulsa <strong>Auditar Drift</strong> para contrastar el código contra la documentación.</p>' +
+      '<span class="text-muted" style="font-size: 0.8rem;">Cero falsos positivos garantizados por extracción de firmas AST y caché SHA-256 de $0 Compute.</span>' +
+    '</div>';
   }
 }
 window.deleteMicansAudit = deleteMicansAudit;
