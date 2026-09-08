@@ -2280,16 +2280,16 @@ async function loadAudits(triggerSync = false) {
       ...effectiveRex.map(r => ({
         species: 'rex',
         timestamp: r.timestamp,
-        summary: (r.repo || 'amglogicalis/testing') + ' (' + (r.branch || 'main') + ') — ' + (r.planTitle || 'DevOps Plan') + ': ' + (r.successCount || 0) + '/' + (r.totalTasks || 0) + ' tareas completadas',
-        verdict: r.status === 'SUCCESS' ? 'APPROVE' : (r.status === 'IN_PROGRESS' ? 'RUNNING' : (r.status || 'RECORDED')),
-        score: r.status === 'SUCCESS' ? 100 : (r.status === 'IN_PROGRESS' ? 75 : 0)
+        summary: (r.repo || 'amglogicalis/testing') + ' (' + (r.branch || 'main') + ') — ' + (r.planTitle || 'DevOps Plan') + ': ' + (r.successCount != null ? r.successCount : ((r.metrics && r.metrics.successCount) || 0)) + '/' + (r.totalTasks != null ? r.totalTasks : ((r.metrics && r.metrics.totalTasks) || 0)) + ' tareas completadas' + (r.cached ? ' [⚡ 0 Tokens Caché]' : ''),
+        verdict: (r.status === 'SUCCESS' || r.overallSuccess) ? 'APPROVE' : (r.status === 'IN_PROGRESS' ? 'RUNNING' : (r.status || 'RECORDED')),
+        score: (r.status === 'SUCCESS' || r.overallSuccess) ? 100 : (r.status === 'IN_PROGRESS' ? 75 : 0)
       })),
       ...obscurusAudits.map(o => ({
         species: 'obscurus',
         timestamp: o.timestamp,
-        summary: (o.repo || 'Codebase') + ' (' + (o.branch || 'main') + ') — Sanitización AST: ' + (o.totalFiles || 1) + ' archivos procesados',
-        verdict: o.verdict || (o.status === 'SUCCESS' ? 'APPROVE' : 'BLOCK'),
-        score: o.score || 95
+        summary: (o.repo || 'Codebase') + ' (' + (o.branch || 'main') + ') — Sanitización AST: ' + (o.totalFiles || o.totalFilesAudited || 1) + ' archivos procesados' + (o.cached ? ' [⚡ 0 Tokens Caché]' : ''),
+        verdict: o.verdict || (o.status === 'SUCCESS' || o.status === 'HEALTHY' || o.status === 'HEALED' ? 'APPROVE' : 'BLOCK'),
+        score: o.score || o.avgConfidence || 95
       })),
       ...lucaeRuns.map(l => ({
         species: 'lucae',
