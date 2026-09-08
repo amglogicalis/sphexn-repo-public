@@ -592,6 +592,8 @@ function initNavigation() {
 // ─── ONBOARDING & DOCUMENTATION CONTROLLER (DECOUPLED STICKY TOC) ────────────
 
 function initOnboardingTOC() {
+  if (window._onboardingTOCInitialized) return;
+  window._onboardingTOCInitialized = true;
   const links = document.querySelectorAll('.onb-nav-link');
   const sections = document.querySelectorAll('.onb-section-card');
   const scrollContainer = document.querySelector('.content-scroll') || window;

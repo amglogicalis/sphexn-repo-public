@@ -1495,6 +1495,11 @@ select option:checked {
 
 
 /* ─── ONBOARDING & DOCUMENTATION MODULE (DECOUPLED STICKY TOC) ─────────── */
+.onboarding-content {
+  min-width: 0;
+  width: 100%;
+}
+
 .onboarding-layout {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
