@@ -670,6 +670,9 @@ function switchTab(tabId) {
     loadProviders();
     loadTerraProvidersUI();
   }
+  if (tabId === 'vault' || tabId === 'dashboard') {
+    if (typeof window.loadAudits === 'function') window.loadAudits();
+  }
 }
 window.switchTab = switchTab;
 
@@ -2246,26 +2249,39 @@ function updateTelemetryUI() {
 
 // ─── VAULT & AUDIT LEDGER ─────────────────────────────────────────────────────
 
-async function loadAudits() {
+async function loadAudits(triggerSync = false) {
   const tbody = document.getElementById('audits-tbody');
   const vaultTbody = document.getElementById('vault-tbody');
   const countLabel = document.getElementById('vault-count-label');
   const kpiAudited = document.getElementById('kpi-audited');
 
   try {
+    if (triggerSync) {
+      if (typeof window.syncLucaeRunsWithGitHub === 'function') window.syncLucaeRunsWithGitHub().catch(() => {});
+      if (typeof window.syncPraedatorRunsWithGitHub === 'function') window.syncPraedatorRunsWithGitHub().catch(() => {});
+      if (typeof window.syncMicansRunsWithGitHub === 'function') window.syncMicansRunsWithGitHub().catch(() => {});
+      if (typeof window.syncNudusRunsWithGitHub === 'function') window.syncNudusRunsWithGitHub().catch(() => {});
+      if (typeof window.syncRexRunsWithGitHub === 'function') window.syncRexRunsWithGitHub().catch(() => {});
+      if (typeof window.syncObscurusRunsWithGitHub === 'function') window.syncObscurusRunsWithGitHub().catch(() => {});
+    }
+
     let list = [];
     const rexAudits = JSON.parse(localStorage.getItem('sphexn_rex_audits') || '[]') || [];
     const obscurusAudits = JSON.parse(localStorage.getItem('sphexn_obscurus_audits') || '[]') || [];
+    const lucaeRuns = JSON.parse(localStorage.getItem('sphexn_lucae_runs') || '[]') || [];
+    const praedatorRuns = JSON.parse(localStorage.getItem('sphexn_praedator_runs') || '[]') || [];
+    const micansAudits = JSON.parse(localStorage.getItem('sphexn_micans_audits') || '[]') || [];
+    const nudusAudits = JSON.parse(localStorage.getItem('sphexn_nudus_audits') || '[]') || [];
     const cachedVault = JSON.parse(localStorage.getItem('sphexn_vault_audits') || '[]') || [];
 
-    const effectiveRex = Array.isArray(rexAudits) && rexAudits.length > 0 ? rexAudits : DEFAULT_REX_AUDITS;
+    const effectiveRex = Array.isArray(rexAudits) && rexAudits.length > 0 ? rexAudits : (typeof DEFAULT_REX_AUDITS !== 'undefined' ? DEFAULT_REX_AUDITS : []);
 
     list = [
       ...effectiveRex.map(r => ({
         species: 'rex',
         timestamp: r.timestamp,
         summary: (r.repo || 'amglogicalis/testing') + ' (' + (r.branch || 'main') + ') — ' + (r.planTitle || 'DevOps Plan') + ': ' + (r.successCount || 0) + '/' + (r.totalTasks || 0) + ' tareas completadas',
-        verdict: r.status === 'SUCCESS' ? 'APPROVE' : (r.status === 'IN_PROGRESS' ? 'RUNNING' : 'FAIL'),
+        verdict: r.status === 'SUCCESS' ? 'APPROVE' : (r.status === 'IN_PROGRESS' ? 'RUNNING' : (r.status || 'RECORDED')),
         score: r.status === 'SUCCESS' ? 100 : (r.status === 'IN_PROGRESS' ? 75 : 0)
       })),
       ...obscurusAudits.map(o => ({
@@ -2275,8 +2291,39 @@ async function loadAudits() {
         verdict: o.verdict || (o.status === 'SUCCESS' ? 'APPROVE' : 'BLOCK'),
         score: o.score || 95
       })),
+      ...lucaeRuns.map(l => ({
+        species: 'lucae',
+        timestamp: l.timestamp,
+        summary: (l.repo || 'Codebase') + ' (' + (l.branch || 'main') + ') — AST Determinista ($0 / 0 Tokens): Salud ' + (l.healthScore != null ? l.healthScore : 100) + '/100 (' + (l.totalFiles || 0) + ' archivos)',
+        verdict: (l.healthScore && l.healthScore >= 70) ? 'HEALTHY' : 'WARNING',
+        score: l.healthScore != null ? l.healthScore : 100
+      })),
+      ...praedatorRuns.map(p => ({
+        species: 'praedator',
+        timestamp: p.timestamp,
+        summary: (p.repo || 'Codebase') + ' — Auditoría PRs (Diff-Hash Caché Token Saving): ' + (p.secretsCount || 0) + ' leaks detectados',
+        verdict: p.verdict || (p.secretsCount === 0 ? 'CLEAN' : 'ALERT'),
+        score: p.secretsCount === 0 ? 100 : 40
+      })),
+      ...micansAudits.map(m => ({
+        species: 'micans',
+        timestamp: m.timestamp,
+        summary: (m.repo || 'Codebase') + ' (' + (m.branch || 'main') + ') — Sync Docs/AST (Doc-Hash Caché): ' + (m.discrepanciesCount || 0) + ' discrepancias, ' + (m.patchesApplied || 0) + ' parches',
+        verdict: (m.status === 'COMPLETED' || m.status === 'SUCCESS' || m.discrepanciesCount === 0) ? 'SYNCED' : (m.status === 'DISPATCHED' ? 'RUNNING' : 'ALERT'),
+        score: m.discrepanciesCount === 0 ? 100 : 85
+      })),
+      ...nudusAudits.map(n => ({
+        species: 'nudus',
+        timestamp: n.timestamp,
+        summary: (n.repo || 'Codebase') + ' (' + (n.branch || 'main') + ') — Self-Healing Tests (Fail-Hash Caché): ' + (n.status === 'HEALED' ? 'Test Auto-Reparado' : (n.status || 'Test Loop')),
+        verdict: n.status === 'HEALED' ? 'HEALED' : (n.status === 'DISPATCHED' || n.status === 'RUNNING' ? 'RUNNING' : (n.conclusion === 'success' ? 'PASS' : 'TESTING')),
+        score: n.status === 'HEALED' ? 100 : 70
+      })),
       ...cachedVault
     ];
+
+    // Sort chronologically descending
+    list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
     if (window.location.protocol.startsWith('http') && !window.location.host.includes('github.io')) {
       try {
@@ -2292,15 +2339,25 @@ async function loadAudits() {
     if (kpiAudited) kpiAudited.textContent = String(list.length);
 
     if (list.length === 0) {
-      const emptyRow = '<tr><td colspan="4" class="text-center text-muted">No audits recorded yet. Run a species to populate the ledger.</td></tr>';
+      const emptyRow = '<tr><td colspan="4" class="text-center text-muted">No hay registros de auditoría en la bóveda aún. Ejecuta cualquier especie para poblar el ledger.</td></tr>';
       if (tbody) tbody.innerHTML = emptyRow;
       if (vaultTbody) vaultTbody.innerHTML = emptyRow;
       return;
     }
 
     const rows = list.map(a => {
-      const badgeClass = a.species === 'rex' ? 'badge-danger' : (a.species === 'obscurus' ? 'badge-purple' : 'badge-blue');
-      const verdictClass = a.verdict === 'BLOCK' || a.verdict === 'FAIL' ? 'badge-red' : (a.score && a.score >= 80 ? 'badge-green' : 'badge-amber');
+      const badgeClass =
+        a.species === 'rex' ? 'badge-danger' :
+        a.species === 'obscurus' ? 'badge-purple' :
+        a.species === 'praedator' ? 'badge-amber' :
+        a.species === 'micans' ? 'badge-green' :
+        a.species === 'nudus' ? 'badge-blue' :
+        a.species === 'lucae' ? 'badge-blue' : 'badge-blue';
+
+      const verdictClass =
+        (a.verdict === 'BLOCK' || a.verdict === 'FAIL' || a.verdict === 'ALERT') ? 'badge-red' :
+        (a.verdict === 'APPROVE' || a.verdict === 'HEALTHY' || a.verdict === 'CLEAN' || a.verdict === 'SYNCED' || a.verdict === 'HEALED' || a.verdict === 'PASS' || (a.score && a.score >= 80)) ? 'badge-green' : 'badge-amber';
+
       return '<tr>' +
         '<td><span class="badge ' + badgeClass + '">' + (a.species || 'SPHEXN').toUpperCase() + '</span></td>' +
         '<td><code>' + (a.timestamp ? new Date(a.timestamp).toLocaleString('es-ES') : '--') + '</code></td>' +
