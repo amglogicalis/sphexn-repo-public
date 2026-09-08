@@ -1645,7 +1645,7 @@
                 </div>
                 <button class="btn btn-secondary btn-sm" id="btn-refresh-telemetry">Refresh Live Stats</button>
               </div>
-              <div class="kpi-grid mt-16">
+              <div class="kpi-grid mt-16" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
                 <div class="kpi-card">
                   <div class="kpi-header"><span class="kpi-title">Active Key Pools</span><span>🔑</span></div>
                   <div class="kpi-value text-blue" id="telemetry-pools-count">0</div>
@@ -1661,11 +1661,7 @@
                   <div class="kpi-value" id="telemetry-tokens">0</div>
                   <div class="kpi-meta">Dynamic prompt & completion</div>
                 </div>
-                <div class="kpi-card">
-                  <div class="kpi-header"><span class="kpi-title">Estimated Cost</span><span>💰</span></div>
-                  <div class="kpi-value text-green" id="telemetry-cost">$0.00</div>
-                  <div class="kpi-meta">Zero Infrastructure ($0)</div>
-                </div>
+
               </div>
             </div>
 
@@ -1886,6 +1882,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260908_rex21"></script>
+  <script src="app.js?v=20260908_rex22"></script>
 </body>
 </html>
