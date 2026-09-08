@@ -607,7 +607,9 @@ function initOnboardingTOC() {
       const targetId = link.getAttribute('href');
       const targetEl = document.querySelector(targetId);
       if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (typeof targetEl.scrollIntoView === 'function') {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         links.forEach(l => l.classList.remove('active'));
         link.classList.add('active');
       }
@@ -2096,9 +2098,10 @@ async function loadKeyPools() {
             </thead>
             <tbody>
               ${keys.map(k => {
-                const masked = k.apiKey.length > 12 
-                  ? k.apiKey.slice(0, 7) + '••••••••' + k.apiKey.slice(-4)
-                  : '••••••••';
+                const keyVal = k.apiKey || (k.encHex && typeof decodeSeedKey === 'function' ? decodeSeedKey(k.encHex) : '') || '';
+                const masked = keyVal && keyVal.length > 12 
+                  ? keyVal.slice(0, 7) + '••••••••' + keyVal.slice(-4)
+                  : (keyVal ? '••••••••' : '••••••••••••');
                 const statusBadge = k.status === 'valid' 
                   ? '<span class="badge badge-green">VALID</span>'
                   : k.status === 'rate_limited'
@@ -2124,7 +2127,7 @@ async function loadKeyPools() {
                     <td><strong>${k.callsCount || 0}</strong></td>
                     <td>${(k.tokensUsed || 0).toLocaleString()}</td>
                     <td style="text-align: right;">
-                      <button class="key-action-btn" title="Probar conexión con la API" onclick="handleTestKey('${k.id}', '${provider}', '${k.apiKey}')">🔄</button>
+                      <button class="key-action-btn" title="Probar conexión con la API" onclick="handleTestKey('${k.id}', '${provider}', '${(keyVal || '').replace(/'/g, "\\'")}')">🔄</button>
                       <button class="key-action-btn delete" title="Eliminar clave del pool" onclick="handleDeleteKey('${k.id}', '${provider}')">🗑️</button>
                     </td>
                   </tr>
